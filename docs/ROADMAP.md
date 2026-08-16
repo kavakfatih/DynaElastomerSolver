@@ -1,6 +1,8 @@
 # DynaElastomerSolver Roadmap
 
-This roadmap reflects the current architectural decisions. Version numbers are development milestones, not release promises.
+**Architecture baseline:** v1.2 — ANSYS / Hexagon Marc benchmark revision
+
+Version numbers below are development milestones, not release promises.
 
 ## V0.1 — Computational Foundation
 
@@ -35,18 +37,23 @@ Deliverables:
 - Ogden N1
 - Ogden N2
 - Ogden N3
+- Arruda-Boyce
+- Gent
 - parameter metadata
+- canonical parameter conventions
 - parameter validation
-- constitutive stability checks
+- constitutive stability/admissibility checks
 - tangent diagnostics for every model
 
 Exit criterion: every model passes the Material Core production-eligibility pipeline up to material-point verification.
 
-## V0.3 — Calibration Engine
+## V0.3 — Calibration Engine / Material Lab Foundation
 
 Deliverables:
 
+- physical material record
 - experimental dataset model
+- raw vs processed test-data traceability
 - uniaxial tension data path
 - engineering stress/strain transformation utilities
 - objective-function API
@@ -57,6 +64,7 @@ Deliverables:
 - calibration provenance
 - material parameter-set storage
 - model comparison
+- validation-status model
 
 Then extend toward:
 
@@ -64,9 +72,9 @@ Then extend toward:
 - simple shear
 - planar tension
 - biaxial tension
-- volumetric data
+- volumetric/compressibility data
 
-Exit criterion: calibration round-trip tests reproduce known synthetic parameter sets within tolerance.
+Exit criterion: calibration round-trip tests reproduce known synthetic parameter sets within tolerance, with provenance retained.
 
 ## V0.4 — FEM Verification Foundation
 
@@ -74,7 +82,7 @@ Goal: build the first complete nonlinear FEM chain using a simple verification e
 
 Deliverables:
 
-- node / element / mesh data model
+- node / element / `InternalMesh` model
 - generalized DOF manager
 - Q4 plane-strain verification element
 - shape functions
@@ -84,13 +92,15 @@ Deliverables:
 - consistent tangent
 - global assembly
 - displacement boundary conditions
-- Newton-Raphson
+- basic Newton solver
 - convergence monitoring
 - simple dense/LAPACK linear solver path for small tests
+- first `AnalysisPrecheck` framework
+- first raw integration-point result storage
 
-Exit criterion: Neo-Hookean plane-strain benchmarks and mesh-convergence tests pass.
+Exit criterion: Neo-Hookean plane-strain benchmarks and mesh-convergence tests pass and invalid basic models are rejected before solve.
 
-## V0.5 — Mixed u-p Foundation
+## V0.5 — Mixed u-p / Incompressibility Foundation
 
 Goal: move from verification-only displacement elements to production-oriented nearly-incompressible elastomer technology.
 
@@ -98,10 +108,12 @@ Deliverables:
 
 - pressure field
 - generalized mixed DOF infrastructure
+- `IIncompressibilityStrategy`
 - mixed residual/tangent blocks
 - mixed element formulation research/implementation
 - incompressibility verification
-- volumetric-locking comparison against displacement-only element
+- volumetric-locking comparison against displacement-only formulation
+- material/formulation compatibility checks in `AnalysisPrecheck`
 
 Exit criterion: benchmark problems demonstrate stable nearly-incompressible behavior without unacceptable locking.
 
@@ -113,7 +125,8 @@ Deliverables:
 - `ur, uz` formulation
 - mixed `ur, uz, p` formulation
 - `2πR` integration
-- axisymmetric boundary sets
+- axisymmetric boundary/selection sets
+- axisymmetric geometry checks
 - axisymmetric benchmark suite
 
 Exit criterion: analytical/reference axisymmetric benchmarks and mesh convergence pass.
@@ -131,84 +144,174 @@ Deliverables:
 - reaction torque
 - torque-angle history
 - torsional stiffness calculation
+- torsion-specific convergence quantities where useful
 - torsion benchmark suite
 
 Exit criterion: DynaElastomerSolver results agree with independent reference solvers and selected physical torsion tests within defined engineering tolerances.
 
-## V0.8 — Nonlinear Robustness
+## V0.8 — Nonlinear Solution Manager / Robustness
+
+Goal: evolve the foundation Newton loop into a production-oriented nonlinear solution subsystem.
 
 Deliverables:
 
-- adaptive load stepping
-- cutback
+```text
+NonlinearSolutionManager
+├── NewtonSolver
+│   ├── FullNewton
+│   └── ModifiedNewton
+├── ConvergenceManager
+├── IncrementController
+├── CutbackManager
+├── LineSearch
+├── Predictor
+├── FailureRecovery
+└── StateCommitManager
+```
+
+Additional requirements:
+
+- automatic load stepping
+- initial/minimum/maximum increment controls
+- step growth
+- cutback and retry policy
 - multiple convergence criteria
-- line search
-- better failure diagnostics
-- negative-J / element-distortion detection
-- state rollback / commit framework
+- residual force monitoring
+- moment/torque monitoring where applicable
+- displacement/rotation correction monitoring
+- negative-J / severe element-distortion detection
+- robust state rollback / commit
+- detailed convergence history
+- Automatic and Advanced solver-control modes
 
 Future research:
 
-- arc-length
-- advanced continuation strategies
+- arc-length / continuation methods
+- stabilization techniques
+- advanced predictor strategies
+
+Exit criterion: defined difficult nonlinear benchmarks converge reproducibly with documented step/cutback histories.
 
 ## V0.9 — Engineering Pre/Post Processor
 
-Deliverables:
-
 ### Geometry
+
 - DXF import adapter
 - project-owned `AnalysisGeometry`
 - line / arc / spline interpretation
 - loop/region construction
 - geometry validation/healing
+- Geometry Check → Repair → Recheck workflow
 - layer metadata
 - axis definition
 - named boundaries
-
-### Mesh
-- `IMeshProvider`
-- Gmsh adapter
-- `InternalMesh`
-- boundary/region mapping
-- mesh-quality checks
-
-### Results
-- displacement contours
-- stress/strain measures
-- pressure
-- principal stretch
-- force-displacement history
-- torque-angle history
-- convergence history
+- `SelectionSet`
 
 No general-purpose sketch/CAD tools are planned.
+
+### Mesh
+
+- `IMeshProvider`
+- Gmsh adapter
+- expanded `InternalMesh`
+- element/boundary/region/material sets
+- element orientation metadata
+- integration-scheme metadata
+- mesh-quality metadata
+- boundary/region mapping
+- `MeshPrecheck`
+- global size
+- edge size / division controls
+- local/region refinement
+- mapped/structured quad request where supported
+
+### Analysis precheck
+
+Integrate validation from:
+
+- geometry
+- mesh
+- material
+- element/formulation
+- boundary conditions
+- solver configuration
+
+Fatal errors block solution; nonfatal concerns are shown as warnings.
+
+### Results
+
+Implement explicit separation:
+
+```text
+ResultDatabase
+├── RawResults
+│   ├── nodal primary results
+│   └── integration-point results
+├── DisplayResults
+│   └── extrapolated/averaged nodal fields
+└── GlobalHistories
+```
+
+User-facing tools:
+
+- displacement/stretch/stress/pressure/J/energy contours
+- result scoping
+- min/max
+- node probe
+- element probe
+- `GaussPointInspector`
+- path
+- charts/history
+- reaction force/torque
+- force-displacement
+- torque-angle
+- tangent/secant stiffness
+- derived results
+- CSV export
+- engineering report
+
+### Experimental comparison
+
+- import product-test history
+- simulation/test overlay
+- RMSE
+- maximum/mean/relative error
+- stiffness error
+- comparison validity range
+
+Exit criterion: a complete DXF → mesh → solve → inspect → compare-to-test workflow can be performed without external postprocessing software.
 
 ## V1.0 — Validated Elastomer Analysis Platform
 
 Target workflow:
 
 ```text
+Physical Material / Experimental Data
+ ↓
+Calibration / Material Validation
+ ↓
 DXF
  ↓
 Analysis Geometry
  ↓
 Mesh
  ↓
-Validated Material / Calibration
+AnalysisPrecheck
  ↓
-Nonlinear FEM
+Finite-Strain Nonlinear FEM
  ↓
 Plane / Axisymmetric / Axisymmetric Torsion
  ↓
-Engineering Results
+Raw + Engineering Results
  ↓
 Independent Solver Benchmarks
  ↓
-Experimental Validation
+Physical Product Test Comparison
+ ↓
+Validation
 ```
 
-V1.0 should be considered a validated engineering platform only after the required verification matrix is complete.
+V1.0 is considered an engineering platform only after the required verification matrix is complete.
 
 ## Future research tracks
 
@@ -220,12 +323,16 @@ Not committed to initial V1.0 scope:
 - hysteresis
 - material damage
 - cyclic elastomer behavior
+- rubber fatigue/life methods
 - harmonic/dynamic analysis
 - transient dynamics
 - contact
 - rigid-body definitions
 - elastomer-specific automatic mesher
-- external material adapters for ANSYS / Marc / CalculiX
+- deformed-profile DXF export
+- ANSYS material/user-material adapters
+- Marc UMATERIAL adapter
+- CalculiX material adapter
 - alternative sparse solver backends
 
 ## Development rule
@@ -239,7 +346,7 @@ Implementation
  ↓
 Unit / Constitutive Verification
  ↓
-Element Benchmark
+Material-Point / Element Benchmark
  ↓
 Mesh Convergence
  ↓
@@ -247,3 +354,7 @@ Independent Solver Comparison
  ↓
 Experimental Validation where applicable
 ```
+
+## Product principle
+
+DynaElastomerSolver does not compete with general-purpose CAE systems by breadth. It aims to provide a more direct and transparent engineering chain for elastomer material characterization, nonlinear product analysis and experimental validation.
