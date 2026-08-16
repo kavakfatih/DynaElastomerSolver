@@ -1,8 +1,11 @@
-# DynaElastomerSolver — Material Core Architecture v1.0
+# DynaElastomerSolver — Material Core Architecture v1.1
+
+**Revision:** ANSYS / Marc / FEBio / MFront benchmark alignment  
+**Status:** Accepted
 
 ## 1. Goal
 
-The Material Core is a solver-independent constitutive science layer. FEM, calibration, material-point verification and future external-solver adapters must use the same canonical material implementation.
+The Material Core is a solver-independent constitutive science layer. FEM, calibration, material-point verification and future external-solver adapters use the same canonical implementation.
 
 ```text
                     Material Core
@@ -16,6 +19,8 @@ The Material Core is a solver-independent constitutive science layer. FEM, calib
                 Future Solver Export
 ```
 
+A physical material record and a mathematical constitutive fit are separate objects.
+
 ## 2. Core types
 
 ```text
@@ -25,19 +30,21 @@ material_definition_t           physical material record
 material_parameter_set_t        constitutive parameters
 material_kinematics_t           F, J and derived quantities
 material_point_state_t          integration-point state
-material_response_t             W, stress and tangent
+material_response_t             energy/stress/tangent/state response
 material_validation_t           verification metadata
+material_provenance_t           source and calibration traceability
 ```
 
 ## 3. Material model contract
 
-Illustrative Modern Fortran interface:
+Illustrative Modern Fortran contract:
 
 ```fortran
 type, abstract :: material_model_t
 contains
     procedure(material_evaluate_if), deferred :: evaluate
     procedure(material_validate_if), deferred :: validate_parameters
+    procedure(material_metadata_if), deferred :: metadata
 end type material_model_t
 
 type, abstract, extends(material_model_t) :: hyperelastic_model_t
@@ -46,19 +53,24 @@ contains
 end type hyperelastic_model_t
 ```
 
-Initial concrete models:
+Target V1.0 hyperelastic family:
 
 ```text
 hyperelastic_model_t
 ├── neo_hookean_t
 ├── mooney_rivlin_t
 ├── yeoh_t
-└── ogden_t
+├── ogden_t
+│   ├── N1
+│   ├── N2
+│   └── N3
+├── arruda_boyce_t
+└── gent_t
 ```
 
-## 4. Kinematics passed to materials
+## 4. Material kinematics
 
-The constitutive model does not know the FEM element.
+The constitutive model never depends on a specific FEM element.
 
 ```text
 material_kinematics_t
@@ -67,10 +79,11 @@ material_kinematics_t
 ├── C(3,3)
 ├── B(3,3)
 ├── principal_stretches
-└── optional temperature/time fields
+├── optional time increment
+└── optional temperature fields
 ```
 
-The caller may be FEM, calibration or a material-point test driver.
+The caller may be FEM, calibration, a point-test driver or an external adapter.
 
 ## 5. Material response
 
@@ -80,8 +93,9 @@ material_response_t
 ├── first_piola_stress P
 ├── cauchy_stress
 ├── consistent_tangent
-├── pressure
+├── constitutive pressure quantities where applicable
 ├── J
+├── updated trial-state data
 └── status
 ```
 
@@ -93,14 +107,14 @@ Hyperelastic foundation:
 
 `A = ∂P / ∂F`
 
-## 6. Material-point state
+The exact canonical tangent representation is fixed by the Material Core API and documented independently from any external solver convention.
 
-A state framework exists from the first version even if the initial hyperelastic models are history independent.
+## 6. Material-point state
 
 ```text
 material_point_state_t
-├── committed state
-├── trial state
+├── committed
+├── trial
 └── history variables
 ```
 
@@ -115,130 +129,77 @@ Newton iterations
  ┌─┴──────────┐
  fail      converge
   │             │
-discard       commit
+revert        commit
 ```
 
-This enables future viscoelasticity, Mullins effect, hysteresis and damage without redesigning the material API.
+History storage exists from the first release even when basic hyperelastic models are stateless. This enables later viscoelasticity, Mullins effect, hysteresis and damage without breaking the material API.
 
-## 7. Isochoric / volumetric separation
+## 7. Constitutive law is not the incompressibility strategy
 
-Material science and incompressibility enforcement are separate concerns.
+This separation is mandatory.
 
 ```text
-IsochoricConstitutiveModel
-├── Neo-Hookean
-├── Mooney-Rivlin
-├── Yeoh
-└── Ogden
-
-Volumetric / Constraint Formulation
-├── Compressible
-├── NearlyIncompressible
-└── MixedUP
+Constitutive Law
+      ↓
+Canonical Material Response
+      ↓
+IIncompressibilityStrategy
+      ↓
+Element Formulation
 ```
+
+A Yeoh, Ogden or other constitutive class does not decide whether the FE formulation uses mixed `u-p`, a volumetric penalty, or another constraint method.
 
 Conceptually:
 
 `W = W_iso(F_bar) + W_vol(J)`
 
-Mixed `u-p` enforcement belongs to the FE formulation, not inside each material class.
+but FE enforcement is owned by the formulation/constraint layer.
 
-## 8. Two material creation paths
+Target strategies:
 
 ```text
-Material Creation
-│
-├── Direct Parameters
-│      ↓
-│  Parameter Validation
-│
-└── Experimental Data
-       ↓
-   Calibration
-       ↓
-   Parameter Set
+IIncompressibilityStrategy
+├── Compressible
+├── NearlyIncompressible
+└── MixedUP
 ```
 
-Both paths produce the same canonical `material_parameter_set_t`.
+## 8. Native material-plugin architecture
 
-## 9. Calibration driver
+DynaElastomerSolver supports extensibility without modifying FEM.
 
 ```text
-Experimental Dataset
-       ↓
-Test Kinematics Driver
-       ↓
 Material Core
-       ↓
-Predicted Response
-       ↓
-Objective Function
-       ↓
-IOptimizer
-       ↓
-Parameter Set
+├── Native Models
+├── User Material Plugin
+└── External Material Adapter
 ```
 
-Target dataset types:
-
-- uniaxial tension
-- compression
-- simple shear
-- planar tension
-- biaxial tension
-- volumetric
-
-Calibration and FEM must never maintain duplicate implementations of the same constitutive law.
-
-## 10. Material-point test driver
-
-Before FEM, every constitutive model can be exercised under prescribed deformation paths.
-
-Example:
+Canonical plugin call:
 
 ```text
-Uniaxial stretch λ
-      ↓
-Analytical deformation gradient F
-      ↓
-Material Core
-      ↓
-Energy / Stress / Tangent
+evaluate(kinematics, trial_state, parameters)
+    ↓
+MaterialResponse
 ```
 
-This creates an independent constitutive verification layer.
+Required plugin capabilities:
 
-## 11. Tangent diagnostic
+- stable model identifier/version
+- parameter metadata
+- parameter validation
+- material response evaluation
+- state initialization
+- trial/commit/revert support when stateful
+- error/status reporting
+- tangent declaration/availability
 
-A new material cannot become FEM-eligible until its consistent tangent is numerically verified.
+A plugin cannot expose ANSYS-, Marc-, FEBio- or other solver-native parameter conventions directly into the core. External conventions are converted at adapters.
 
-Central finite difference concept:
+## 9. Parameter metadata
 
-`A_FD(iJkL) ≈ [P(F + εE_kL) - P(F - εE_kL)] / (2ε)`
-
-Suggested error metric:
-
-`e_A = ||A_analytic - A_FD|| / max(1, ||A_FD||)`
-
-Pipeline:
-
-```text
-Material implementation
-        ↓
-Energy tests
-        ↓
-Stress tests
-        ↓
-Tangent diagnostic
-        ↓
-Material-point tests
-        ↓
-FEM eligible
-```
-
-## 12. Parameter metadata
-
-Every model declares a parameter schema and capabilities.
+Every material model declares a schema shared by UI, calibration, serialization and validation.
 
 Example Yeoh:
 
@@ -260,45 +221,169 @@ Example Ogden N2:
 μ1, α1, μ2, α2
 ```
 
-This metadata is shared by UI, calibration, serialization and validation.
+Metadata also records units/conventions, allowed bounds and model-version information.
 
-## 13. Physical material vs mathematical fit
+## 10. Two material creation paths
+
+```text
+Material Creation
+│
+├── Direct Parameters
+│      ↓
+│  Parameter Validation
+│
+└── Experimental Data
+       ↓
+   Calibration
+       ↓
+   Parameter Set
+```
+
+Both produce the same canonical `material_parameter_set_t`.
+
+## 11. Experimental datasets
+
+Target dataset families:
+
+- uniaxial tension
+- compression
+- simple shear
+- planar tension
+- biaxial tension
+- volumetric/compressibility
+
+Raw test data and processed/calibration-ready data are retained separately where practical so transformations remain traceable.
+
+## 12. Calibration driver
+
+```text
+Experimental Dataset
+       ↓
+Test Kinematics Driver
+       ↓
+Material Core
+       ↓
+Predicted Response
+       ↓
+Objective Function
+       ↓
+IOptimizer
+       ↓
+Parameter Set
+```
+
+Calibration and FEM never maintain duplicate implementations of the same constitutive law.
+
+Model comparison is not based on R² alone. The selection/validation layer may consider:
+
+- RMSE / residual structure
+- parameter bounds
+- physical admissibility
+- stability checks
+- valid strain range
+- multi-mode consistency
+- extrapolation behavior
+- product-level validation
+
+## 13. Material-point test driver
+
+Every constitutive model can be exercised without a finite-element mesh.
+
+```text
+Prescribed deformation path
+      ↓
+material_kinematics_t
+      ↓
+Material Core
+      ↓
+Energy / Stress / Tangent / State
+```
+
+Target point-test paths include:
+
+- uniaxial
+- equibiaxial
+- planar
+- simple shear
+- volumetric
+- cyclic paths for future stateful models
+
+## 14. Tangent diagnostic
+
+No new material becomes FEM-eligible until its consistent tangent is verified.
+
+Finite-difference reference:
+
+`A_FD(iJkL) ≈ [P(F + εE_kL) - P(F - εE_kL)] / (2ε)`
+
+Example relative error:
+
+`e_A = ||A_analytic - A_FD|| / max(1, ||A_FD||)`
+
+Pipeline:
+
+```text
+Material implementation
+        ↓
+Energy tests
+        ↓
+Stress tests
+        ↓
+Tangent diagnostic
+        ↓
+Material-point tests
+        ↓
+FEM eligible
+```
+
+The diagnostic remains available as a development/verification tool even after production qualification.
+
+## 15. Physical material vs mathematical fit
 
 ```text
 material_definition_t
 ├── Identity
 │   ├── polymer family
-│   ├── compound
+│   ├── compound ID
 │   ├── supplier
-│   └── batch / lot
+│   ├── batch / lot
+│   ├── hardness metadata
+│   ├── density metadata
+│   ├── cure condition
+│   └── test/environment metadata
 ├── Experimental datasets
 ├── Parameter sets
 │   ├── Yeoh fit
 │   ├── Ogden fit
-│   └── Mooney-Rivlin fit
+│   ├── Mooney-Rivlin fit
+│   └── other models
 └── Validation records
 ```
 
-A single physical compound may own several constitutive fits.
+Not every identity/traceability field is a solver input; those fields preserve engineering provenance.
 
-## 14. Provenance
+## 16. Provenance
 
-Each parameter set records:
+Each parameter set records at minimum:
 
-- source
-- dataset IDs
+- source type
+- source/reference identifier
+- input dataset IDs
 - calibration engine version
+- material-model version
 - optimizer
 - objective definition
+- parameter bounds
 - fit metrics
 - calibration date
 - valid strain range
 - test temperature range
-- verification/validation status
+- verification status
+- product-validation links where available
 
-The purpose is long-term scientific traceability.
+The system must be able to answer: **Where did this parameter set come from?**
 
-## 15. Validation status
+## 17. Validation status
 
 Suggested states:
 
@@ -310,24 +395,41 @@ VERIFIED
 PRODUCT_VALIDATED
 ```
 
-Generic literature values remain `REFERENCE`. A compound calibrated from physical tests and validated against product testing may become `PRODUCT_VALIDATED`.
+A generic literature value remains `REFERENCE`. A compound fitted from controlled experimental data and confirmed through independent/product tests may become `PRODUCT_VALIDATED`.
 
-## 16. Analysis precheck contribution
+## 18. Material contribution to AnalysisPrecheck
 
 The Material Core reports:
 
 - parameter validity
 - missing required parameters
-- formulation compatibility
+- constitutive/formulation compatibility
 - known validity range
-- nearly-incompressible requirement
-- temperature-range warnings
+- nearly-incompressible recommendation/requirement
+- temperature-range warning
 - stability-check status
 - calibration/validation status
+- plugin/model version availability
 
-The global `AnalysisPrecheck` combines this with geometry, mesh and boundary-condition checks.
+The global `AnalysisPrecheck` combines these with geometry, mesh and boundary-condition diagnostics.
 
-## 17. Future solver adapters
+## 19. Canonical external conversions
+
+External solver conventions are never canonical.
+
+```text
+ANSYS Material Parameters
+        ↓ adapter
+Dyna Canonical Parameter Set
+
+Marc Material Parameters
+        ↓ adapter
+Dyna Canonical Parameter Set
+```
+
+The reverse direction may be provided later for export/user-material integration.
+
+## 20. Future solver adapters
 
 ```text
 DynaElastomer Material Core
@@ -338,7 +440,7 @@ DynaElastomer Material Core
 └── generic material API   [future]
 ```
 
-## 18. Initial implementation sequence
+## 21. Initial implementation sequence
 
 ### MC-0.1
 - `material_kinematics_t`
@@ -355,22 +457,25 @@ DynaElastomer Material Core
 
 ### MC-0.3
 - Ogden N1/N2/N3
+- Arruda-Boyce
+- Gent
 - parameter metadata
 - stability/parameter validation
 
 ### MC-0.4
 - `material_point_state_t`
-- committed/trial infrastructure
+- committed/trial/revert infrastructure
+- plugin lifecycle contract
 
 ### MC-0.5
-- experimental data integration
+- experimental-data integration
 - calibration engine
 - provenance
 - validation records
 
-## 19. Production acceptance rule
+## 22. Production acceptance rule
 
-A constitutive model is not considered production-ready until it passes:
+A constitutive model is not production-ready until it passes the applicable stages:
 
 1. parameter validation
 2. analytical energy checks
@@ -379,10 +484,11 @@ A constitutive model is not considered production-ready until it passes:
 5. material-point tests
 6. calibration round-trip tests
 7. single-element FEM tests
-8. mesh-convergence benchmarks
-9. independent solver comparison
-10. experimental validation where applicable
+8. mixed/incompressibility compatibility tests
+9. mesh-convergence benchmarks
+10. independent solver comparison
+11. experimental validation where applicable
 
-## 20. Principle
+## 23. Principle
 
-**Material knowledge is not embedded in the FEM solver. Calibration, FEM and verification share one canonical constitutive implementation.**
+> Material knowledge is not embedded in the FEM solver. Calibration, FEM, point testing and future external interfaces share one canonical constitutive implementation, while incompressibility enforcement remains an FE-formulation concern.
