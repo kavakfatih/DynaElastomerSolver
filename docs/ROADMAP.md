@@ -66,6 +66,12 @@ Amaç: mimari ile çalışan fizik arasındaki mesafeyi erken kapatmak.
 - [x] Gauss-point `F / J / P / Cauchy / strain-energy` saklama
 - [x] `InternalMesh` Newton solver adapteri
 - [x] başarılı final state'ten ham integration-point sonuçlarını toplama
+- [x] backend-bağımsız `des_linear_solver`
+- [x] `linear_solver_settings_t` / `linear_solver_report_t`
+- [x] aktif stdlib/LAPACK dense backend
+- [x] lineer residual ve backend status raporlama
+- [x] unsupported-backend failure yolu
+- [x] eski `des_dense_linear` yolunun compatibility wrapper'a dönüştürülmesi
 
 ### V0.2 doğrulama zinciri
 
@@ -79,14 +85,15 @@ Neo-Hookean
 → adaptive cutback/retry
 → InternalMesh
 → raw Gauss-point results
+→ Dyna linear solver boundary
 → patch / mesh refinement
 ```
 
 ### Kalanlar
 
-- [ ] stdlib tabanlı full build + 18/18 CTest doğrulaması
+- [ ] stdlib tabanlı full build + 19/19 CTest doğrulaması
+- [ ] `newton_report_t` içine son lineer solver raporunu taşımak
 - [ ] ek nonlinear distortion / robustness benchmark'ları
-- [ ] production linear-solver adapter sınırı
 - [ ] bağımsız solver/reference karşılaştırmasının genişletilmesi
 - [ ] macOS Apple Silicon + gfortran build/test
 - [ ] Windows x64 + Intel ifx build/test
@@ -94,7 +101,7 @@ Neo-Hookean
 
 ### V0.2 çıkış kriteri
 
-Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik/bağımsız referanslarla tolerans içinde uyuşmalı; mesh refinement ve robustness testleri geçmeli; compiler matrisi doğrulanmalıdır.
+Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik/bağımsız referanslarla tolerans içinde uyuşmalı; mesh refinement ve robustness testleri geçmeli; lineer solver sınırı raporlanabilir olmalı ve compiler matrisi doğrulanmalıdır.
 
 ---
 
@@ -128,6 +135,7 @@ Ek teslimatlar:
 - formulation diagnostics
 - locking benchmark seti
 - `InternalMesh` ve raw integration-point result modelinin mixed formulation'a genişletilmesi
+- Dyna lineer solver sınırı üzerinden mixed sistem solver benchmark'ı
 
 Çıkış kriteri:
 
@@ -258,7 +266,7 @@ Parameter Set + Metrics + Provenance
 
 ## V0.8 — Solver Robustness / NonlinearSolutionManager
 
-V0.2'de gerçek ihtiyaçtan doğan adaptive increment, cutback/retry, state management ve history mekanizmaları formulation-independent production seviyesine taşınacaktır.
+V0.2'de gerçek ihtiyaçtan doğan adaptive increment, cutback/retry, state management, history ve lineer solver raporlama mekanizmaları formulation-independent production seviyesine taşınacaktır.
 
 Zorunlu hedefler:
 
@@ -269,7 +277,7 @@ Zorunlu hedefler:
 - negative `J`
 - severe distortion diagnostics
 - mixed pressure diagnostics
-- linear solver report
+- backend-independent linear solver report
 - solver history
 
 İhtiyaç kanıtlanırsa:
