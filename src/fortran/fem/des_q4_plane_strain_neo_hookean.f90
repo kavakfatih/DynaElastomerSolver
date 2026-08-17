@@ -1,6 +1,6 @@
 module des_q4_plane_strain_neo_hookean
   use des_kinds, only : dp
-  use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_ELEMENT_JACOBIAN, DES_ERROR_MATERIAL_POINT
+  use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_ELEMENT_JACOBIAN
   use des_material_types, only : material_kinematics_t, material_response_t, neo_hookean_parameters_t
   use des_neo_hookean, only : evaluate_neo_hookean
   use des_q4_shape, only : q4_shape_functions
@@ -62,7 +62,8 @@ contains
       min_j = min(min_j, response%J)
 
       if (.not. response%valid) then
-        status = DES_ERROR_MATERIAL_POINT
+        ! Material-point katmanındaki gerçek neden korunur; örneğin non-positive J.
+        status = response%status
         return
       end if
 
