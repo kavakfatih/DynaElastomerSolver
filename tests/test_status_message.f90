@@ -1,6 +1,6 @@
 program test_status_message
   use des_status, only : DES_ERROR_NONPOSITIVE_J, DES_ERROR_CUTBACK_EXHAUSTED, &
-                         des_status_message
+                         DES_ERROR_UNSUPPORTED_LINEAR_BACKEND, des_status_message
   implicit none
   character(len=80) :: message
 
@@ -12,6 +12,11 @@ program test_status_message
   message = des_status_message(DES_ERROR_CUTBACK_EXHAUSTED)
   if (index(message, 'Cutback') == 0) then
     error stop 'Cutback exhaustion mesajı bulunamadı.'
+  end if
+
+  message = des_status_message(DES_ERROR_UNSUPPORTED_LINEAR_BACKEND)
+  if (index(message, 'lineer solver backend') == 0) then
+    error stop 'Lineer backend hata mesajı bulunamadı.'
   end if
 
   message = des_status_message(-9999)
