@@ -102,3 +102,9 @@ des_add_fortran_test(
   solver.state_history_cutback_exhaustion
   test_solver_state_history.f90
 )
+
+des_add_fortran_test(
+  test_status_message
+  core.status_message
+  test_status_message.f90
+)
