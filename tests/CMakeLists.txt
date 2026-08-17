@@ -96,3 +96,9 @@ des_add_fortran_test(
   solver.q4.plane_strain.adaptive_cutback
   test_q4_adaptive_cutback.f90
 )
+
+des_add_fortran_test(
+  test_solver_state_history
+  solver.state_history_cutback_exhaustion
+  test_solver_state_history.f90
+)
