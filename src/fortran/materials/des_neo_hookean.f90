@@ -3,6 +3,7 @@ module des_neo_hookean
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_PARAMETERS, &
                          DES_ERROR_SINGULAR_F, DES_ERROR_NONPOSITIVE_J
   use des_tensor3, only : inverse3, identity3
+  use des_finite_strain, only : left_cauchy_green, first_invariant_from_F
   use des_material_types, only : material_kinematics_t, material_response_t, neo_hookean_parameters_t
   implicit none
   private
@@ -51,8 +52,8 @@ contains
 
     FinvT = transpose(Finv)
     I = identity3()
-    b = matmul(F, transpose(F))
-    I1 = sum(F*F)
+    b = left_cauchy_green(F)
+    I1 = first_invariant_from_F(F)
     lnJ = log(J)
 
     ! Sıkıştırılabilir Neo-Hookean enerji:
