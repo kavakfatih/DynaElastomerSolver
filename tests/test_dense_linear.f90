@@ -15,11 +15,22 @@ program test_dense_linear
   b = matmul(A, expected)
 
   call solve_dense_system(A, b, x, ok)
-  if (.not. ok) error stop 'Dense lineer cozum basarisiz.'
+  if (.not. ok) error stop 'stdlib tabanli dense lineer cozum basarisiz.'
   residual = matmul(A,x)-b
   if (maxval(abs(x-expected)) > 2.0e-13_dp) error stop 'Dense cozum beklenen x ile uyusmuyor.'
   if (maxval(abs(residual)) > 2.0e-13_dp) error stop 'Dense cozum residual toleransi asti.'
 
+  ! Singular sistemde stdlib hata state'i Dyna adaptöründen kontrollü olarak
+  ! ok=.false. biçiminde dönmeli; program error-stop ile sonlanmamalıdır.
+  A = 0.0_dp
+  A(1,1) = 1.0_dp
+  A(2,2) = 1.0_dp
+  A(3,3) = 1.0_dp
+  A(4,:) = A(3,:)
+  b = 1.0_dp
+  call solve_dense_system(A, b, x, ok)
+  if (ok) error stop 'Singular sistem basarili olarak raporlandi.'
+
   write(*,'(A,ES12.4)') 'Dense residual = ', maxval(abs(residual))
-  write(*,'(A)') 'Dense linear solver testi BASARILI.'
+  write(*,'(A)') 'Fortran stdlib lineer solver entegrasyon testi BASARILI.'
 end program test_dense_linear
