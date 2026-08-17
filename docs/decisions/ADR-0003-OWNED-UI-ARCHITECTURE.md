@@ -1,67 +1,67 @@
-# ADR-0003 — Owned UI Architecture
+# ADR-0003 — Projeye Ait UI Mimarisi
 
-**Status:** Accepted  
-**Project:** DynaElastomerSolver
+**Durum:** Kabul edildi  
+**Proje:** DynaElastomerSolver
 
-## Context
+## Bağlam
 
-DynaElastomerSolver requires a professional engineering desktop UI with ANSYS-like information architecture but a visually distinct, minimal technical design language. Open-source CAE systems provide useful ideas, but allowing an external CAE application or UI framework to become the owner of project state, engineering behavior or product identity would create unacceptable coupling.
+DynaElastomerSolver, ANSYS benzeri bilgi mimarisine sahip ancak görsel olarak farklı, minimal ve teknik bir profesyonel mühendislik masaüstü arayüzüne ihtiyaç duyar. Açık kaynak CAE sistemleri yararlı fikirler sağlayabilir; ancak harici bir CAE uygulamasının veya UI framework'ünün proje durumunun, mühendislik davranışının ya da ürün kimliğinin sahibi haline gelmesi kabul edilemez bir bağımlılık oluşturur.
 
-## Decision
+## Karar
 
-DynaElastomerSolver owns its complete user-experience architecture.
+DynaElastomerSolver kullanıcı deneyimi mimarisinin tamamına kendisi sahip olacaktır.
 
-Owned components include:
+Projeye ait bileşenler:
 
-- AppShell semantics
-- module system
-- Navigator structure
-- Workspace model
-- Inspector schemas
-- selection model
-- command system
-- undo/redo intent
-- solve monitor semantics
+- AppShell anlamı
+- modül sistemi
+- Navigator yapısı
+- Workspace modeli
+- Inspector şemaları
+- seçim modeli
+- command sistemi
+- undo/redo davranışı
+- solve monitor anlamı
 - result pipeline
-- validation workflow
-- visualization data model
+- doğrulama iş akışı
+- görselleştirme veri modeli
 - design system
 
-External frameworks may provide frontend/platform capabilities such as windowing, input, text, GPU drawing, controls and OS integration, but they must remain replaceable implementations.
+Harici framework'ler windowing, input, text, GPU çizimi, kontroller ve OS entegrasyonu gibi frontend/platform yetenekleri sağlayabilir; ancak değiştirilebilir uygulamalar olarak kalmalıdır.
 
-## Primary information architecture
+## Ana bilgi mimarisi
 
-ANSYS Mechanical is the main structural reference for:
+ANSYS Mechanical şu alanlarda ana yapısal referanstır:
 
-- hierarchical engineering objects
-- selection → properties behavior
-- contextual commands
-- central engineering viewport/workspace
-- model readiness and solution state
+- hiyerarşik mühendislik nesneleri
+- selection → properties davranışı
+- bağlamsal komutlar
+- merkezi mühendislik viewport/workspace
+- model hazır olma ve çözüm durumu
 
-Dyna deliberately does not copy ANSYS visual styling or its permanently dense Ribbon/large global tree.
+Dyna, ANSYS'in görsel stilini veya sürekli yoğun Ribbon/büyük global tree yaklaşımını kopyalamaz.
 
-Secondary references:
+İkincil referanslar:
 
-- FEBio Studio: model organization and solve monitoring
-- SALOME: modular application shell
-- PrePoMax: simple FEA interaction model
-- Gmsh: minimal engineering workspace
-- ParaView: result pipeline, properties and Basic/Advanced separation
-- ElmerGUI: object browser and metadata-driven registration
-- FEniCSx/MFront: UI independence from the scientific core
+- FEBio Studio: model organizasyonu ve solve monitor
+- SALOME: modüler application shell
+- PrePoMax: sade FEA etkileşim modeli
+- Gmsh: minimal mühendislik workspace'i
+- ParaView: result pipeline, properties ve Basic/Advanced ayrımı
+- ElmerGUI: object browser ve metadata-driven registration
+- FEniCSx/MFront: UI'nin bilimsel çekirdekten bağımsızlığı
 
 ## Application shell
 
 ```text
-Context Toolbar
+Bağlamsal Araç Çubuğu
       ↓
 Navigator | Workspace | Inspector
       ↓
-Utility / Solver / Convergence Panel
+Yardımcı / Solver / Yakınsama Paneli
 ```
 
-Top-level modules:
+Üst seviye modüller:
 
 ```text
 Project
@@ -74,44 +74,44 @@ Results
 Validation
 ```
 
-## Framework policy
+## Framework politikası
 
-The UI framework is infrastructure, not product architecture.
+UI framework'ü ürün mimarisi değil altyapıdır.
 
-The framework selection itself is governed by the later decision:
+Framework seçimi sonraki karar kaydıyla yönetilir:
 
-- **ADR-0004 — Qt Frontend Behind a Replaceable UI Boundary**
+- **ADR-0004 — Değiştirilebilir UI Sınırı Arkasında Qt Frontend**
 
-Qt 6 / Qt Quick-QML is the selected initial production frontend, but no scientific, domain, canonical project or framework-neutral presentation model may depend on Qt types.
+Qt 6 / Qt Quick-QML ilk üretim frontend'i olarak seçilmiştir; ancak hiçbir bilimsel, domain, kanonik proje veya framework-neutral presentation modeli Qt tiplerine bağımlı olamaz.
 
-This preserves the original ADR-0003 principle: Dyna owns the experience; the framework only implements it.
+Bu, ADR-0003'ün temel ilkesini korur: deneyim Dyna'ya aittir; framework yalnız uygular.
 
-## Visualization decision
+## Görselleştirme kararı
 
-DynaElastomerSolver will not initially embed ParaView/VTK/FEBio Studio as its visualization environment.
+DynaElastomerSolver başlangıçta ParaView/VTK/FEBio Studio'yu görselleştirme ortamı olarak gömmeyecektir.
 
-Because V1.0 focuses on 2D and axisymmetric analysis, the project owns `ViewportSceneModel`, geometry/mesh/result semantics, selection overlays and engineering probes. The current frontend may use Qt rendering infrastructure behind a renderer boundary.
+V1.0 2D ve eksenel simetrik analize odaklandığı için proje `ViewportSceneModel`, geometri/mesh/result semantics, selection overlay ve engineering probe'ların sahibidir. Mevcut frontend renderer sınırı arkasında Qt rendering altyapısı kullanabilir.
 
-A future `IViewportRenderer` implementation may use another rendering technology if 3D or very large datasets justify it.
+Gelecekte `IViewportRenderer` başka bir rendering teknolojisi kullanabilir.
 
-## Consequences
+## Sonuçlar
 
-### Positive
+### Olumlu
 
-- product identity remains independent
-- ANSYS-like workflow can be simplified for elastomers
-- Material Lab and experimental validation can become first-class experiences
-- solver UI can evolve independently from the Fortran solver
-- frontend technology can be replaced without changing scientific data structures
-- licensing exposure is localized to the frontend dependency boundary
+- ürün kimliği bağımsız kalır
+- ANSYS benzeri iş akışı elastomer mühendisliği için sadeleştirilebilir
+- Material Lab ve deneysel doğrulama birinci sınıf deneyimler olabilir
+- solver UI, Fortran solver'dan bağımsız gelişebilir
+- frontend teknolojisi bilimsel veri yapıları değiştirilmeden değiştirilebilir
+- lisans maruziyeti frontend bağımlılık sınırında lokal tutulur
 
-### Costs
+### Maliyetler
 
-- AppShell, navigation, selection, inspector and result UX must be engineered internally
-- custom viewport and engineering interaction require dedicated implementation/testing
-- cross-platform behavior must be validated on both Windows and macOS
-- adapters are required between neutral presentation contracts and the active frontend framework
+- AppShell, navigation, selection, inspector ve result UX içeride geliştirilmelidir
+- custom viewport ve engineering interaction özel uygulama/test gerektirir
+- Windows ve macOS davranışı ayrı ayrı doğrulanmalıdır
+- neutral presentation contracts ile aktif frontend arasında adaptör gerekir
 
-## Guiding principle
+## Yönlendirici ilke
 
-> DynaElastomerSolver may use UI technology, but it does not outsource its user experience.
+> DynaElastomerSolver UI teknolojisi kullanabilir; ancak kullanıcı deneyimini dışarıya devretmez.
