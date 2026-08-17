@@ -132,7 +132,10 @@ def main() -> None:
         + 0.5 * LAMBDA * ufl.ln(J) ** 2
     )
 
-    potential = psi * ufl.dx
+    # Tüm domain integralleri açıkça aynı mesh'e bağlanır. Bu hem residual/Jacobian
+    # hem de post-processing formlarında UFL domain belirsizliğini ortadan kaldırır.
+    dx = ufl.Measure("dx", domain=msh)
+    potential = psi * dx
     residual = ufl.derivative(potential, uh, v)
     jacobian = ufl.derivative(residual, uh, du)
 
@@ -169,11 +172,11 @@ def main() -> None:
     ds_right = ufl.Measure("ds", domain=msh, subdomain_data=right_tags)
 
     P = ufl.diff(psi, F)
-    area = global_scalar(msh, 1.0 * ufl.dx)
-    avg_lambda_y = global_scalar(msh, F[1, 1] * ufl.dx) / area
+    area = global_scalar(msh, 1.0 * dx)
+    avg_lambda_y = global_scalar(msh, F[1, 1] * dx) / area
     reaction_x = global_scalar(msh, P[0, 0] * ds_right(1))
-    total_energy = global_scalar(msh, psi * ufl.dx)
-    avg_j = global_scalar(msh, J * ufl.dx) / area
+    total_energy = global_scalar(msh, psi * dx)
+    avg_j = global_scalar(msh, J * dx) / area
 
     analytical_lambda_y = traction_free_lateral_stretch(LAMBDA_X, MU, LAMBDA)
     analytical_j = LAMBDA_X * analytical_lambda_y
