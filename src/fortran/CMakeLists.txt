@@ -1,5 +1,6 @@
 add_library(DynaElastomerCore STATIC
   core/des_kinds.f90
+  core/des_status.f90
   math/des_tensor3.f90
   materials/des_material_types.f90
   materials/des_neo_hookean.f90
