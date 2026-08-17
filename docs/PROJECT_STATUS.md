@@ -1,6 +1,6 @@
 # DynaElastomerSolver — Güncel Proje Durumu
 
-**Son güncelleme:** 2026-08-17  
+**Son güncelleme:** 2026-08-18  
 **Ana ve sürekli güncellenen branch:** `main`
 
 ## Güncel geliştirme sürümü
@@ -61,10 +61,10 @@ des_dense_linear
       ↓
 stdlib_linalg::solve
       ↓
-LAPACK *GESV backend
+Reference LAPACK / *GESV backend
 ```
 
-Önceki elle yazılmış Gaussian-elimination doğrulama çözücüsü kaldırılmıştır. `test_dense_linear` artık hem normal çözümü hem de singular sistemde stdlib error-state yolunun Dyna tarafından kontrollü biçimde `ok=.false.` olarak ele alınmasını test eder.
+Reference LAPACK temel dense lineer cebir backend/referansı olarak kabul edilir; Dyna tarafı mümkün olduğunda doğrudan legacy LAPACK API yerine stdlib yüksek-seviye arayüzünü kullanacaktır.
 
 Ayrıntılı kütüphane envanteri:
 - `docs/references/FORTRAN_LIBRARIES.md`
@@ -74,10 +74,33 @@ Ayrıntılı kütüphane envanteri:
 - `stdlib_sparse` — COO/CSR/CSC ve sparse veri yapıları
 - stdlib GMRES — benchmark/iterative solver araştırması
 - MUMPS 5.9.1 — production sparse direct solver adayı
-- modernized MINPACK — Material Calibration / Levenberg–Marquardt adayı
+- PCHIP — deneysel curve preprocessing / shape-preserving interpolation
+- PRIMA — bounded/constrained derivative-free material calibration
+- modernized MINPACK — Levenberg–Marquardt / nonlinear least-squares refinement
 - HDF5 — büyük `ResultDatabase` / integration-point verisi / checkpoint adayı
 - JSON-Fortran — metadata/config adayı
 - FrontISTR — permissive MIT lisanslı FEM/MUMPS entegrasyon kod referansı
+
+### V0.7 için netleşen calibration araç zinciri
+
+```text
+Raw Experimental Data
+        ↓
+PCHIP
+shape-preserving interpolation / resampling
+        ↓
+Objective + physical admissibility
+        ↓
+PRIMA BOBYQA / COBYLA
+bounded veya constrained derivative-free fit
+        ↓
+MINPACK Levenberg–Marquardt
+local least-squares refinement
+        ↓
+Material validation
+```
+
+Bu plan V0.2'ye yeni dependency eklemez; yalnız V0.7 Material Calibration geliştirmesi için araç seçimini erkenden netleştirir.
 
 ## Kanıtlanmış doğrulamalar
 
@@ -96,7 +119,7 @@ Ayrıntılı kütüphane envanteri:
 
 State/history ve durum mesajı değişiklikleri GNU Fortran **14.2.0** ile yerel olarak doğrulanmıştır.
 
-**Önemli doğrulama notu:** stdlib dependency entegrasyonu bu turda kaynak/API ve build-konfigürasyonu seviyesinde uygulanmıştır; bu çalışma ortamında `fypp` ve dış ağ erişimi bulunmadığı için yeni stdlib tabanlı build henüz tam CTest/compiler matrisi üzerinde çalıştırılmış sayılmaz. Bu doğrulama V0.2 kapanışının zorunlu maddesidir.
+**Önemli doğrulama notu:** stdlib dependency entegrasyonu kaynak/API ve build-konfigürasyonu seviyesinde uygulanmıştır; bu çalışma ortamında `fypp` ve dış ağ erişimi bulunmadığı için yeni stdlib tabanlı build henüz tam CTest/compiler matrisi üzerinde çalıştırılmış sayılmaz. Bu doğrulama V0.2 kapanışının zorunlu maddesidir.
 
 ## Adaptive failure senaryosu
 
@@ -208,7 +231,10 @@ Production nearly-incompressible elastomer formulation, ölçülmüş benchmark 
    - Mooney-Rivlin
    - Yeoh
    - Ogden
-4. Material calibration / Material Lab
+4. **V0.7 — Material Calibration / Material Lab**
+   - PCHIP
+   - PRIMA
+   - MINPACK
 5. Production solver robustness genişlemesi
 6. Results pipeline uygulaması
 7. Gerekli seviyede Qt frontend implementasyonu
