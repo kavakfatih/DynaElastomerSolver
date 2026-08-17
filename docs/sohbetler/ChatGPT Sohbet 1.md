@@ -108,20 +108,15 @@ Raw Experimental Data
 ## 2026-08-18 — Newton lineer diagnostics
 
 - Fixed/adaptive Newton doğrudan `solve_linear_system(...)` kullanıyor.
-- `newton_report_t` içine:
-  - `linear_solve_count`
-  - `max_linear_equation_count`
-  - `max_linear_residual_inf_norm`
-  - `last_linear_report`
-  eklendi.
+- `newton_report_t`: `linear_solve_count`, `max_linear_equation_count`, `max_linear_residual_inf_norm`, `last_linear_report`.
 - InternalMesh solver backend ayarı alabiliyor.
 - Unsupported backend adaptive cutback ile tekrar denenmiyor.
 
-## 2026-08-18 — Severe-distortion benchmark
+## 2026-08-18 — Severe-distortion ve kapalı-form benchmark
 
 - `test_q4_severe_distortion_solver` eklendi.
-- 2×2 Q4 mesh merkez düğümü `(1.45, 0.55)` ile ciddi skew oluşturuyor.
-- Reference Gauss ağırlığı yaklaşık `0.07255 ... 0.42745`; min/max yaklaşık `0.1697`.
+- 2×2 Q4 mesh merkez node `(1.45, 0.55)`.
+- Reference Gauss/Jacobian ağırlığı yaklaşık `0.07255 ... 0.42745`, min/max≈`0.1697`.
 - Affine deformation:
 
 ```text
@@ -130,68 +125,76 @@ F = [1.35  0.28]
 J = 1.0194
 ```
 
-- Test merkez displacement, global denge, 16 Gauss `F/J`, `min J` ve lineer diagnostics'i kontrol ediyor.
-- Bağımsız ön hesapta 6 increment / 24 Newton düzeltmesi; merkez hata yaklaşık `1.9e-14`, force sums yaklaşık `1e-16`.
+- Test merkez displacement, global denge, 16 Gauss `F/J`, lineer diagnostics, weighted `P`, reference area ve total energy kontrol ediyor.
+- Kapalı-form referans FEM assembly ve `des_neo_hookean` API'sinden bağımsız hesaplanıyor.
 - CTest tanımı 20 teste çıktı.
-
-## 2026-08-18 — Kapalı-form continuum referansı
-
-Severe-distortion benchmark güçlendirildi.
-
-Test içinde FEM assembly ve `des_neo_hookean` API'sini çağırmayan ayrı kapalı-form plane-strain Neo-Hookean referansı eklendi:
-
-```text
-W = mu/2 (I1 - 3) - mu ln(J) + lambda/2 [ln(J)]²
-P = mu F + [lambda ln(J) - mu] F^{-T}
-```
-
-Referans yaklaşık:
-
-```text
-P11 =  1.94662573
-P12 =  1.01728835
-P21 =  0.93367281
-P22 = -0.83349393
-P33 =  0.48035547
-W   =  0.6597314365
-```
-
-Test artık weighted Gauss `P`, total strain-energy ve reference area'yı da exact continuum değerleriyle karşılaştırıyor.
-
-`docs/verification/V0.2_REFERENCE_BENCHMARKS.md` oluşturuldu ve V0.2 doğrulama kanıtları tek katalogda toplandı.
+- `docs/verification/V0.2_REFERENCE_BENCHMARKS.md` oluşturuldu.
 
 ## 2026-08-18 — GitHub Actions compiler matrix
 
-Yeni workflow:
-`/.github/workflows/fortran-ci.yml`
-
-Matris:
+Fortran CI:
 - Ubuntu 24.04 / gfortran 14
 - macOS 26 ARM64 / gfortran 14
 - Windows 2025 / gfortran 14
-- Windows 2025 / Intel ifx 2025.2
+- Windows Intel ifx 2025.2
 
-CI:
-- Python 3.12
-- fypp 3.2
-- pinlenmiş stdlib
-- Ninja + CMake
-- tüm CTest
-kullanıyor.
+Gerçek GitHub-hosted 20-test sonuçları:
+- **Ubuntu / gfortran 14: başarılı**
+- **macOS ARM64 / gfortran 14: başarılı**
+- **Windows / gfortran 14: başarılı**
+- **Windows / Intel ifx: açık**
 
-Workflow action'ları tam commit SHA ile pinlendi:
-- checkout v7.0.1 → `3d3c42e5aac5ba805825da76410c181273ba90b1`
-- setup-python v6.2.0 → `a309ff8b426b58ec0e2a45f0f869d46889d02405`
-- setup-fortran v1.9.0 → `2a1b9c55897d827a9dfeb114408f3615e53b2b72`
+ifx araştırması:
+1. Ninja + ifx 2025.2'de `ifx --version` çalıştı fakat CMake compiler ID `unknown` kaldı ve `CMAKE_Fortran_PREPROCESS_SOURCE` bulunamadı.
+2. Aynı durum CMake 4.4 ve 4.3.4 ile tekrarlandı; Dyna kaynak/test hatası olmadığı görüldü.
+3. Visual Studio 17 2022 generator denemesinde `windows-2025` runner'ın VS2026 imajına yönlendirildiği ve VS2022 instance bulunmadığı artifact logunda doğrulandı.
+4. GitHub'ın resmî runner politikası doğrultusunda Intel job `windows-2022` + Visual Studio 17 2022 + `-T fortran=ifx` kombinasyonuna taşındı.
 
-İlk gerçek CI sonucu:
-- **Ubuntu 24.04 / gfortran 14: başarılı build + CTest**
-- **macOS 26 ARM64 / gfortran 14: başarılı build + CTest**
-- Windows gfortran: doğrulama sürüyor
-- Windows ifx: doğrulama sürüyor
+## 2026-08-18 — Bağımsız dış FEM doğrulaması
 
-Bu sonuçla macOS Apple Silicon ve Linux gfortran doğrulaması ilk kez gerçek GitHub-hosted runner üzerinde kanıtlandı.
+FEniCSx / DOLFINx tabanlı ayrı referans workflow eklendi:
 
-**Sıradaki adım:** Windows compiler job'larını yeşile getirmek ve güncel `main` üzerinde 20/20 matrisi tamamlamak; ardından en az bir bağımsız dış FEM solver karşılaştırması yapıp V0.2'yi kapatmak.
+- script: `tools/reference/fenicsx_v02_homogeneous_extension.py`
+- workflow: `.github/workflows/fenicsx-reference.yml`
+- container: `dolfinx/dolfinx:v0.11.0`
+- gerçek DOLFINx version: `0.11.0.post0`
+- nonlinear solver: PETSc SNES
+- lineer solver: PETSc LU/MUMPS
+- residual/Jacobian: UFL automatic differentiation
+
+İlk koşuda post-processing `dx` domain'i açık bağlanmadığı için failure oluştu. Artifact traceback ile gerçek neden bulunup `ufl.Measure("dx", domain=msh)` ile düzeltildi.
+
+Başarılı run: `32075320773`.
+
+Sonuç:
+
+```text
+FEniCSx lambda_y = 0.8314690882666764
+Dyna lambda_y    = 0.8314690882666784
+abs fark         ≈ 2.00e-15
+
+FEniCSx reaction = 1.7423183105139580
+Dyna reaction    = 1.7423183105139586
+abs fark         ≈ 6.66e-16
+
+J vs closed-form fark            ≈ 4.88e-15
+total energy vs closed-form fark ≈ 5.72e-15
+```
+
+Bağımsız dış FEM doğrulama kriteri **geçti**.
+
+Kalıcı kayıtlar:
+- `docs/verification/V0.2_EXTERNAL_FEM_VALIDATION.md`
+- `docs/verification/results/FENICSX_V0.2_HOMOGENEOUS_EXTENSION.json`
+
+## Güncel kapanış durumu
+
+V0.2 için artık tek büyük açık kriter:
+
+**Windows 2022 / Intel ifx 2025.2 configure + build + 20 CTest doğrulaması.**
+
+Bu geçmeden V0.2 kapatılmayacak ve V0.3 production formulation geliştirmesi başlamış sayılmayacak.
+
+Sıradaki sürüm: **V0.3 — displacement Q4 vs mixed `u-p` vs F-bar formulation bake-off.**
 
 `Sistem-ve-Mimari` branch'ine bu geliştirmelerde dokunulmadı.
