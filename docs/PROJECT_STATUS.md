@@ -25,7 +25,6 @@ Bu sürüm yayınlanmış bir ürün sürümü değil; aktif geliştirme kilomet
 - Total-Lagrangian element residual
 - consistent element tangent
 - çok elemanlı Q4 global assembly
-- pivotlamalı dense lineer çözücü
 - incremental Full Newton displacement-control solver
 - adaptive displacement-control solver
 - rollback
@@ -40,6 +39,45 @@ Bu sürüm yayınlanmış bir ürün sürümü değil; aktif geliştirme kilomet
 - `des_status_message()` ile okunabilir hata açıklamaları
 - minimum `J` takibi
 - Newton iteration/increment raporlaması
+
+## Fortran kütüphane altyapısı
+
+### Aktif kullanılan dependency
+
+**Fortran stdlib — `kavakfatih/stdlib`**
+
+- repo: `https://github.com/kavakfatih/stdlib`
+- sürüm: `0.8.1`
+- pinlenen commit: `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
+- lisans: MIT; BLAS/LAPACK backend bölümlerinde ilgili modified-BSD koşulları da geçerlidir
+- build gereksinimi: `fypp`
+
+Dyna CMake zinciri stdlib'i pinlenmiş commit üzerinden `FetchContent` ile alacak şekilde güncellenmiştir.
+
+İlk gerçek kullanım:
+
+```text
+des_dense_linear
+      ↓
+stdlib_linalg::solve
+      ↓
+LAPACK *GESV backend
+```
+
+Önceki elle yazılmış Gaussian-elimination doğrulama çözücüsü kaldırılmıştır. `test_dense_linear` artık hem normal çözümü hem de singular sistemde stdlib error-state yolunun Dyna tarafından kontrollü biçimde `ok=.false.` olarak ele alınmasını test eder.
+
+Ayrıntılı kütüphane envanteri:
+- `docs/references/FORTRAN_LIBRARIES.md`
+
+### Sonraki güçlü adaylar
+
+- `stdlib_sparse` — COO/CSR/CSC ve sparse veri yapıları
+- stdlib GMRES — benchmark/iterative solver araştırması
+- MUMPS 5.9.1 — production sparse direct solver adayı
+- modernized MINPACK — Material Calibration / Levenberg–Marquardt adayı
+- HDF5 — büyük `ResultDatabase` / integration-point verisi / checkpoint adayı
+- JSON-Fortran — metadata/config adayı
+- FrontISTR — permissive MIT lisanslı FEM/MUMPS entegrasyon kod referansı
 
 ## Kanıtlanmış doğrulamalar
 
@@ -56,7 +94,9 @@ Bu sürüm yayınlanmış bir ürün sürümü değil; aktif geliştirme kilomet
 - Cutback exhaustion sırasında alt failure nedeni `DES_ERROR_NONPOSITIVE_J` olarak korundu
 - `des_status_message()` durum açıklama testi geçti
 
-Yeni state/history ve durum mesajı değişiklikleri GNU Fortran **14.2.0** ile yerel olarak derlenip ilgili solver testleri üzerinde doğrulandı.
+State/history ve durum mesajı değişiklikleri GNU Fortran **14.2.0** ile yerel olarak doğrulanmıştır.
+
+**Önemli doğrulama notu:** stdlib dependency entegrasyonu bu turda kaynak/API ve build-konfigürasyonu seviyesinde uygulanmıştır; bu çalışma ortamında `fypp` ve dış ağ erişimi bulunmadığı için yeni stdlib tabanlı build henüz tam CTest/compiler matrisi üzerinde çalıştırılmış sayılmaz. Bu doğrulama V0.2 kapanışının zorunlu maddesidir.
 
 ## Adaptive failure senaryosu
 
@@ -82,7 +122,7 @@ commit
 %100 final yük seviyesi
 ```
 
-Bu zincir artık geçici bir `committed_u` kopyasıyla değil, reusable `solution_state_t` üzerinden çalışır.
+Bu zincir reusable `solution_state_t` üzerinden çalışır.
 
 ## Convergence history yapısı
 
@@ -101,23 +141,26 @@ Bu kayıt, ileride Results/Solver paneli ile `DivergenceReason` ve otomatik reco
 
 ## V0.2 kapanışından önce kalan işler
 
-1. Ek nonlinear distortion ve robustness benchmark'ları.
-2. Minimal `Node / Element / InternalMesh` veri modelini gerçek mesh akışına taşımak.
-3. Ham integration-point result saklama yolunu eklemek.
-4. V0.2 için bağımsız solver/reference karşılaştırmasını genişletmek.
-5. macOS Apple Silicon + gfortran doğrulaması.
-6. Windows x64 + Intel ifx doğrulaması.
-7. Windows x64 + gfortran doğrulaması.
-8. Tüm CTest paketini compiler matrisi üzerinde çalıştırmak.
-9. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
+1. Yeni stdlib tabanlı build'i GNU Fortran üzerinde tam CTest ile doğrulamak.
+2. Ek nonlinear distortion ve robustness benchmark'ları.
+3. Minimal `Node / Element / InternalMesh` veri modelini gerçek mesh akışına taşımak.
+4. Ham integration-point result saklama yolunu eklemek.
+5. V0.2 için bağımsız solver/reference karşılaştırmasını genişletmek.
+6. macOS Apple Silicon + gfortran doğrulaması.
+7. Windows x64 + Intel ifx doğrulaması.
+8. Windows x64 + gfortran doğrulaması.
+9. Tüm CTest paketini compiler matrisi üzerinde çalıştırmak.
+10. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
 
-### Bu turda kapanan V0.2 maddeleri
+### Tamamlanmış V0.2 sağlamlık maddeleri
 
 - committed/trial çözüm state'i
 - convergence history
 - cutback exhaustion / retry limit tanısı
 - başarısız trial state'in güvenli rollback'i
 - failure status için okunabilir açıklama katmanı
+- stdlib'in Dyna dependency sistemine pinlenmiş entegrasyonu
+- dense doğrulama solver yolunun `stdlib_linalg` arayüzüne taşınması
 
 ---
 
