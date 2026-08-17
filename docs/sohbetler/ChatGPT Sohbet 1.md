@@ -116,7 +116,6 @@ PRIMA global optimizer olarak değil, bounded/constrained derivative-free search
 **Kullanıcı yönlendirmesi:** Sıradaki geliştirmeye devam edilmesi istendi.
 
 **Gerçekleştirilenler:**
-
 - `des_linear_solver` modülü eklendi.
 - `linear_solver_settings_t` ve `linear_solver_report_t` tanımlandı.
 - İlk backend: `DES_LINEAR_BACKEND_STDLIB_DENSE`.
@@ -124,7 +123,7 @@ PRIMA global optimizer olarak değil, bounded/constrained derivative-free search
 - Report içinde backend, equation count, lineer residual infinity normu, status ve converged bilgisi taşınıyor.
 - Desteklenmeyen backend için `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` eklendi.
 - `des_dense_linear` doğrudan stdlib kullanan implementation olmaktan çıkarılıp Dyna lineer solver API'sine giden compatibility wrapper haline getirildi.
-- Yeni `test_linear_solver_interface` normal çözüm, lineer residual ve unsupported-backend failure yolunu doğrulamak için CTest'e eklendi.
+- `test_linear_solver_interface` normal çözüm, lineer residual ve unsupported-backend failure yolunu doğrulamak için CTest'e eklendi.
 - CTest tanımı 19 teste çıktı.
 
 **Mimari sonuç:**
@@ -140,6 +139,29 @@ Dyna Linear Solver API
 
 **Doğrulama notu:** stdlib tabanlı tam dependency build / 19 CTest compiler-matrix doğrulaması bu çalışma ortamında henüz tamamlanmış sayılmıyor ve V0.2 kapanış kriteri olarak korunuyor.
 
-**Sıradaki adım:** `newton_report_t` içine son `linear_solver_report_t` bilgisini taşımak; sonrasında ek nonlinear robustness benchmark'ları ve cross-platform compiler doğrulaması.
+## 2026-08-18 — Newton lineer solver diagnostics entegrasyonu
+
+**Kullanıcı yönlendirmesi:** Geliştirmeye devam edilmesi istendi.
+
+**Gerçekleştirilenler:**
+- Fixed-step ve adaptive Q4 Newton solver artık `des_dense_linear` wrapper'ı yerine doğrudan `solve_linear_system(...)` çağırıyor.
+- Her Newton çözümü için seçilebilir `linear_solver_settings_t` opsiyonel girdi olarak eklendi.
+- `newton_report_t` şu lineer teşhislerle genişletildi:
+  - `linear_solve_count`
+  - `max_linear_equation_count`
+  - `max_linear_residual_inf_norm`
+  - `last_linear_report`
+- Son lineer raporda backend, equation count, residual, status ve converged bilgisi korunuyor.
+- `InternalMesh` solver adapterleri de opsiyonel lineer backend ayarı kabul edecek şekilde güncellendi.
+- Lineer backend failure nedeni genel solver hatasına çevrilmeden Newton `status` ve `last_failure_status` alanlarında korunuyor.
+- `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` adaptive solver için terminal konfigürasyon hatası olarak sınıflandırıldı; bu durumda cutback yapılmıyor.
+- Mevcut `test_q4_internal_mesh_solver` regression testi; başarılı lineer diagnostics ve unsupported-backend propagation davranışını kontrol edecek şekilde genişletildi.
+- CTest tanımı 19 olarak kaldı; yeni ayrı test eklenmedi.
+
+**Doğrulama durumu:**
+- Kaynak/API ve regression-test tanımı tamamlandı.
+- stdlib/fypp tam dependency build ortamı bu çalışma ortamında tamamlanmadığı için 19/19 toplu test doğrulaması V0.2 kapanış kriteri olarak devam ediyor.
+
+**Sıradaki adım:** ek nonlinear distortion/robustness benchmark'ları ve bağımsız referans çözüm karşılaştırmasını genişletmek; ardından macOS/Windows compiler matrisi.
 
 `Sistem-ve-Mimari` branch'ine bu geliştirme sırasında güncelleme yapılmadı.
