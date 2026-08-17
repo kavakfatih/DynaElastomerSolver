@@ -1,11 +1,23 @@
 module des_neo_hookean
   use des_kinds, only : dp
+  use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_PARAMETERS, &
+                         DES_ERROR_SINGULAR_F, DES_ERROR_NONPOSITIVE_J
   use des_tensor3, only : inverse3, identity3
   use des_material_types, only : material_kinematics_t, material_response_t, neo_hookean_parameters_t
   implicit none
   private
-  public :: evaluate_neo_hookean
+  public :: evaluate_neo_hookean, validate_neo_hookean_parameters
 contains
+
+  pure subroutine validate_neo_hookean_parameters(parameters, valid)
+    type(neo_hookean_parameters_t), intent(in) :: parameters
+    logical, intent(out) :: valid
+    real(dp) :: bulk_modulus
+
+    ! 3B = 3*lambda + 2*mu olduğundan bulk modulus pozitif olmalıdır.
+    bulk_modulus = parameters%lambda + (2.0_dp/3.0_dp)*parameters%mu
+    valid = parameters%mu > 0.0_dp .and. bulk_modulus > 0.0_dp
+  end subroutine validate_neo_hookean_parameters
 
   pure subroutine evaluate_neo_hookean(kinematics, parameters, response)
     type(material_kinematics_t), intent(in) :: kinematics
@@ -15,13 +27,27 @@ contains
     real(dp) :: F(3,3), Finv(3,3), FinvT(3,3), b(3,3), I(3,3)
     real(dp) :: J, lnJ, I1, alpha
     integer :: iidx, jidx, kidx, lidx
-    logical :: ok
+    logical :: ok, parameters_valid
 
     response = material_response_t()
     F = kinematics%F
 
+    call validate_neo_hookean_parameters(parameters, parameters_valid)
+    if (.not. parameters_valid) then
+      response%status = DES_ERROR_INVALID_PARAMETERS
+      return
+    end if
+
     call inverse3(F, Finv, J, ok)
-    if (.not. ok .or. J <= 0.0_dp) return
+    response%J = J
+    if (.not. ok) then
+      response%status = DES_ERROR_SINGULAR_F
+      return
+    end if
+    if (J <= 0.0_dp) then
+      response%status = DES_ERROR_NONPOSITIVE_J
+      return
+    end if
 
     FinvT = transpose(Finv)
     I = identity3()
@@ -46,7 +72,7 @@ contains
                     + (parameters%lambda*lnJ/J)*I
 
     ! Material tangent A = dP/dF.
-    ! Bu tensor V0.1 testinde merkezi finite-difference ile bağımsız kontrol edilir.
+    ! Bu tensör material-point testinde merkezi finite-difference ile bağımsız kontrol edilir.
     response%tangent = 0.0_dp
     do iidx = 1,3
       do jidx = 1,3
@@ -66,7 +92,7 @@ contains
       end do
     end do
 
-    response%J = J
+    response%status = DES_STATUS_OK
     response%valid = .true.
   end subroutine evaluate_neo_hookean
 
