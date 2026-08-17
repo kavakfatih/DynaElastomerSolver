@@ -5,6 +5,8 @@ add_library(DynaElastomerCore STATIC
   math/des_finite_strain.f90
   materials/des_material_types.f90
   materials/des_neo_hookean.f90
+  fem/des_q4_shape.f90
+  fem/des_q4_plane_strain_neo_hookean.f90
 )
 
 set_target_properties(DynaElastomerCore PROPERTIES
