@@ -70,22 +70,6 @@ jobs:
           compiler: ${{ matrix.compiler }}
           version: ${{ matrix.compiler_version }}
 
-      # GitHub windows-2025 runner'ın CMake 4.4.x sürümü ifx 2025.2'yi
-      # compiler-id aşamasında tanımadı. Dyna kaynak koduna workaround eklemek yerine
-      # yalnız Intel job'unda önceki kararlı Kitware CMake sürümü sabitlenir.
-      - name: Windows ifx için CMake 4.3.4 kur
-        if: runner.os == 'Windows' && matrix.compiler == 'intel'
-        shell: pwsh
-        run: |
-          $version = '4.3.4'
-          $archive = Join-Path $env:RUNNER_TEMP "cmake-$version-windows-x86_64.zip"
-          $url = "https://github.com/Kitware/CMake/releases/download/v$version/cmake-$version-windows-x86_64.zip"
-          Invoke-WebRequest -Uri $url -OutFile $archive
-          Expand-Archive -Path $archive -DestinationPath $env:RUNNER_TEMP -Force
-          $cmakeBin = Join-Path $env:RUNNER_TEMP "cmake-$version-windows-x86_64\bin"
-          Add-Content -Path $env:GITHUB_PATH -Value $cmakeBin
-          & (Join-Path $cmakeBin 'cmake.exe') --version
-
       - name: Araç sürümlerini kaydet
         shell: bash
         run: |
@@ -100,11 +84,24 @@ jobs:
         shell: bash
         run: |
           set +e
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_Fortran_COMPILER="$FC" \
-            -DDES_BUILD_TESTS=ON \
-            > cmake-configure.log 2>&1
+
+          if [[ "${{ matrix.compiler }}" == "intel" ]]; then
+            # Windows Intel Fortran için CMake'in resmî Visual Studio toolset yolu kullanılır.
+            # -T fortran=ifx, CMake 3.29+ tarafından doğrudan desteklenir.
+            cmake -S . -B build \
+              -G "Visual Studio 17 2022" \
+              -A x64 \
+              -T "fortran=ifx" \
+              -DDES_BUILD_TESTS=ON \
+              > cmake-configure.log 2>&1
+          else
+            cmake -S . -B build -G Ninja \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DCMAKE_Fortran_COMPILER="$FC" \
+              -DDES_BUILD_TESTS=ON \
+              > cmake-configure.log 2>&1
+          fi
+
           status=$?
           set -e
 
@@ -117,7 +114,7 @@ jobs:
 
       - name: Derle
         shell: bash
-        run: cmake --build build --parallel 2
+        run: cmake --build build --config Debug --parallel 2
 
       - name: CTest
         shell: bash
