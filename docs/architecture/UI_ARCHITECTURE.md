@@ -1,39 +1,39 @@
-# DynaElastomerSolver — UI Architecture v1.1
+# DynaElastomerSolver — UI Mimarisi v1.1
 
-## 1. Goal
+## 1. Amaç
 
-DynaElastomerSolver owns its user experience, information architecture, engineering interaction model and visual identity.
+DynaElastomerSolver; kullanıcı deneyiminin, bilgi mimarisinin, mühendislik etkileşim modelinin ve görsel kimliğinin sahibidir.
 
-The initial production desktop frontend uses **Qt 6 + Qt Quick/QML**, targeting both macOS and Windows. Qt is deliberately treated as a replaceable frontend/platform dependency. The scientific core, application behavior, canonical project model and framework-neutral presentation contracts must remain usable if the UI framework is replaced later.
+İlk üretim masaüstü frontend'i **Qt 6 + Qt Quick/QML** kullanır ve hem macOS hem Windows'u hedefler. Qt bilinçli olarak değiştirilebilir bir frontend/platform bağımlılığı olarak ele alınır. Bilimsel çekirdek, uygulama davranışı, kanonik proje modeli ve framework'ten bağımsız presentation sözleşmeleri; ileride UI framework'ü değiştirilse bile kullanılabilir kalmalıdır.
 
-ANSYS Mechanical remains the primary information-architecture reference. FEBio Studio, SALOME, PrePoMax, Gmsh, ParaView, ElmerGUI, FEniCSx and MFront provide secondary architectural ideas.
+ANSYS Mechanical ana bilgi-mimarisi referansıdır. FEBio Studio, SALOME, PrePoMax, Gmsh, ParaView, ElmerGUI, FEniCSx ve MFront ikincil mimari fikirler sağlar.
 
-The visual language is intentionally different from traditional CAE software: minimal, precise, technical and Apple-inspired, with restrained white/light-gray/dark-gray surfaces, limited system-blue accents, modest radii and no heavy decoration.
+Görsel dil geleneksel CAE yazılımlarından bilinçli olarak farklıdır: minimal, hassas, teknik ve Apple/macOS esintili; beyaz/açık gri/koyu gri yüzeyler, sınırlı system-blue vurgu, küçük radius ve ağır dekorasyondan kaçınma temel prensiplerdir.
 
-## 2. Ownership rule
+## 2. Sahiplik kuralı
 
 ```text
-Dyna Scientific Core        OWNED
-Dyna Application Model      OWNED
-Dyna Presentation Contracts OWNED
-Dyna UI Architecture        OWNED
-Dyna Design System          OWNED
-Navigation / Selection      OWNED
-Inspector / Commands        OWNED
-Workspace behavior          OWNED
-Result interaction          OWNED
-Visualization data model    OWNED
+Dyna Scientific Core        PROJEYE AİT
+Dyna Application Model      PROJEYE AİT
+Dyna Presentation Contracts PROJEYE AİT
+Dyna UI Architecture        PROJEYE AİT
+Dyna Design System          PROJEYE AİT
+Navigation / Selection      PROJEYE AİT
+Inspector / Commands        PROJEYE AİT
+Workspace behavior          PROJEYE AİT
+Result interaction          PROJEYE AİT
+Visualization data model    PROJEYE AİT
 
 Qt 6 / Qt Quick / QML
         ↓
-replaceable frontend/platform implementation
+değiştirilebilir frontend/platform uygulaması
 ```
 
-No external CAE application or UI framework may define DynaElastomerSolver's canonical engineering state.
+Hiçbir harici CAE uygulaması veya UI framework'ü DynaElastomerSolver'ın kanonik mühendislik durumunu tanımlayamaz.
 
-## 3. Dependency direction
+## 3. Bağımlılık yönü
 
-The dependency direction is one-way:
+Bağımlılık yalnız tek yönde ilerler:
 
 ```text
 Modern Fortran Scientific Core
@@ -49,11 +49,11 @@ Framework-neutral Presentation Contracts
        Qt Quick / QML UI
 ```
 
-The lower layers never import, reference or expose Qt types.
+Alt katmanlar Qt tiplerini import etmez, referans etmez veya dışarı açmaz.
 
-### Hard boundary rule
+### Katı sınır kuralı
 
-The following must remain inside the Qt frontend implementation:
+Aşağıdaki tip ve kavramlar yalnızca Qt frontend uygulaması içinde kalmalıdır:
 
 - `QObject`
 - `QString`
@@ -62,43 +62,39 @@ The following must remain inside the Qt frontend implementation:
 - `QModelIndex`
 - `QAbstractItemModel`
 - `QQuickItem`
-- Qt signals/slots used as presentation plumbing
-- QML object references
-- Qt-specific serialization
-- Qt renderer handles
+- sunum altyapısında kullanılan Qt signals/slots
+- QML nesne referansları
+- Qt'ye özgü serialization
+- Qt renderer handle'ları
 
-Domain and application code use framework-neutral structures, stable IDs, standard C/C++ types and canonical Dyna models.
+Domain ve application kodu; framework'ten bağımsız yapılar, kararlı kimlikler, standart C/C++ tipleri ve kanonik Dyna modellerini kullanır.
 
-## 4. Primary UX model
+## 4. Ana UX modeli
 
-ANSYS-inspired information architecture, simplified for elastomer engineering:
+ANSYS'ten esinlenen ancak elastomer mühendisliği için sadeleştirilmiş bilgi mimarisi:
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│ Context Toolbar                                              │
+│ Bağlamsal Araç Çubuğu                                       │
 ├──────────────┬─────────────────────────────┬─────────────────┤
 │ Navigator    │ Workspace                   │ Inspector       │
 │              │                             │                 │
-│ Project      │ Geometry / Mesh             │ Properties      │
-│ Materials    │ Material Curves             │ Validation      │
-│ Analysis     │ Results / Charts            │ Advanced        │
-│ Results      │                             │                 │
+│ Proje        │ Geometri / Mesh             │ Özellikler      │
+│ Malzemeler   │ Malzeme Eğrileri            │ Doğrulama       │
+│ Analiz       │ Sonuçlar / Grafikler        │ Gelişmiş        │
+│ Sonuçlar     │                             │                 │
 ├──────────────┴─────────────────────────────┴─────────────────┤
-│ Utility Panel: Messages | Jobs | Solver | Convergence | Data │
+│ Yardımcı Panel: Mesajlar | Jobs | Solver | Yakınsama | Veri │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Core concept:
+- Navigator: **Neredeyim ve hangi nesne üzerinde çalışıyorum?**
+- Workspace: **Hangi mühendislik içeriğini görüntülüyor veya düzenliyorum?**
+- Inspector: **Seçili nesnenin özellikleri ve doğrulama durumu nedir?**
+- Context Toolbar: **Şu anda hangi işlemler anlamlı?**
+- Utility Panel: **Sistem/solver şu anda ne yapıyor?**
 
-- Navigator answers: **Where am I and what object am I working on?**
-- Workspace answers: **What engineering content am I viewing or editing?**
-- Inspector answers: **What are the selected object's properties and validation state?**
-- Context Toolbar answers: **What operations are relevant now?**
-- Utility Panel answers: **What is the system/solver doing?**
-
-## 5. Module architecture
-
-The shell remains stable while engineering modules register their own contributions.
+## 5. Modül mimarisi
 
 ```text
 DynaElastomerShell
@@ -113,7 +109,7 @@ DynaElastomerShell
         └── ValidationModule
 ```
 
-Each module exposes a framework-neutral `ModuleDefinition`:
+Her modül framework'ten bağımsız bir `ModuleDefinition` sunar:
 
 ```text
 ModuleDefinition
@@ -125,13 +121,11 @@ ModuleDefinition
 └── ValidationProvider
 ```
 
-Future modules such as fatigue, viscoelastic characterization or dynamics can be added without redesigning the application shell.
+Gelecekte yorulma, viskoelastik karakterizasyon veya dinamik gibi yeni modüller AppShell yeniden tasarlanmadan eklenebilir.
 
-## 6. Framework-neutral presentation contracts
+## 6. Framework'ten bağımsız presentation sözleşmeleri
 
-Presentation semantics are owned by DynaElastomerSolver rather than QML.
-
-Initial contract families:
+Presentation anlamı QML'e değil DynaElastomerSolver'a aittir.
 
 ```text
 NavigationNode
@@ -150,7 +144,7 @@ ViewportSceneModel
 DesignTokenSet
 ```
 
-Example:
+Örnek:
 
 ```text
 NavigationNode
@@ -160,20 +154,9 @@ QtNavigationModel
 QML Navigator
 ```
 
-A future frontend can consume the same contract:
+Gelecekte aynı sözleşme farklı frontend tarafından tüketilebilir. Amaç UI markup'ını değil, **mühendislik davranışını ve uygulama durumunu taşınabilir kılmaktır**.
 
-```text
-NavigationNode
-├── QtNavigationModel
-├── FutureAvaloniaAdapter
-└── FutureNativeAdapter
-```
-
-The intention is not to make UI markup portable. It is to make **engineering behavior and state portable**.
-
-## 7. Main application services
-
-Framework-independent services:
+## 7. Ana uygulama servisleri
 
 ```text
 ProjectDocument
@@ -192,39 +175,15 @@ ApplicationServices
 
 ### SelectionService
 
-Selection is centralized:
-
-```text
-Viewport selection
-      ↓
-SelectionService
-├── Navigator highlight
-├── Inspector update
-├── Context command update
-└── Result/geometry highlight
-```
-
-Navigator selection follows the same service in the opposite direction.
-
-The canonical selection stores Dyna entity identifiers, not `QModelIndex`, QML objects or renderer pointers.
+Seçim merkezi yönetilir ve Dyna entity kimliklerini saklar; `QModelIndex`, QML nesneleri veya renderer pointer'ları kanonik seçim modeline girmez.
 
 ### CommandRegistry
 
-Commands such as `Import DXF`, `Validate`, `Generate Mesh`, `Run Calibration`, `Solve`, `Probe` and `Compare Test` are registered commands rather than hard-coded toolbar logic.
+`Import DXF`, `Validate`, `Generate Mesh`, `Run Calibration`, `Solve`, `Probe` ve `Compare Test` gibi işlemler kayıtlı komutlardır. Böylece klavye kısayolları, native menüler, bağlamsal araç çubuğu, ileride command palette, undo/redo ve frontend değişimi desteklenebilir.
 
-This enables:
+## 8. Workspace modeli
 
-- keyboard shortcuts
-- native menus
-- context toolbar
-- command palette later
-- undo/redo integration where applicable
-- testable enable/disable rules
-- future frontend replacement
-
-## 8. Workspace model
-
-The central area is not permanently a geometry viewport.
+Merkez alan kalıcı bir geometri viewport'u değildir.
 
 ```text
 Workspace
@@ -239,20 +198,9 @@ Workspace
 └── ValidationWorkspace
 ```
 
-Examples:
+## 9. Bağlamsal Navigator
 
-- Geometry: 2D analysis geometry and boundaries
-- Material Lab: test curves and constitutive fits
-- Mesh: element visualization and quality
-- Solve: convergence and increment history
-- Results: contour / engineering charts
-- Validation: simulation versus experiment
-
-## 9. Contextual Navigator
-
-DynaElastomerSolver does not use one indefinitely growing global tree.
-
-Top-level navigation:
+DynaElastomerSolver sonsuza büyüyen tek global tree kullanmaz.
 
 ```text
 Project
@@ -265,46 +213,14 @@ Results
 Validation
 ```
 
-Inside a module, Navigator becomes module-specific.
+Bir modüle girildiğinde Navigator o modüle özgü hale gelir. Geometry için Regions/Boundaries/Selection Sets/Axis; Material Lab için Library/Experimental Data/Material Models/Calibration/Validation; Analysis için Formulation/Material Assignment/Boundary Conditions/Solver Controls/Precheck örnek yapıları kullanılır.
 
-Example — Geometry:
+## 10. Inspector mimarisi
 
-```text
-Geometry
-├── Regions
-├── Boundaries
-├── Selection Sets
-└── Axis
-```
-
-Example — Material Lab:
+Inspector içeriği seçili nesnenin metadatası ve gerektiğinde özel editörler tarafından belirlenir.
 
 ```text
-Materials
-├── Library
-├── Experimental Data
-├── Material Models
-├── Calibration
-└── Validation
-```
-
-Example — Analysis:
-
-```text
-Analysis
-├── Formulation
-├── Material Assignment
-├── Boundary Conditions
-├── Solver Controls
-└── Precheck
-```
-
-## 10. Inspector architecture
-
-Inspector content is driven by selected-object metadata and specialized editors where required.
-
-```text
-Selected Object
+Seçili Nesne
       ↓
 InspectorService
       ↓
@@ -315,112 +231,42 @@ Frontend adapter
 Inspector UI
 ```
 
-Common properties are metadata-driven rather than manually coded form-by-form.
+Qt/QML bir özelliğin nasıl çizileceğini belirler; mühendislik tanımına veya doğrulama kurallarına sahip olmaz.
 
-Example canonical metadata:
+## 11. Basic / Advanced modeli
 
-```text
-RotationBC.Angle
-Type: double
-Unit: deg
-Minimum: -360
-Maximum: 360
-Category: Definition
-```
+Teknik güç, tüm solver parametrelerinin varsayılan olarak gösterilmesini gerektirmez. Basic mod sade mühendislik ayarları sunar; Advanced mod Newton stratejisi, yakınsama toleransları, maksimum iterasyon, line search, increment sınırları, mesh algoritması, integrasyon ve ekstrapolasyon ayarlarını açabilir.
 
-Qt/QML decides how to draw this property, but it does not own its engineering definition or validation rules.
-
-Specialized editors remain allowed for complex engineering content such as material calibration and result visualization.
-
-## 11. Basic / Advanced model
-
-Technical power must not require exposing every solver parameter by default.
-
-Basic mode:
-
-```text
-Solver: Automatic
-Mesh Size: 2 mm
-Material Model: Yeoh-3
-```
-
-Advanced mode may expose:
-
-- Newton strategy
-- convergence tolerances
-- maximum iterations
-- line search
-- increment limits
-- mesh algorithm
-- integration settings
-- extrapolation options
-
-Scientific defaults belong to the application layer, not QML controls.
+Bilimsel varsayılanlar QML kontrollerine değil application katmanına aittir.
 
 ## 12. Deferred Apply
 
-Expensive operations are explicit commands and do not execute on every property edit.
+Mesh üretimi, geometri iyileştirme, kalibrasyon, çözüm ve maliyetli sonuç dönüşümleri her property değişikliğinde otomatik çalışmaz. Değişiklikler bekleyen state olarak tutulur ve açık bir Apply/Run komutuyla uygulanır.
 
-```text
-Mesh settings changed
-        ↓
-Pending Changes
-        ↓
-[Apply & Remesh]
-```
+## 13. AnalysisPrecheck UI
 
-Operations requiring deferred apply include:
-
-- mesh generation
-- geometry rebuild/healing
-- calibration
-- solve
-- expensive result transformations
-
-Cheap visual state changes remain immediate.
-
-## 13. Analysis Precheck UI
-
-`AnalysisPrecheck` is a first-class workspace/panel.
-
-```text
-Analysis Precheck
-
-Geometry     ✓
-Material     ✓
-Mesh         ⚠
-Constraints  ✓
-Solver       ✓
-
-Ready to Solve / Blocked
-```
-
-Every issue links back to the responsible object/module.
-
-Precheck is not only a message log; it is actionable navigation.
+`AnalysisPrecheck` birinci sınıf workspace/panel'dir. Geometri, malzeme, mesh, kısıtlar ve solver durumu tek yerde gösterilir. Her problem ilgili nesne/modüle geri bağlanır. Kritik hata çözümü engeller.
 
 ## 14. Solve Monitor
 
-The solver remains independent from the GUI, but the GUI has a dedicated live monitor.
+Solver GUI'den bağımsız kalır; GUI yalnız yapılandırılmış job event'lerini gösterir.
 
 ```text
 Solve Monitor
-├── Current step
-├── Current increment
-├── Newton iteration
-├── Residual norm
-├── Increment size
-├── Cutback events
-├── Linear solver status
-├── Warnings
-└── Convergence chart
+├── Geçerli step
+├── Geçerli increment
+├── Newton iterasyonu
+├── Residual normu
+├── Increment boyutu
+├── Cutback olayları
+├── Doğrusal çözücü durumu
+├── Uyarılar
+└── Yakınsama grafiği
 ```
 
-The frontend receives structured job events from `JobManager` / application services. It never parses solver console text as its primary data source.
+Console text parse etmek birincil veri yolu değildir.
 
-## 15. Result architecture
-
-Solver data is not rendered directly.
+## 15. Sonuç mimarisi
 
 ```text
 ResultDatabase
@@ -432,52 +278,15 @@ ResultViewModel
 Visualization
 ```
 
-Raw and display data remain distinct:
-
-```text
-RawResults
-└── IntegrationPoint / Gauss Point
-
-DisplayResults
-└── extrapolated / averaged / derived results
-```
-
-Supported result operations include:
-
-- field selection
-- nodal extrapolation
-- averaging
-- principal-value calculation
-- derived engineering quantities
-- path extraction
-- history extraction
-- experimental comparison
+Ham integrasyon noktası verileri ile ekstrapole/ortalanmış/türetilmiş görüntüleme sonuçları ayrı tutulur.
 
 ## 16. Native Gauss Point Inspector
 
-A key scientific UI feature:
+Kullanıcı `F`, `J`, asal uzamalar, Cauchy stress, pressure, strain energy ve state variables gibi ham integrasyon noktası değerlerini doğrudan inceleyebilmelidir.
 
-```text
-Element 142
-Gauss Point 3
+## 17. Görselleştirme sahipliği
 
-λ1
-λ2
-λ3
-J
-Cauchy stress
-pressure
-strain energy
-state variables
-```
-
-Users can inspect raw integration-point values without confusing them with smoothed/extrapolated contour data.
-
-## 17. Visualization ownership
-
-Initial scope is 2D / axisymmetric; therefore no external full CAE visualization application is required.
-
-Canonical visualization model:
+Kanonik görselleştirme modeli projeye aittir:
 
 ```text
 ViewportSceneModel
@@ -492,7 +301,7 @@ ViewportSceneModel
 └── camera state
 ```
 
-Rendering boundary:
+Rendering sınırı:
 
 ```text
 ViewportSceneModel
@@ -502,25 +311,11 @@ IViewportRenderer
 QtViewportBackend
 ```
 
-Project-owned visualization responsibilities:
+Qt renderer nesneleri `AnalysisGeometry`, `InternalMesh`, `ResultDatabase` veya presentation sözleşmelerine sızamaz. Gelecekte başka renderer/backend mühendislik modelleri değiştirilmeden eklenebilir.
 
-```text
-VisualizationService
-├── scene construction
-├── engineering selection semantics
-├── contour definitions
-├── annotations
-├── probe definitions
-└── camera/navigation state
-```
+## 18. UI framework politikası
 
-Qt may implement the current drawing backend, but Qt renderer objects do not leak into `AnalysisGeometry`, `InternalMesh`, `ResultDatabase` or presentation contracts.
-
-A future renderer/backend may use Metal, Vulkan, VTK, Avalonia or another technology without changing the engineering models.
-
-## 18. UI framework policy
-
-### Selected initial frontend
+Seçilen ilk frontend:
 
 ```text
 Qt 6
@@ -528,39 +323,24 @@ Qt 6
 + Dyna Design System
 ```
 
-Reasons:
+Nedenler:
 
-- one desktop frontend codebase for macOS and Windows
-- strong C++/QML separation for a native scientific application
-- mature desktop, input and graphics capabilities
-- suitable path for a high-performance custom engineering viewport
-- direct native interoperability path from C++ to the stable Dyna C ABI
-- strong Apple Silicon/macOS support while preserving Windows support
+- macOS ve Windows için tek desktop frontend kod tabanı
+- güçlü C++/QML ayrımı
+- olgun desktop/input/graphics altyapısı
+- yüksek performanslı özel mühendislik viewport'u için uygun yol
+- kararlı Dyna C ABI'ye doğrudan native entegrasyon
+- güçlü Apple Silicon/macOS desteği ve Windows uyumu
 
-Qt is a frontend technology, not a canonical model.
+Qt bir frontend teknolojisidir; kanonik model değildir.
 
-### Replacement requirement
+### Değiştirme testi
 
-The architecture must remain valid if Qt is removed.
+> `src/ui/frontends/qt` kaldırıldığında mevcut masaüstü UI kaybolabilir; ancak bilimsel çekirdek, proje modeli, application servisleri, presentation sözleşmeleri, result database veya mühendislik iş akışları geçersiz hale gelmemelidir.
 
-Healthy replacement test:
-
-> Removing `src/ui/frontends/qt` may remove the current desktop UI, but it must not remove or invalidate the scientific core, project model, application services, presentation contracts, result database or engineering workflows.
-
-### Future alternatives
-
-A future frontend may be implemented with:
-
-- Avalonia
-- SwiftUI/AppKit for a native macOS-only frontend
-- WinUI for a native Windows-only frontend
-- another suitable desktop UI framework
-
-No such migration should require changes to the Modern Fortran physics or canonical engineering models.
+Gelecekte Avalonia, SwiftUI/AppKit, WinUI veya başka bir frontend aynı alt katmanları kullanabilir.
 
 ## 19. Core bridge
-
-UI never owns numerical physics.
 
 ```text
 Qt/QML Frontend
@@ -578,25 +358,11 @@ Dyna Native Client
 Modern Fortran Core
 ```
 
-Example application services:
-
-```text
-MaterialService
-GeometryService
-MeshService
-AnalysisService
-SolverService
-ResultService
-ValidationService
-```
-
-Only the native client/interoperability layer understands the C ABI details.
+C ABI ayrıntılarını yalnız native client/interoperability katmanı bilir.
 
 ## 20. Dyna Design System
 
-The visual design system is canonical project-owned specification, not a collection of QML styling accidents.
-
-Canonical tokens:
+Dyna Design System projeye ait kanonik spesifikasyondur.
 
 ```text
 DesignTokenSet
@@ -611,71 +377,26 @@ DesignTokenSet
 └── SemanticState
 ```
 
-Qt/QML implements these tokens for the current frontend. A future frontend implements the same design language independently.
+Görsel kimlik Apple/macOS esintili, minimal ve tekniktir. Beyaz/açık gri yüzeyler, koyu tipografi, sınırlı system-blue, dengeli boşluk, kompakt kontroller, küçük radius, hassas hizalama ve light/dark desteği kullanılır. Turuncu vurgu, ağır gölge, aşırı büyük kart, yoğun gradient ve sürekli görünür yoğun ribbon kullanılmaz.
 
-Visual identity:
+## 21. Platform uyarlaması
 
-- Apple/macOS-inspired minimal technical language
-- white and very light gray surfaces
-- dark gray/black typography
-- limited system-blue accent
-- clear hierarchy and whitespace
-- compact technical controls
-- modest corner radii
-- precise alignment
-- restrained separators
-- light/dark system appearance support
+macOS ve Windows aynı mühendislik UX'ini paylaşır. Native/global menü, klavye kuralları, titlebar ve deployment gibi shell ayrıntıları host işletim sistemine uyarlanabilir; application semantics çatallanmaz.
 
-Avoid:
-
-- orange accent
-- heavy shadows
-- oversized cards
-- excessive gradients
-- permanently visible dense ribbon controls
-- decorative chrome that reduces engineering workspace
-
-Information architecture may be ANSYS-inspired while appearance remains distinctly DynaElastomerSolver.
-
-## 21. Platform adaptation
-
-macOS and Windows share the same engineering UX, but platform conventions can adapt at the shell edge.
-
-Examples:
-
-```text
-macOS
-├── native/global menu conventions
-├── Apple keyboard conventions
-├── window/titlebar integration
-└── Apple Silicon optimized build
-
-Windows
-├── Windows window conventions
-├── Windows keyboard conventions
-└── native deployment integration
-```
-
-These adaptations must not fork application semantics.
-
-## 22. Repository boundary
-
-Target structure:
+## 22. Repository sınırı
 
 ```text
 src/
-├── fortran/
-│   └── ...                       # no Qt
-├── application/
-│   └── ...                       # no Qt
-├── presentation/
+├── fortran/                     # Qt yok
+├── application/                 # Qt yok
+├── presentation/                # Qt yok
 │   ├── navigation/
 │   ├── inspector/
 │   ├── commands/
 │   ├── results/
-│   └── viewport/                 # no Qt
+│   └── viewport/
 └── ui/
-    ├── design/                   # canonical Dyna design specification
+    ├── design/
     └── frontends/
         └── qt/
             ├── app/
@@ -685,64 +406,38 @@ src/
             └── viewport/
 ```
 
-## 23. Build boundary
-
-Qt dependencies are permitted only in frontend targets.
-
-Conceptually:
+## 23. Build sınırı
 
 ```text
-DynaCoreFortran        -> no Qt
-DynaApplication        -> no Qt
-DynaPresentation       -> no Qt
-DynaQtFrontend         -> Qt allowed
-DynaDesktopApp         -> links DynaQtFrontend
+DynaCoreFortran        -> Qt yok
+DynaApplication        -> Qt yok
+DynaPresentation       -> Qt yok
+DynaQtFrontend         -> Qt kullanımına izin var
+DynaDesktopApp         -> DynaQtFrontend linkler
 ```
 
-Build/lint tests should fail if Qt includes or Qt-linked libraries leak into the lower layers.
+Alt katmanlarda Qt include veya Qt-linked kütüphane tespit edilirse build/lint testi başarısız olmalıdır.
 
-## 24. Qt licensing/dependency policy
+## 24. Qt lisans/bağımlılık politikası
 
-Qt dependencies are explicit and audited.
+Yalnız bilinçli olarak onaylanmış Qt modülleri kullanılır. Dağıtılan her modül için dependency/license registry tutulur. Açık ürün/lisans kararı olmadan GPL-only modül eklenmez. Desteklenen Qt sürümleri sabitlenir ve doğrulanır. Ticari dağıtım lisanslaması yayın öncesi ayrıca incelenir.
 
-Rules:
+## 25. Harici UI bağımlılık kuralı
 
-- use only intentionally approved Qt modules
-- maintain a dependency/license registry for every shipped module
-- avoid GPL-only modules without an explicit licensing/product decision
-- pin and validate supported Qt versions rather than blindly following latest
-- keep Qt-specific code localized so technical, commercial or licensing changes do not force a product rewrite
+Kontrollü sınırlar arkasında Qt frontend/platform servisleri, düşük seviyeli renderer, font/text shaping ve OS entegrasyonuna izin verilir.
 
-Commercial distribution licensing must be reviewed separately before release.
+Mimari sahibi olmasına izin verilmez:
 
-## 25. External UI dependency rule
+- gömülü ParaView veya FEBio Studio uygulaması
+- host shell olarak FreeCAD/SALOME
+- harici proje yöneticisi
+- kanonik editör olarak harici material UI
+- domain/application modellerinde Qt tipleri
+- kanonik proje state'i olarak QML
 
-Allowed behind controlled boundaries:
+> Harici UI teknolojileri kontrolleri render edebilir ve host edebilir; mühendislik deneyimi, uygulama durumu ve bilimsel etkileşim modeli DynaElastomerSolver'a aittir.
 
-```text
-Qt frontend/platform services
-low-level renderer backend
-font/text shaping
-OS integration
-```
-
-Not allowed as architectural owners:
-
-```text
-Embedded ParaView application
-Embedded FEBio Studio UI
-FreeCAD/SALOME as host shell
-ANSYS-like external project manager
-External material UI as canonical editor
-Qt types in domain/application models
-QML as the canonical project state
-```
-
-Principle:
-
-> External UI technologies may render and host controls; DynaElastomerSolver owns the engineering experience, application state and scientific interaction model.
-
-## 26. Initial screen sequence
+## 26. İlk ekran sırası
 
 1. Project
 2. Geometry
@@ -753,9 +448,9 @@ Principle:
 7. Results
 8. Validation
 
-These screens share one AppShell and one project model rather than behaving as separate applications.
+Bu ekranlar tek AppShell ve tek proje modelini paylaşır.
 
-## 27. Governing decisions
+## 27. Geçerli karar kayıtları
 
 - ADR-0003 — Owned UI Architecture
 - ADR-0004 — Qt Frontend Behind a Replaceable UI Boundary
