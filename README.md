@@ -55,6 +55,36 @@ Mesh + Patch Benchmark
 
 Bu zincir doğrulanmadan geniş material library, kapsamlı calibration, binary plugin sistemi, tam UI veya çoklu Quasi-Newton implementasyonları öncelik değildir.
 
+## Fortran kütüphane politikası
+
+Dyna'nın bilimsel fiziği ve ürün davranışı kendi çekirdeğinde kalır; açık kaynak Fortran kütüphaneleri genel amaçlı sayısal altyapı, veri yapıları, optimizasyon ve I/O gibi alanlarda adapter/API üzerinden kullanılır.
+
+### Aktif dependency — Fortran stdlib
+
+**Repo:** `https://github.com/kavakfatih/stdlib`  
+**Sürüm:** `0.8.1`  
+**Pinlenen commit:** `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
+
+CMake build zinciri bu fork'u pinlenmiş commit üzerinden kullanır. `stdlib` kaynak üretimi için `fypp` gerektirir.
+
+İlk gerçek kullanım:
+
+```text
+des_dense_linear
+      ↓
+stdlib_linalg::solve
+      ↓
+LAPACK *GESV backend
+```
+
+Önceki elle yazılmış Gaussian-elimination doğrulama çözücüsü kaldırılmıştır. Küçük/dense solver yolu artık stdlib lineer cebir arayüzünü kullanır.
+
+Kütüphane ve kaynak-kod referans envanteri:
+
+- `docs/references/FORTRAN_LIBRARIES.md`
+
+Bu envanterde stdlib yanında MUMPS, Reference LAPACK/BLAS, modernized MINPACK, HDF5, JSON-Fortran, NLESolver-Fortran, FrontISTR, test-drive ve fftpack gibi adayların repo bağlantıları, kullanım amacı ve dependency durumu takip edilir.
+
 ## Nearly-incompressible formulation yaklaşımı
 
 Production elastomer eleman formulasyonu peşinen sabitlenmez. V0.3 benchmark dalgasında en az şu adaylar karşılaştırılacaktır:
@@ -203,7 +233,7 @@ V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2 nonlinear pla
 - Q4 shape function ve 2×2 Gauss integrasyonu
 - Total-Lagrangian Q4 plane-strain residual ve consistent element tangent
 - çok elemanlı Q4 global assembly
-- pivotlamalı dense lineer çözücü
+- stdlib/LAPACK tabanlı küçük dense lineer çözüm adaptörü
 - fixed-step ve adaptive displacement-control Full Newton solver
 - reusable `solution_state_t`
 - convergence history
@@ -213,7 +243,7 @@ V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2 nonlinear pla
 
 Mevcut CTest paketi **16 test** içerir.
 
-Öne çıkan doğrulamalar:
+Öne çıkan, stdlib entegrasyonundan önce ve mevcut solver fiziğini doğrulayan sonuçlar:
 
 - Material tangent normalize FD hatası: yaklaşık `1.26e-9`
 - Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
@@ -225,18 +255,21 @@ Mevcut CTest paketi **16 test** içerir.
 - adaptive failure benchmark: `2 commit / 1 revert`
 - cutback exhaustion sonrası committed state korunuyor
 
-Yeni state/history ve status-message değişiklikleri GNU Fortran **14.2.0** ile yerel olarak derlenip ilgili testlerde doğrulandı.
+State/history ve status-message değişiklikleri GNU Fortran **14.2.0** ile yerel olarak doğrulandı.
+
+**Doğrulama notu:** stdlib dependency ve `stdlib_linalg::solve` entegrasyonu kaynak/API/build-konfigürasyonu seviyesinde uygulanmıştır. Bu çalışma ortamında `fypp` ve dış ağ erişimi olmadığı için stdlib tabanlı yeni build henüz tam CTest/compiler matrisi üzerinde doğrulanmış sayılmaz.
 
 ## Sıradaki V0.2 işleri
 
-1. Ek nonlinear distortion ve robustness benchmark'ları.
-2. Minimal `Node / Element / InternalMesh` veri modelini gerçek mesh akışına taşımak.
-3. Ham integration-point result saklama yolunu eklemek.
-4. Bağımsız solver/reference karşılaştırmasını genişletmek.
-5. macOS Apple Silicon + gfortran doğrulaması.
-6. Windows x64 + Intel ifx doğrulaması.
-7. Windows x64 + gfortran doğrulaması.
-8. Tüm compiler matrisi üzerinde CTest çalıştırmak.
+1. stdlib tabanlı build'i GNU Fortran ile tam CTest üzerinde doğrulamak.
+2. Ek nonlinear distortion ve robustness benchmark'ları.
+3. Minimal `Node / Element / InternalMesh` veri modelini gerçek mesh akışına taşımak.
+4. Ham integration-point result saklama yolunu eklemek.
+5. Bağımsız solver/reference karşılaştırmasını genişletmek.
+6. macOS Apple Silicon + gfortran doğrulaması.
+7. Windows x64 + Intel ifx doğrulaması.
+8. Windows x64 + gfortran doğrulaması.
+9. Tüm compiler matrisi üzerinde CTest çalıştırmak.
 
 Bunlar tamamlandıktan sonra V0.3 nearly-incompressible formulation bake-off'a geçilecektir.
 
@@ -264,6 +297,7 @@ Bunlar tamamlandıktan sonra V0.3 nearly-incompressible formulation bake-off'a g
 - `docs/architecture/UI_ARCHITECTURE.md`
 - `docs/architecture/RESULTS_ARCHITECTURE.md`
 - `docs/benchmarks/ANSYS_MARC_COMPARISON.md`
+- `docs/references/FORTRAN_LIBRARIES.md`
 - `docs/references/OPEN_SOURCE_REFERENCES.md`
 - `docs/decisions/ADR-0001-FOUNDATION.md`
 - `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
