@@ -182,7 +182,7 @@ Ham integration-point sonuçları, ekstrapole/ortalama alınmış display sonuç
 
 ## Mevcut durum
 
-V0.1 Material Core implementasyonu başlamış ve ilk doğrulanmış hesaplama çekirdeği repoya alınmıştır.
+V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2'nin ilk Q4 plane-strain dikey dilimine geçildi.
 
 Şu anda çalışan temel parçalar:
 
@@ -197,15 +197,25 @@ V0.1 Material Core implementasyonu başlamış ve ilk doğrulanmış hesaplama �
 - Cauchy gerilmesi
 - analitik `dP/dF` consistent material tangent
 - parametre, singular `F` ve non-positive `J` doğrulaması
+- Q4 shape function ve 2×2 Gauss integrasyonu
+- Total-Lagrangian Q4 plane-strain iç residual hesabı
+- Q4 consistent element tangent
+- test içinde incremental Full Newton çözümü
+- prescribed extension altında reaksiyon kuvveti hesabı
 
-Mevcut CTest paketi beş testi kapsar:
+Mevcut CTest paketi sekiz testi kapsar:
 
 1. 3×3 tensor yardımcıları
 2. finite-strain kinematik/invariant hesabı
 3. Neo-Hookean analitik referans state'leri
 4. parametre ve kinematik hata sınıflandırması
-5. analitik tangent / merkezi finite-difference karşılaştırması
+5. analitik material tangent / merkezi finite-difference karşılaştırması
+6. Q4 partition-of-unity ve shape derivative kontrolleri
+7. Q4 element residual/tangent finite-difference doğrulaması
+8. beş increment'li Q4 Full Newton benchmark'ı
 
-Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. macOS gfortran ile Windows ifx/gfortran derleyici matrisi ayrıca doğrulanacaktır.
+Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. Q4 element tangent kontrolü yaklaşık `1.16e-9` normalize hata vermiştir. Incremental Newton benchmark'ında `lambda_x=1.25` için çözülen lateral stretch yaklaşık `lambda_y=0.831469` olmuş ve FE reaksiyonu bağımsız homojen plane-strain referansıyla sayısal tolerans içinde eşleşmiştir.
 
-Sıradaki bilimsel hedef: V0.1'i derleyici/kontrat açısından kapatıp **Q4 plane-strain tek eleman + element residual/tangent + Full Newton** içeren V0.2 ilk nonlinear FEM dikey dilimine geçmek.
+macOS gfortran ile Windows ifx/gfortran derleyici matrisi ayrıca doğrulanacaktır.
+
+Sıradaki bilimsel hedef: test içindeki Newton döngüsünü hemen büyük bir solver mimarisine dönüştürmeden önce **çok elemanlı global assembly + sınır şartı eliminasyonu + dense doğrusal çözüm** zincirini kurmak; ardından ilk mesh/patch benchmark'ını çalıştırmaktır.
