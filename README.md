@@ -3,7 +3,7 @@
 DynaElastomerSolver is a scientific engineering platform focused on nonlinear finite-element analysis, material characterization and validation of rubber/elastomer materials and elastomer-based products.
 
 **Current architecture baseline:** `v1.2 — ANSYS / Hexagon Marc benchmark revision`  
-**UI architecture baseline:** `v1.0 — owned UI architecture`
+**UI architecture baseline:** `v1.1 — Qt frontend behind a replaceable UI boundary`
 
 ## Project focus
 
@@ -52,7 +52,7 @@ External CAD → DXF
  Postprocess / Test Comparison
 ```
 
-The scientific core is written in **Modern Fortran**. External systems such as mesh generators and sparse linear solvers are isolated behind interfaces/adapters so the project does not become dependent on one implementation.
+The scientific core is written in **Modern Fortran**. External systems such as mesh generators, sparse linear solvers and UI frameworks are isolated behind interfaces/adapters so the project does not become architecturally dependent on one implementation.
 
 ## Numerical stack
 
@@ -119,9 +119,33 @@ Top-level workspaces:
 Project → Geometry → Material Lab → Mesh → Analysis → Solve → Results → Validation
 ```
 
-The visual language is intentionally distinct from traditional CAE software: minimal, technical and Apple-inspired. External UI frameworks may provide low-level windowing/input/render infrastructure, but navigation, selection, commands, inspector behavior, result interaction and the project design system remain Dyna-owned.
+The visual language is intentionally distinct from traditional CAE software: minimal, technical and Apple-inspired.
 
-Initial cross-platform UI framework candidate: **Avalonia/.NET**. Qt 6 remains an alternative subject to an implementation spike before production UI work.
+The initial production desktop frontend is:
+
+```text
+Qt 6
++ Qt Quick / QML
++ Dyna Design System
+```
+
+Qt is a **replaceable frontend/platform dependency**. Scientific/domain models, application services, navigation semantics, selection state, inspector schemas, result definitions, viewport scene data and project file semantics remain Qt-independent.
+
+```text
+Modern Fortran Core
+        ↓
+`des_*` C ABI
+        ↓
+Dyna Application Core       # no Qt
+        ↓
+Dyna Presentation Contracts # no Qt
+        ↓
+Qt Frontend Adapters
+        ↓
+Qt Quick / QML
+```
+
+A future Avalonia, SwiftUI/AppKit, WinUI or other frontend can therefore be introduced without rewriting the scientific solver or canonical engineering models.
 
 ## Result philosophy
 
@@ -148,10 +172,13 @@ The platform also targets native simulation-to-test comparison for force-displac
 - `docs/decisions/ADR-0001-FOUNDATION.md`
 - `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
 - `docs/decisions/ADR-0003-OWNED-UI-ARCHITECTURE.md`
+- `docs/decisions/ADR-0004-QT-FRONTEND-BOUNDARY.md`
 - `docs/benchmarks/ANSYS_MARC_COMPARISON.md`
 - `docs/references/OPEN_SOURCE_REFERENCES.md`
 - `docs/ROADMAP.md`
 
 ## Current status
 
-Architecture and scientific foundations are being defined before implementation. The first implementation milestone builds the constitutive material engine and verification infrastructure before introducing the full FEM solver. UI production work will begin after a small framework/viewport/native-ABI architecture spike confirms the selected desktop stack.
+Architecture and scientific foundations are being defined before implementation. The first implementation milestone builds the constitutive material engine and verification infrastructure before introducing the full FEM solver.
+
+The UI stack is now selected architecturally as Qt 6 / Qt Quick-QML, with a strict replacement boundary. Production UI work should begin with a small shell/viewport/native-ABI spike that verifies the boundary on both macOS Apple Silicon and Windows before broader screen implementation.
