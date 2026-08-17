@@ -72,6 +72,10 @@ Amaç: mimari ile çalışan fizik arasındaki mesafeyi erken kapatmak.
 - [x] lineer residual ve backend status raporlama
 - [x] unsupported-backend failure yolu
 - [x] eski `des_dense_linear` yolunun compatibility wrapper'a dönüştürülmesi
+- [x] `newton_report_t` içine lineer solver diagnostics
+- [x] Newton solver içinde doğrudan `solve_linear_system(...)` kullanımı
+- [x] `InternalMesh` solver adapterinde lineer backend seçimi
+- [x] terminal backend konfigürasyon hatalarının adaptive cutback dışında tutulması
 
 ### V0.2 doğrulama zinciri
 
@@ -86,13 +90,13 @@ Neo-Hookean
 → InternalMesh
 → raw Gauss-point results
 → Dyna linear solver boundary
+→ Newton linear diagnostics
 → patch / mesh refinement
 ```
 
 ### Kalanlar
 
 - [ ] stdlib tabanlı full build + 19/19 CTest doğrulaması
-- [ ] `newton_report_t` içine son lineer solver raporunu taşımak
 - [ ] ek nonlinear distortion / robustness benchmark'ları
 - [ ] bağımsız solver/reference karşılaştırmasının genişletilmesi
 - [ ] macOS Apple Silicon + gfortran build/test
@@ -101,7 +105,7 @@ Neo-Hookean
 
 ### V0.2 çıkış kriteri
 
-Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik/bağımsız referanslarla tolerans içinde uyuşmalı; mesh refinement ve robustness testleri geçmeli; lineer solver sınırı raporlanabilir olmalı ve compiler matrisi doğrulanmalıdır.
+Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik/bağımsız referanslarla tolerans içinde uyuşmalı; mesh refinement ve robustness testleri geçmeli; lineer solver sınırı ve diagnostics raporlanabilir olmalı ve compiler matrisi doğrulanmalıdır.
 
 ---
 
