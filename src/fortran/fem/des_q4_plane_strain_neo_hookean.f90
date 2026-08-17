@@ -4,12 +4,14 @@ module des_q4_plane_strain_neo_hookean
   use des_material_types, only : material_kinematics_t, material_response_t, neo_hookean_parameters_t
   use des_neo_hookean, only : evaluate_neo_hookean
   use des_q4_shape, only : q4_shape_functions
+  use des_integration_point_results, only : integration_point_result_t
   implicit none
   private
   public :: evaluate_q4_plane_strain_element
 contains
 
-  pure subroutine evaluate_q4_plane_strain_element(X, u, parameters, residual, tangent, status, min_j)
+  pure subroutine evaluate_q4_plane_strain_element( &
+      X, u, parameters, residual, tangent, status, min_j, integration_results)
     real(dp), intent(in) :: X(4,2)
     real(dp), intent(in) :: u(4,2)
     type(neo_hookean_parameters_t), intent(in) :: parameters
@@ -17,6 +19,7 @@ contains
     real(dp), intent(out) :: tangent(8,8)
     integer, intent(out) :: status
     real(dp), intent(out) :: min_j
+    type(integration_point_result_t), intent(out), optional :: integration_results(4)
 
     real(dp), parameter :: gp = 0.57735026918962576451_dp
     real(dp), parameter :: gauss_xi(4)  = [-gp, gp, gp, -gp]
@@ -36,11 +39,23 @@ contains
     min_j = huge(1.0_dp)
 
     do g = 1,4
+      if (present(integration_results)) then
+        integration_results(g) = integration_point_result_t()
+        integration_results(g)%point_id = g
+        integration_results(g)%xi = gauss_xi(g)
+        integration_results(g)%eta = gauss_eta(g)
+      end if
+
       call q4_shape_functions(gauss_xi(g), gauss_eta(g), N, dN_parent)
       call reference_gradient(X, dN_parent, Jmap, invJmap, detJmap, dN_dX)
 
+      if (present(integration_results)) then
+        integration_results(g)%reference_weight = detJmap
+      end if
+
       if (detJmap <= jac_tol) then
         status = DES_ERROR_INVALID_ELEMENT_JACOBIAN
+        if (present(integration_results)) integration_results(g)%status = status
         return
       end if
 
@@ -60,6 +75,16 @@ contains
       kin%F = F
       call evaluate_neo_hookean(kin, parameters, response)
       min_j = min(min_j, response%J)
+
+      if (present(integration_results)) then
+        integration_results(g)%F = F
+        integration_results(g)%J = response%J
+        integration_results(g)%P = response%P
+        integration_results(g)%cauchy = response%cauchy
+        integration_results(g)%strain_energy_density = response%energy
+        integration_results(g)%status = response%status
+        integration_results(g)%valid = response%valid
+      end if
 
       if (.not. response%valid) then
         ! Material-point katmanındaki gerçek neden korunur; örneğin non-positive J.
