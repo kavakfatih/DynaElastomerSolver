@@ -1,9 +1,11 @@
 module des_q4_plane_strain_newton_solver
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
-                         DES_ERROR_LINEAR_SOLVE, DES_ERROR_NEWTON_DID_NOT_CONVERGE, &
-                         DES_ERROR_CUTBACK_EXHAUSTED
-  use des_dense_linear, only : solve_dense_system
+                         DES_ERROR_NEWTON_DID_NOT_CONVERGE, &
+                         DES_ERROR_CUTBACK_EXHAUSTED, &
+                         DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+  use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
+                                solve_linear_system
   use des_solution_state, only : solution_state_t, initialize_solution_state, &
                                  begin_solution_trial, commit_solution_state, &
                                  revert_solution_state
@@ -30,18 +32,22 @@ module des_q4_plane_strain_newton_solver
     integer :: last_failure_status = DES_STATUS_OK
     integer :: state_commit_count = 0
     integer :: state_revert_count = 0
+    integer :: linear_solve_count = 0
+    integer :: max_linear_equation_count = 0
     real(dp) :: final_residual_norm = huge(1.0_dp)
     real(dp) :: min_j = huge(1.0_dp)
     real(dp) :: final_load_factor = 0.0_dp
     real(dp) :: last_accepted_increment = 0.0_dp
+    real(dp) :: max_linear_residual_inf_norm = 0.0_dp
     logical :: converged = .false.
+    type(linear_solver_report_t) :: last_linear_report
     type(convergence_history_t) :: history
   end type newton_report_t
 contains
 
   subroutine solve_q4_plane_strain_displacement_control( &
       X, connectivity, parameters, prescribed_dofs, prescribed_final_values, &
-      n_increments, max_iterations, tolerance, u, residual, report)
+      n_increments, max_iterations, tolerance, u, residual, report, linear_settings)
     real(dp), intent(in) :: X(:,:)
     integer, intent(in) :: connectivity(:,:)
     type(neo_hookean_parameters_t), intent(in) :: parameters
@@ -52,6 +58,7 @@ contains
     real(dp), intent(inout) :: u(:,:)
     real(dp), intent(out) :: residual(:)
     type(newton_report_t), intent(out) :: report
+    type(linear_solver_settings_t), intent(in), optional :: linear_settings
 
     logical, allocatable :: is_prescribed(:)
     integer, allocatable :: free_dofs(:)
@@ -59,9 +66,15 @@ contains
     real(dp) :: min_j, load_factor, residual_norm, increment_size
     integer :: ndof, nnode, nfree, status
     integer :: increment, iteration, a, b, dof, node, comp, attempt
-    logical :: ok, increment_converged
+    logical :: increment_converged
+    type(linear_solver_settings_t) :: active_linear_settings
+    type(linear_solver_report_t) :: linear_report
+
+    active_linear_settings = linear_solver_settings_t()
+    if (present(linear_settings)) active_linear_settings = linear_settings
 
     report = newton_report_t()
+    report%last_linear_report%backend = active_linear_settings%backend
     call clear_convergence_history(report%history)
     report%increments_requested = n_increments
     residual = 0.0_dp
@@ -121,12 +134,13 @@ contains
           end do
         end do
 
-        call solve_dense_system(Kff, rhs, du, ok)
-        if (.not. ok) then
+        call solve_linear_system(Kff, rhs, du, active_linear_settings, linear_report)
+        call record_linear_solve(report, linear_report)
+        if (.not. linear_report%converged) then
           call add_history(report, attempt, iteration, load_factor, increment_size, &
-                           residual_norm, min_j, DES_ERROR_LINEAR_SOLVE, .false.)
-          report%status = DES_ERROR_LINEAR_SOLVE
-          report%last_failure_status = DES_ERROR_LINEAR_SOLVE
+                           residual_norm, min_j, linear_report%status, .false.)
+          report%status = linear_report%status
+          report%last_failure_status = linear_report%status
           return
         end if
 
@@ -157,7 +171,7 @@ contains
   subroutine solve_q4_plane_strain_adaptive_displacement_control( &
       X, connectivity, parameters, prescribed_dofs, prescribed_final_values, &
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
-      max_iterations, tolerance, u, residual, report)
+      max_iterations, tolerance, u, residual, report, linear_settings)
     real(dp), intent(in) :: X(:,:)
     integer, intent(in) :: connectivity(:,:)
     type(neo_hookean_parameters_t), intent(in) :: parameters
@@ -169,6 +183,7 @@ contains
     real(dp), intent(inout) :: u(:,:)
     real(dp), intent(out) :: residual(:)
     type(newton_report_t), intent(out) :: report
+    type(linear_solver_settings_t), intent(in), optional :: linear_settings
 
     logical, allocatable :: is_prescribed(:)
     integer, allocatable :: free_dofs(:)
@@ -178,10 +193,16 @@ contains
     real(dp) :: residual_norm, accepted_step
     integer :: ndof, nnode, nfree, status, failure_status
     integer :: iteration, a, b, dof, node, comp, attempt
-    logical :: ok, increment_converged
+    logical :: increment_converged
     real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
+    type(linear_solver_settings_t) :: active_linear_settings
+    type(linear_solver_report_t) :: linear_report
+
+    active_linear_settings = linear_solver_settings_t()
+    if (present(linear_settings)) active_linear_settings = linear_settings
 
     report = newton_report_t()
+    report%last_linear_report%backend = active_linear_settings%backend
     call clear_convergence_history(report%history)
     residual = 0.0_dp
 
@@ -252,11 +273,12 @@ contains
           end do
         end do
 
-        call solve_dense_system(Kff, rhs, du, ok)
-        if (.not. ok) then
+        call solve_linear_system(Kff, rhs, du, active_linear_settings, linear_report)
+        call record_linear_solve(report, linear_report)
+        if (.not. linear_report%converged) then
           call add_history(report, attempt, iteration, target_factor, accepted_step, &
-                           residual_norm, min_j, DES_ERROR_LINEAR_SOLVE, .false.)
-          failure_status = DES_ERROR_LINEAR_SOLVE
+                           residual_norm, min_j, linear_report%status, .false.)
+          failure_status = linear_report%status
           exit
         end if
 
@@ -284,9 +306,17 @@ contains
         end if
 
         report%last_failure_status = failure_status
-        report%cutback_count = report%cutback_count + 1
         call revert_solution_state(state)
 
+        ! Desteklenmeyen backend bir yük-adımı problemi değildir; cutback ile düzelmez.
+        if (failure_status == DES_ERROR_UNSUPPORTED_LINEAR_BACKEND) then
+          u = state%committed
+          call copy_state_counters(state, report)
+          report%status = failure_status
+          return
+        end if
+
+        report%cutback_count = report%cutback_count + 1
         if (report%cutback_count > max_cutbacks) then
           u = state%committed
           call copy_state_counters(state, report)
@@ -410,6 +440,21 @@ contains
     record%accepted = accepted
     call append_convergence_record(report%history, record)
   end subroutine add_history
+
+  subroutine record_linear_solve(report, linear_report)
+    type(newton_report_t), intent(inout) :: report
+    type(linear_solver_report_t), intent(in) :: linear_report
+
+    report%last_linear_report = linear_report
+    report%linear_solve_count = report%linear_solve_count + 1
+    report%max_linear_equation_count = max( &
+      report%max_linear_equation_count, linear_report%equation_count)
+
+    if (linear_report%converged) then
+      report%max_linear_residual_inf_norm = max( &
+        report%max_linear_residual_inf_norm, linear_report%residual_inf_norm)
+    end if
+  end subroutine record_linear_solve
 
   subroutine copy_state_counters(state, report)
     type(solution_state_t), intent(in) :: state
