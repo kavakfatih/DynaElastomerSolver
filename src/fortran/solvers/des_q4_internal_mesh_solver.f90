@@ -5,6 +5,7 @@ module des_q4_internal_mesh_solver
   use des_integration_point_results, only : integration_point_results_t, &
                                             initialize_q4_integration_results
   use des_material_types, only : neo_hookean_parameters_t
+  use des_linear_solver, only : linear_solver_settings_t
   use des_q4_plane_strain_newton_solver, only : newton_report_t, &
        solve_q4_plane_strain_displacement_control, &
        solve_q4_plane_strain_adaptive_displacement_control
@@ -19,7 +20,8 @@ contains
 
   subroutine solve_q4_internal_mesh_displacement_control( &
       mesh, parameters, prescribed_dofs, prescribed_final_values, &
-      n_increments, max_iterations, tolerance, u, residual, report, integration_results)
+      n_increments, max_iterations, tolerance, u, residual, report, integration_results, &
+      linear_settings)
     type(internal_mesh_t), intent(in) :: mesh
     type(neo_hookean_parameters_t), intent(in) :: parameters
     integer, intent(in) :: prescribed_dofs(:)
@@ -30,6 +32,7 @@ contains
     real(dp), intent(out) :: residual(:)
     type(newton_report_t), intent(out) :: report
     type(integration_point_results_t), intent(out) :: integration_results
+    type(linear_solver_settings_t), intent(in), optional :: linear_settings
 
     integer :: mesh_status
 
@@ -42,10 +45,17 @@ contains
       return
     end if
 
-    call solve_q4_plane_strain_displacement_control( &
-      mesh%coordinates, mesh%q4_connectivity, parameters, &
-      prescribed_dofs, prescribed_final_values, n_increments, max_iterations, &
-      tolerance, u, residual, report)
+    if (present(linear_settings)) then
+      call solve_q4_plane_strain_displacement_control( &
+        mesh%coordinates, mesh%q4_connectivity, parameters, &
+        prescribed_dofs, prescribed_final_values, n_increments, max_iterations, &
+        tolerance, u, residual, report, linear_settings)
+    else
+      call solve_q4_plane_strain_displacement_control( &
+        mesh%coordinates, mesh%q4_connectivity, parameters, &
+        prescribed_dofs, prescribed_final_values, n_increments, max_iterations, &
+        tolerance, u, residual, report)
+    end if
 
     call collect_final_integration_results(mesh, u, parameters, residual, report, integration_results)
   end subroutine solve_q4_internal_mesh_displacement_control
@@ -53,7 +63,7 @@ contains
   subroutine solve_q4_internal_mesh_adaptive_displacement_control( &
       mesh, parameters, prescribed_dofs, prescribed_final_values, &
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
-      max_iterations, tolerance, u, residual, report, integration_results)
+      max_iterations, tolerance, u, residual, report, integration_results, linear_settings)
     type(internal_mesh_t), intent(in) :: mesh
     type(neo_hookean_parameters_t), intent(in) :: parameters
     integer, intent(in) :: prescribed_dofs(:)
@@ -65,6 +75,7 @@ contains
     real(dp), intent(out) :: residual(:)
     type(newton_report_t), intent(out) :: report
     type(integration_point_results_t), intent(out) :: integration_results
+    type(linear_solver_settings_t), intent(in), optional :: linear_settings
 
     integer :: mesh_status
 
@@ -77,10 +88,18 @@ contains
       return
     end if
 
-    call solve_q4_plane_strain_adaptive_displacement_control( &
-      mesh%coordinates, mesh%q4_connectivity, parameters, &
-      prescribed_dofs, prescribed_final_values, initial_increment, min_increment, &
-      cutback_factor, max_cutbacks, max_iterations, tolerance, u, residual, report)
+    if (present(linear_settings)) then
+      call solve_q4_plane_strain_adaptive_displacement_control( &
+        mesh%coordinates, mesh%q4_connectivity, parameters, &
+        prescribed_dofs, prescribed_final_values, initial_increment, min_increment, &
+        cutback_factor, max_cutbacks, max_iterations, tolerance, u, residual, report, &
+        linear_settings)
+    else
+      call solve_q4_plane_strain_adaptive_displacement_control( &
+        mesh%coordinates, mesh%q4_connectivity, parameters, &
+        prescribed_dofs, prescribed_final_values, initial_increment, min_increment, &
+        cutback_factor, max_cutbacks, max_iterations, tolerance, u, residual, report)
+    end if
 
     call collect_final_integration_results(mesh, u, parameters, residual, report, integration_results)
   end subroutine solve_q4_internal_mesh_adaptive_displacement_control
