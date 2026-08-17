@@ -42,3 +42,15 @@ des_add_fortran_test(
   material.neo_hookean.point_tangent
   test_neo_hookean_material_point.f90
 )
+
+des_add_fortran_test(
+  test_q4_shape
+  fem.q4.shape
+  test_q4_shape.f90
+)
+
+des_add_fortran_test(
+  test_q4_plane_strain_element
+  fem.q4.plane_strain.element_tangent
+  test_q4_plane_strain_element.f90
+)
