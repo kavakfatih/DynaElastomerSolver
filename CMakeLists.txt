@@ -11,9 +11,15 @@ set(CMAKE_Fortran_EXTENSIONS OFF)
 
 option(DES_BUILD_TESTS "DynaElastomerSolver testlerini derle" ON)
 
+# Harici Fortran bağımlılıkları burada tek noktadan yönetilir.
+include(cmake/DESDependencies.cmake)
+
 add_subdirectory(src/fortran)
 
 if(DES_BUILD_TESTS)
+  # stdlib testleri dependency configure aşamasında kapatılır; burada yalnız
+  # DynaElastomerSolver test paketi yeniden etkinleştirilir.
+  set(BUILD_TESTING ON CACHE BOOL "DynaElastomerSolver testlerini etkinleştir" FORCE)
   include(CTest)
   enable_testing()
   add_subdirectory(tests)
