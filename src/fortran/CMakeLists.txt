@@ -9,6 +9,8 @@ add_library(DynaElastomerCore STATIC
   fem/des_q4_plane_strain_neo_hookean.f90
   fem/des_q4_plane_strain_mesh_neo_hookean.f90
   solvers/des_dense_linear.f90
+  solvers/des_solution_state.f90
+  solvers/des_solver_history.f90
   solvers/des_q4_plane_strain_newton_solver.f90
 )
 
