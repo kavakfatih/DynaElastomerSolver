@@ -1,178 +1,52 @@
-# DynaElastomerSolver
+# DynaElastomerSolver — Sistem ve Mimari
 
-DynaElastomerSolver; kauçuk/elastomer malzemeler ve elastomer tabanlı ürünler için doğrusal olmayan sonlu eleman analizi, malzeme karakterizasyonu ve doğrulama odaklı bilimsel bir mühendislik platformudur.
+Bu branch, DynaElastomerSolver projesinin **sistem mimarisi, bilimsel planları, tasarım kararları, yol haritası ve teknik referansları** için ayrılmıştır.
 
-**Ana ürün yönü:** nonlineer elastomer solver uzmanlaşması  
-**Geliştirme disiplini:** implementasyon öncelikli doğrulama — ADR-0006  
-**UI:** Qt 6 / Qt Quick-QML, değiştirilebilir frontend sınırı arkasında  
-**Results:** elastomer odaklı, ham integrasyon noktası verisini görüntüleme sonuçlarından ayıran sonuç sistemi
+> **Branch:** `Sistem-ve-Mimari`
 
-## Proje odağı
+## Amaç
 
-Proje genel amaçlı CAE paketlerinin özellik sayısını kopyalamayı hedeflemez. Ana hedef; aşağıdaki dar problem sınıfında yüksek doğruluk, sağlam nonlinear çözüm ve deneysel doğrulamadır:
+Bu branch'te çalıştırılabilir program kaynak kodu, test kodu veya build dosyası tutulmaz. Amaç; uygulama kodundan bağımsız, okunabilir ve sürdürülebilir bir **mimari ve sistem planı baseline'ı** oluşturmaktır.
 
-- quasi-static büyük deformasyon
-- hiperelastik elastomer
-- yaklaşık sıkıştırılamaz davranış
-- bonded metal–elastomer sistemleri
-- plane strain
-- axisymmetric
-- axisymmetric torsion / 2.5D
-- tork–açı ve kuvvet–yer değiştirme cevabı
+Gerçek implementasyon ve çalışan program kaynakları `main` branch'inde geliştirilir.
 
-ANSYS Mechanical ve Hexagon Marc genel kapsam parity hedefi değil; seçilmiş elastomer problemlerinde doğruluk ve nonlinear robustness benchmark'ıdır.
+## Bu branch'in kapsamı
 
-## Geliştirme ilkesi
+- proje bağlamı ve ürün vizyonu
+- ana sistem mimarisi
+- nonlineer elastomer solver mimarisi
+- Material Core mimarisi
+- nearly-incompressible formulation planı
+- FEM doğrulama ve benchmark stratejisi
+- Results mimarisi
+- UI ve Qt frontend sınırları
+- ANSYS / Hexagon Marc karşılaştırmaları
+- açık kaynak referansları
+- ADR mimari karar kayıtları
+- geliştirme yol haritası ve V1.0 kapsam sınırı
 
-> Önce çalışan ve doğrulanan en küçük fizik zinciri; sonra yalnız kanıtlanmış ihtiyaca göre mimari genişleme.
+## Dokümantasyon haritası
 
-İlk çalışan dikey dilim:
-
-```text
-Neo-Hookean
-   ↓
-Material-point
-   ↓
-Energy / Stress / Consistent Tangent
-   ↓
-FD Tangent Checker
-   ↓
-Q4 Plane-Strain
-   ↓
-Element Residual + Tangent
-   ↓
-Global Assembly
-   ↓
-Full Newton
-   ↓
-Dense Solver
-   ↓
-Analitik + Mesh/Patch Benchmark
-```
-
-Bu zincir doğrulanmadan geniş material library, kapsamlı calibration, binary plugin sistemi, tam UI veya çoklu Quasi-Newton implementasyonları öncelik değildir.
-
-## Nearly-incompressible formulation yaklaşımı
-
-Production elastomer eleman formulasyonu peşinen sabitlenmez. İlk benchmark dalgasında en az şu adaylar karşılaştırılacaktır:
-
-```text
-Displacement-only Q4
-        vs
-Mixed u-p adayı
-        vs
-F-bar / eşdeğer locking azaltıcı aday
-```
-
-Karar; locking, pressure stability, mesh convergence, nonlinear convergence, distortion sensitivity, maliyet ve axisymmetric/torsion genişletilebilirliği üzerinden verilecek ve ayrı ADR ile sabitlenecektir.
-
-## Solver yaklaşımı
-
-Hedef mimari geniştir ancak implementasyon ihtiyaç kanıtlandıkça açılır.
-
-İlk zorunlu solver yolu:
-
-```text
-Full Newton
-+ consistent tangent
-+ increment stepping
-+ convergence diagnostics
-```
-
-Çalışan minimal solver API bu temel yolu gerçekleştirmektedir. Cutback/retry, trial/commit/revert ve line search bir sonraki robustness dalgasında, gerçek benchmark ihtiyacına göre eklenecektir.
-
-Daha sonra gerekirse:
-
-- line search
-- Modified Newton
-- BFGS / Broyden
-- gelişmiş recovery
-- elastomer Automatic profiles
-
-eklenebilir.
-
-`TrustRegion` ve `ArcLength/Continuation` V1.0 zorunluluğu değildir.
-
-Ayrıntılı hedef mimari: `docs/architecture/SOLVER_ARCHITECTURE.md`
-
-## Material Core
-
-Material Core FEM'den bağımsızdır ve aynı kanonik constitutive implementation şu sistemler tarafından kullanılır:
-
-- material-point doğrulaması
-- FEM
-- calibration
-- gelecekteki adaptörler
-
-İlk model Neo-Hookean'dır. Mooney-Rivlin, Yeoh ve Ogden ailesi ilk FEM zinciri doğrulandıktan sonra eklenir.
-
-## V1.0 kapsam sınırı
-
-### Dahil
-
-- bonded/tied elastomer-metal
-- finite strain
-- nearly incompressible elastomer
-- plane strain
-- axisymmetric
-- axisymmetric torsion
-- displacement / rotation control
-- reaction force / torque
-- seçilmiş doğrulanmış hiperelastik modeller
-
-### Dahil değil
-
-- separation/frictional contact
-- self-contact
-- debonding
-- viskoelastisite
-- Mullins effect
-- damage / fatigue / life prediction
-- transient/harmonic/explicit dynamics
-- binary User Material Plugin
-- genel amaçlı CAD
-
-V1.0 sonuçları **nonlinear structural response** olarak tanımlanır; Cauchy stress, principal stretch veya strain-energy density doğrudan kopma/ömür tahmini olarak yorumlanmaz.
-
-## UI yaklaşımı
-
-İlk production frontend:
-
-```text
-Qt 6 + Qt Quick/QML + Dyna Design System
-```
-
-Qt yalnız frontend/platform katmanıdır. Scientific core, application model, presentation contracts ve result semantics Qt'den bağımsız kalır.
-
-Tam UI geliştirmesi solver doğrulamasının önüne geçirilmez; erken aşamada yalnız gerekli minimal teknik shell/test harness kullanılabilir.
-
-## Results yaklaşımı
-
-```text
-ResultDatabase
-      ↓
-ResultDefinition
-      ↓
-ResultOperation
-      ↓
-ResultObject
-      ↓
-ResultViewModel
-      ↓
-Contour / Chart / Table / Inspector
-```
-
-Ham integration-point sonuçları, ekstrapole/ortalama alınmış display sonuçlarından ayrı tutulur. `GaussPointInspector`, torque–angle, force–displacement ve stiffness sonuçları temel ürün özellikleridir.
-
-## Dokümantasyon
+### Proje ve yol haritası
 
 - `docs/PROJECT_CONTEXT.md`
 - `docs/ROADMAP.md`
+
+### Mimari
+
 - `docs/architecture/ARCHITECTURE.md`
 - `docs/architecture/MATERIAL_CORE_ARCHITECTURE.md`
 - `docs/architecture/SOLVER_ARCHITECTURE.md`
-- `docs/architecture/UI_ARCHITECTURE.md`
 - `docs/architecture/RESULTS_ARCHITECTURE.md`
+- `docs/architecture/UI_ARCHITECTURE.md`
+
+### Benchmark ve referanslar
+
+- `docs/benchmarks/ANSYS_MARC_COMPARISON.md`
+- `docs/references/OPEN_SOURCE_REFERENCES.md`
+
+### Mimari karar kayıtları
+
 - `docs/decisions/ADR-0001-FOUNDATION.md`
 - `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
 - `docs/decisions/ADR-0003-OWNED-UI-ARCHITECTURE.md`
@@ -180,53 +54,44 @@ Ham integration-point sonuçları, ekstrapole/ortalama alınmış display sonuç
 - `docs/decisions/ADR-0005-NONLINEAR-ELASTOMER-SOLVER-SPECIALIZATION.md`
 - `docs/decisions/ADR-0006-IMPLEMENTATION-FIRST-VALIDATION-AND-V1-SCOPE.md`
 
-## Mevcut durum
+## Temel ürün yönü
 
-V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2'nin ilk nonlinear plane-strain FEM dikey dilimi gerçek kodla doğrulandı.
+DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamayı hedeflemez. Ana uzmanlaşma alanı:
 
-Şu anda çalışan temel parçalar:
+- büyük deformasyonlu nonlineer elastomer mekaniği
+- hiperelastik malzeme davranışı
+- yaklaşık sıkıştırılamazlık
+- bonded metal–elastomer sistemleri
+- plane strain
+- axisymmetric
+- axisymmetric torsion / 2.5D
+- tork–açı ve kuvvet–yer değiştirme tahmini
+- bağımsız solver ve fiziksel test doğrulaması
 
-- CMake tabanlı Modern Fortran çekirdeği
-- precision ve açık status/error kodları
-- 3×3 tensör ve finite-strain/invariant yardımcıları
-- `material_kinematics_t` / `material_response_t`
-- sıkıştırılabilir Neo-Hookean enerji, First Piola-Kirchhoff, Cauchy ve analitik `dP/dF` tangent
-- parametre, singular `F` ve non-positive `J` tanıları
-- Q4 shape function ve 2×2 Gauss integrasyonu
-- Total-Lagrangian Q4 plane-strain residual ve consistent element tangent
-- çok elemanlı Q4 global assembly
-- pivotlamalı dense lineer çözücü
-- displacement-control incremental Full Newton solver API
-- `newton_report_t` ile increment/iteration/residual/min-J raporu
-- material-point hata nedeninin element ve global katmanlara korunarak aktarılması
+ANSYS Mechanical ve Hexagon Marc, özellik sayısı hedefi değil; seçilmiş elastomer problemlerinde doğruluk, çözüm sağlamlığı ve mühendislik davranışı için benchmark'tır.
 
-Mevcut CTest paketi **12 testi** kapsar. Başlıca doğrulamalar:
+## Branch politikası
 
-1. tensör ve finite-strain yardımcıları
-2. Neo-Hookean analitik referans state'leri
-3. parametre ve kinematik hata sınıflandırması
-4. analitik material tangent / merkezi finite-difference karşılaştırması
-5. Q4 shape function kontrolleri
-6. Q4 element residual/tangent finite-difference doğrulaması
-7. tek eleman incremental Full Newton benchmark'ı
-8. dense lineer çözücü doğrulaması
-9. iki elemanlı global assembly + Full Newton benchmark'ı
-10. reusable Full Newton solver API benchmark'ı
-11. distorsiyonlu 2×2 nonlinear Q4 patch testi
+Bu branch'e:
 
-Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. Öne çıkan sayısal sonuçlar:
+**Eklenebilir:**
+- Markdown dokümanları
+- mimari kararlar
+- sistem şemaları
+- matematiksel/formülasyon açıklamaları
+- doğrulama planları
+- benchmark planları
+- UI bilgi mimarisi ve tasarım kuralları
 
-- Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
-- iki elemanlı reaksiyon referans hatası: yaklaşık `1.0e-15`
-- solver API final free residual normu: yaklaşık `5.4e-15`
-- distorsiyonlu nonlinear patch merkez displacement hatası: yaklaşık `3.9e-17`
-- patch global kuvvet toplamları: makine hassasiyeti seviyesinde
+**Eklenmez:**
+- `.f90`, `.c`, `.cpp`, `.h`, `.cs`, `.swift`, `.qml` gibi uygulama kaynakları
+- test programları
+- executable örnekleri
+- `CMakeLists.txt` veya başka build programları
+- derlenmiş binary dosyalar
 
-macOS gfortran ile Windows ifx/gfortran derleyici matrisi ayrıca doğrulanacaktır.
+Dokümanlardaki formül, pseudo-code, interface adı ve kavramsal şemalar bu kuralın dışındadır; bunlar mimari açıklamanın parçasıdır.
 
-Sıradaki bilimsel hedefler:
+## Dil politikası
 
-1. V0.2 için mesh refinement ve ek patch/robustness benchmark'ları
-2. fixed-step Newton başarısızlıklarının açık tanıları ve minimal retry/cutback davranışı
-3. macOS/Windows compiler doğrulaması
-4. ardından V0.3 nearly-incompressible formulation bake-off: displacement-only Q4 vs mixed `u-p` vs F-bar adayı
+İnsan tarafından okunan proje içeriği Türkçe tutulur. API, sınıf, interface, standart ve üçüncü taraf ürün adları gerektiğinde teknik uyumluluk nedeniyle İngilizce kalabilir.
