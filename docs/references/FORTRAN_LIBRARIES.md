@@ -1,6 +1,6 @@
 # DynaElastomerSolver — Açık Kaynak Fortran Kütüphaneleri
 
-**Son araştırma:** 2026-08-17  
+**Son araştırma:** 2026-08-18  
 **Amaç:** DynaElastomerSolver geliştirmesinde kullanılacak, aday olarak değerlendirilecek veya kaynak-kod referansı olarak incelenecek açık kaynak Fortran kütüphanelerini tek yerde izlemek.
 
 > Bu dosya yaşayan bir dependency/referans kaydıdır. Bir kütüphane gerçekten kullanılmaya başlandığında durum, sürüm/commit, kullanım noktası ve lisans bilgisi güncellenir.
@@ -63,22 +63,26 @@ Eski elle yazılmış Gaussian-elimination test çözücüsü kaldırılmış ve
 
 ### Reference LAPACK / BLAS
 
-**Durum:** STDLIB ÜZERİNDEN BACKEND / DOĞRUDAN API İKİNCİL  
+**Durum:** AKTİF OLARAK STDLIB ARKASINDA KULLANILIYOR / DOĞRUDAN API İKİNCİL  
 **Repo:** https://github.com/Reference-LAPACK/lapack  
 **Lisans:** modified BSD
 
-Kullanım alanları:
+LAPACK; lineer sistem, least-squares, eigenvalue, singular value decomposition ve matris factorization problemleri için temel referans Fortran kütüphanesidir. Kendi referans BLAS uygulamasını da içerir.
+
+Dyna kullanım alanları:
 - dense linear solve
-- LU/Cholesky
+- LU / Cholesky
 - eigenvalue
 - SVD
 - least squares
 - material calibration yardımcı cebiri
+- test/verification lineer sistemleri
 
 Politika:
-- Mümkün olduğunda Dyna kodu doğrudan legacy LAPACK isimlerine bağlanmak yerine `stdlib_linalg` katmanını kullanır.
+- Dyna kodu mümkün olduğunda doğrudan legacy LAPACK isimlerine bağlanmak yerine `stdlib_linalg` katmanını kullanır.
 - Platformda optimize BLAS/LAPACK varsa stdlib external backend üzerinden bunlardan yararlanılabilir.
-- Küçük doğrulama problemlerinde stdlib/reference backend yeterlidir.
+- macOS'ta Accelerate, Intel/Windows tarafında MKL ve diğer optimize BLAS/LAPACK seçenekleri ileride benchmark edilebilir.
+- Reference LAPACK kaynak kodu algoritmik doğrulama ve backend davranışı için temel referanstır.
 
 ### MUMPS
 
@@ -86,10 +90,10 @@ Politika:
 **Resmi kaynak/indirme:** https://www.mumps-solver.org/  
 **Resmi dokümantasyon:** https://www.mumps-solver.org/index.php?page=doc  
 **Üçüncü taraf build harness repo:** https://github.com/coin-or-tools/ThirdParty-Mumps  
-**Güncel incelenen sürüm:** 5.9.1 (Temmuz 2026)  
+**İncelenen sürüm:** 5.9.1 (Temmuz 2026)  
 **Lisans:** CeCILL-C; bazı bileşenlerde ayrıca BSD/PORD koşulları bulunur.
 
-MUMPS'in resmi ana dağıtımı canonical bir GitHub repository üzerinden yayınlanmıyor. Bu nedenle yukarıdaki resmi proje sayfası kaynak otoritesi olarak kabul edilir; üçüncü taraf repo yalnız build/packaging referansıdır.
+MUMPS'in resmi ana dağıtımı canonical bir GitHub repository üzerinden yayınlanmıyor. Bu nedenle resmi proje sayfası kaynak otoritesi olarak kabul edilir; üçüncü taraf repo yalnız build/packaging referansıdır.
 
 Dyna için hedef kullanım:
 - büyük sparse Newton tangent sistemleri
@@ -97,7 +101,7 @@ Dyna için hedef kullanım:
 - ileride mixed `u-p` saddle-point sistemleri
 - factorization/solve diagnostics
 
-MUMPS doğrudan FEM'e gömülmeyecek; `ILinearSolver` benzeri Dyna adapter sınırı arkasında tutulacaktır.
+MUMPS doğrudan FEM'e gömülmeyecek; Dyna linear-solver adapter sınırı arkasında tutulacaktır.
 
 ---
 
@@ -110,13 +114,68 @@ MUMPS doğrudan FEM'e gömülmeyecek; `ILinearSolver` benzeri Dyna adapter sın�
 **Dokümantasyon:** https://fortran-lang.github.io/minpack/  
 **Lisans:** permissive BSD-style
 
-Önemli kullanım:
-- nonlinear least squares
-- Levenberg–Marquardt
-- analytic veya finite-difference Jacobian
-- material model parameter fitting
+MINPACK nonlinear equations ve nonlinear least-squares problemlerini çözer. Analitik Jacobian verilen veya fonksiyon değerlendirmelerinden Jacobian üreten yolları vardır.
 
-Dyna Material Calibration motorunda LM tabanlı ilk güvenilir optimizer için en güçlü adaylardan biridir.
+Dyna için kullanım:
+- Levenberg–Marquardt tabanlı nonlinear least-squares
+- Neo-Hookean / Mooney-Rivlin / Yeoh / Ogden parametre fit'i
+- analitik veya finite-difference Jacobian
+- yüksek sayıda deneysel veri noktasına least-squares fit
+- optimizer sonrası residual/RMSE minimizasyonu
+
+**Önemli mimari not:** MINPACK klasik LM yolu doğal olarak bound-constrained optimizer değildir. Pozitiflik/fiziksel sınırlar gerekiyorsa parametre dönüşümleri kullanılabilir veya PRIMA ile bounded başlangıç çözümü bulunup MINPACK ile hassas yerel refinement yapılabilir.
+
+### PRIMA — Powell yöntemlerinin modern referans implementasyonu
+
+**Durum:** GÜÇLÜ ADAY — V0.7 MATERIAL CALIBRATION / DERIVATIVE-FREE OPTIMIZATION  
+**Repo:** https://github.com/libprima/prima  
+**Proje:** http://libprima.net  
+**Lisans:** BSD-3-Clause  
+**Dil:** Modern Fortran ana implementasyonu; ayrıca C/Python/MATLAB/Julia arayüzleri bulunur.
+
+PRIMA, türev kullanmadan genel nonlinear optimization için Powell yöntemlerinin modern ve yoğun biçimde test edilmiş referans implementasyonudur.
+
+Sağlanan temel yöntemler:
+- `UOBYQA` — unconstrained
+- `NEWUOA` — unconstrained
+- `BOBYQA` — bound-constrained
+- `LINCOA` — linearly constrained
+- `COBYLA` — nonlinear constrained
+
+Dyna için özellikle değerlidir çünkü elastomer calibration problemlerinde:
+- objective fonksiyonun analitik türevi her zaman kolay değildir,
+- Ogden gibi modeller başlangıç parametrelerine hassas olabilir,
+- fiziksel parameter bounds gerekebilir,
+- başarısız/uygunsuz material state'ler objective içinde ceza gerektirebilir.
+
+Planlanan kullanım:
+- `BOBYQA`: bounded parameter fit için ilk güçlü aday
+- `COBYLA`: fiziksel inequality constraint gereken fitler için aday
+- `NEWUOA`: unconstrained türevsiz başlangıç çözümü gereken deneyler için aday
+
+PRIMA bir global optimizer değildir. Dyna içinde rolü; türevsiz ve kısıtlı güvenilir arama / başlangıç çözümü üretmek olacaktır.
+
+### Önerilen calibration optimizer zinciri
+
+```text
+Experimental Data
+        ↓
+PCHIP preprocessing / resampling
+        ↓
+Objective + physical admissibility
+        ↓
+PRIMA BOBYQA / COBYLA
+bounded veya constrained initial fit
+        ↓
+MINPACK Levenberg–Marquardt
+local least-squares refinement
+        ↓
+Material validation
+        ↓
+parameter set + provenance
+```
+
+Bu zincir zorunlu tek akış değildir; model ve veri setine göre optimizer seçimi değişebilir. Ancak MINPACK + PRIMA birbirini tamamlayan iki ana calibration motoru adayı olarak tutulacaktır.
 
 ### NLESolver-Fortran
 
@@ -129,11 +188,36 @@ Dyna Material Calibration motorunda LM tabanlı ilk güvenilir optimizer için e
 - Broyden / quasi-Newton
 - nonlinear equation solver diagnostics
 
-Dyna FEM Newton solver'ı ürünün ana fikri mülkiyet/uzmanlık alanıdır; bu nedenle generic nonlinear solver kütüphanesine devredilmeyecek. Kaynak kod yalnız algoritmik ve test tasarımı referansı olarak kullanılacaktır.
+Dyna FEM Newton solver'ı ürünün ana uzmanlık alanıdır; bu nedenle generic nonlinear solver kütüphanesine devredilmeyecek. Kaynak kod yalnız algoritmik ve test tasarımı referansı olarak kullanılacaktır.
 
 ---
 
-## 4. Veri / ResultDatabase adayları
+## 4. Deneysel veri hazırlama / interpolation
+
+### PCHIP — Piecewise Cubic Hermite Interpolation
+
+**Durum:** GÜÇLÜ ADAY — V0.7 MATERIAL DATA / CALIBRATION PREPROCESSING  
+**Repo:** https://github.com/jacobwilliams/PCHIP  
+**Dokümantasyon:** https://jacobwilliams.github.io/PCHIP/  
+**Lisans:** BSD-3-Clause koşullarına karşılık gelen permissive lisans; ayrıca SLATEC kaynaklı public-domain kod bildirimi içerir.
+
+PCHIP, SLATEC PCHIP'in modern Fortran güncellemesidir. Monoton veride shape-preserving / monotonic cubic Hermite interpolation sağlar ve dik/flat bölgelerde klasik cubic spline'ın oluşturabileceği overshoot davranışını önlemeye yardımcı olur.
+
+Dyna için çok uygun kullanım alanları:
+- çekme/basma/shear deney eğrilerini ortak strain grid'ine resample etmek
+- farklı testlerin karşılaştırma noktalarını eşlemek
+- deney eğrisinin monoton bölgelerinde overshoot oluşturmadan interpolation yapmak
+- interpolated curve derivative hesaplamak
+- eğri altında integral/enerji benzeri veri türetmek
+- deneysel ve FEA eğrilerini ortak x-grid üzerinde karşılaştırmak
+
+Özellikle kauçuk stress–strain eğrilerinde fiziksel eğri şeklini yapay cubic-spline salınımlarıyla bozmamak için standart cubic spline'a göre daha güvenli bir preprocessing seçeneğidir.
+
+İlk entegrasyon hedefi V0.7 Material Calibration aşamasıdır. V0.2 solver çekirdeğine dependency olarak eklenmeyecektir.
+
+---
+
+## 5. Veri / ResultDatabase adayları
 
 ### HDF5
 
@@ -168,7 +252,7 @@ Büyük FEM result alanlarının ana saklama formatı olarak JSON kullanılmayac
 
 ---
 
-## 5. Test altyapısı
+## 6. Test altyapısı
 
 ### test-drive
 
@@ -180,7 +264,7 @@ Mevcut bağımsız Fortran executable + CTest yaklaşımı küçük test setinde
 
 ---
 
-## 6. Gelecek dinamik analizler
+## 7. Gelecek dinamik analizler
 
 ### fortran-lang/fftpack
 
@@ -197,7 +281,7 @@ Quasi-static V1.0 için dependency yapılmayacaktır.
 
 ---
 
-## 7. FEM kaynak-kod referansı
+## 8. FEM kaynak-kod referansı
 
 ### FrontISTR
 
@@ -218,38 +302,43 @@ FrontISTR'ın fizik implementasyonu Dyna'ya doğrudan taşınmayacak; ancak perm
 
 ---
 
-## 8. Dyna açık kaynak kullanım kuralları
+## 9. Dyna açık kaynak kullanım kuralları
 
 1. **Bilimsel çekirdek bize aittir.** Hyperelastic constitutive law, FEM formulation, incompressibility strategy, axisymmetric torsion ve nonlinear solution policy Dyna tarafından geliştirilir.
 2. Öncelik kaynak kod kopyalamak değil, iyi tanımlı library API'leri kullanmaktır.
 3. Bir açık kaynak implementasyondan anlamlı kod/algoritma uyarlanırsa kaynak repo, dosya/algoritma, commit ve lisans kayıt altına alınır.
 4. MIT/BSD/Apache gibi permissive kaynaklar tercih edilir.
 5. GPL/AGPL gibi güçlü copyleft kaynaklardan Dyna çekirdeğine doğrudan kod kopyalanmaz; yalnız bilimsel/algoritmik referans olarak incelenebilir.
-6. Weak-copyleft veya özel lisanslı dependency'ler (ör. MUMPS/CeCILL-C) ürün dağıtımından önce ayrıca lisans değerlendirmesinden geçirilir.
+6. Weak-copyleft veya özel lisanslı dependency'ler ürün dağıtımından önce ayrıca lisans değerlendirmesinden geçirilir.
 7. Harici kütüphane native Dyna domain/FEM tiplerini belirlememelidir; adapter sınırı arkasında tutulmalıdır.
 8. Kritik dependency'ler branch adına değil doğrulanmış sürüm/tag/commit'e sabitlenir.
 9. Dependency yükseltmesi normal kod değişikliği gibi benchmark ve regression testlerinden geçmeden kabul edilmez.
+10. Calibration optimizer'ları doğrudan Material Core'un içine gömülmez; `IOptimizer` benzeri adapter/strategy sınırı arkasında tutulur.
+11. Experimental interpolation preprocessing, ham deney datasını overwrite etmez; orijinal veri provenance ile korunur.
 
-## 9. Öncelik sırası
+## 10. Öncelik sırası
 
 ```text
 Şimdi
-├── kavakfatih/stdlib        ← aktif
-│   └── stdlib_linalg::solve ← aktif ilk kullanım
+├── kavakfatih/stdlib          ← aktif
+│   ├── stdlib_linalg::solve   ← aktif ilk kullanım
+│   └── Reference LAPACK       ← backend / referans
 │
 V0.3 hazırlığı
-├── stdlib_sparse            ← değerlendir
-└── stdlib GMRES             ← benchmark/referans
+├── stdlib_sparse              ← değerlendir
+└── stdlib GMRES               ← benchmark/referans
 
 Büyük sparse sistem aşaması
-└── MUMPS                    ← production direct solver adayı
+└── MUMPS                      ← production direct solver adayı
 
-Material Calibration
-└── MINPACK                  ← LM / nonlinear least-squares adayı
+V0.7 Material Data / Calibration
+├── PCHIP                      ← shape-preserving experimental interpolation
+├── PRIMA                      ← bounded / constrained derivative-free fit
+└── MINPACK                    ← LM least-squares refinement
 
 Results büyüdüğünde
-├── HDF5                     ← büyük bilimsel veri
-└── JSON-Fortran             ← metadata/config
+├── HDF5                       ← büyük bilimsel veri
+└── JSON-Fortran               ← metadata/config
 
 Gelecek dynamics
 └── FFTPACK
