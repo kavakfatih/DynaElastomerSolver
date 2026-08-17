@@ -9,7 +9,7 @@ Aşağıdaki sürüm numaraları geliştirme kilometre taşlarıdır; yayın taa
 
 DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamaz. İlk hedef; büyük deformasyonlu, yaklaşık sıkıştırılamaz elastomer problemlerinde dar fakat kanıtlanmış bir çözüm zinciri oluşturmaktır.
 
-Yeni mimari katmanlar veya algoritmalar yalnız çalışan implementasyonun gösterdiği ihtiyaç doğrultusunda eklenir.
+Yeni mimari katman veya algoritmalar yalnız çalışan implementasyonun gösterdiği ihtiyaç doğrultusunda eklenir.
 
 ---
 
@@ -17,113 +17,94 @@ Yeni mimari katmanlar veya algoritmalar yalnız çalışan implementasyonun gös
 
 Amaç: ilk hiperelastik material-point hesabını taşınabilir ve doğrulanabilir şekilde çalıştırmak.
 
-Teslimatlar:
+Tamamlanan temel teslimatlar:
 
-- CMake tabanlı cross-platform proje
-- Fortran 2018 temeli
-- precision / constants / status modülleri
-- matris/tensör ve deformasyon gradyanı yardımcıları
+- Fortran 2018 / CMake temeli
+- precision/status katmanı
+- 3×3 tensör ve finite-strain yardımcıları
 - `material_kinematics_t`
 - `material_response_t`
-- minimal material-model arayüzü
-- Neo-Hookean model
-- strain-energy hesabı
-- stress hesabı
-- consistent tangent
-- material-point test driver
+- Neo-Hookean enerji/stress
+- analitik consistent tangent
+- material-point testleri
 - finite-difference tangent checker
-- macOS gfortran ve Windows ifx/gfortran build doğrulaması
 
-Çıkış kriteri:
-
-Neo-Hookean enerji, stress ve tangent sonuçları analitik referanslarla tanımlı tolerans içinde eşleşmeli; sayısal tangent kontrolü geçmelidir.
-
-Bilimsel çekirdek ve tangent doğrulaması tamamlanmıştır. Cross-platform compiler matrisi V0.2 kapanış kontrolüne taşınmıştır.
+Bilimsel çekirdek ve tangent doğrulaması tamamlanmıştır. Cross-platform compiler matrisi V0.2 kapanış kontrolünde tamamlanacaktır.
 
 ---
 
 ## V0.2 — İlk Çalışan Nonlinear FEM Dikey Dilimi
 
-Amaç: mimari ile çalışan fizik arasındaki mesafeyi mümkün olan en erken aşamada kapatmak.
+Amaç: mimari ile çalışan fizik arasındaki mesafeyi erken kapatmak.
 
-Teslimatlar:
+### Tamamlananlar — 2026-08-18
 
-- `Node` / `Element` / minimal `InternalMesh`
-- Q4 plane-strain baseline eleman
-- shape function ve Gauss integration
-- finite-strain kinematics
-- eleman residual'ı
-- eleman consistent tangent'i
-- global assembly
-- temel displacement boundary condition
-- Full Newton
-- increment tabanlı yükleme
-- minimal cutback / retry
-- committed/trial çözüm state'i
-- dense/LAPACK linear solver yolu
-- convergence history
-- ham integration-point sonuçları
-
-Doğrulama:
-
-```text
-Neo-Hookean
-→ material point
-→ tek Q4 eleman
-→ küçük mesh
-→ Full Newton
-→ analitik/reference çözüm
-```
-
-Çıkış kriteri:
-
-Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik veya bağımsız referans çözümle tanımlı tolerans içinde uyuşmalı ve mesh refinement altında beklenen davranışı göstermelidir.
-
-### Gerçekleşen durum — 2026-08-18
-
-Tamamlananlar:
-
-- [x] Q4 plane-strain shape functions ve 2×2 Gauss integration
+- [x] Q4 plane-strain baseline element
+- [x] Q4 shape functions ve 2×2 Gauss integration
 - [x] finite-strain Total-Lagrangian residual
 - [x] consistent element tangent
 - [x] tangent finite-difference doğrulaması
 - [x] çok elemanlı global assembly
-- [x] temel displacement-control sınır şartı
-- [x] Full Newton solver
-- [x] increment tabanlı yükleme
-- [x] adaptive increment yolu
-- [x] cutback / retry
+- [x] displacement-control Full Newton
+- [x] increment stepping
+- [x] adaptive increment
+- [x] rollback / cutback / retry
 - [x] reusable `solution_state_t`
-- [x] `trial → commit / revert` state akışı
+- [x] `trial → commit / revert`
 - [x] convergence history
 - [x] cutback exhaustion tanısı
 - [x] okunabilir status/failure açıklamaları
 - [x] nonlinear patch benchmark
-- [x] 1×1 / 2×2 / 4×4 mesh-refinement benchmark
+- [x] 1×1 / 2×2 / 4×4 mesh refinement benchmark
 - [x] `kavakfatih/stdlib` pinlenmiş dependency entegrasyonu
-- [x] dense doğrulama yolunun `stdlib_linalg::solve` üzerine taşınması
+- [x] dense doğrulama solver yolunun `stdlib_linalg::solve` üzerine taşınması
+- [x] minimal `internal_mesh_t`
+- [x] Q4 connectivity validation
+- [x] `InternalMesh` tabanlı assembly yolu
+- [x] eski `X + connectivity` assembly yolu ile regression eşdeğerliği
+- [x] ham `integration_point_result_t`
+- [x] Gauss-point `F / J / P / Cauchy / strain-energy` saklama
+- [x] `InternalMesh` Newton solver adapteri
+- [x] başarılı final state'ten ham integration-point sonuçlarını toplama
 
-Kalanlar:
+### V0.2 doğrulama zinciri
 
-- [ ] stdlib tabanlı build'in tam CTest/compiler matrisi doğrulaması
-- [ ] minimal `Node / Element / InternalMesh` veri modelinin gerçek mesh akışına taşınması
-- [ ] ham integration-point result saklama yolu
-- [ ] dense test solver yolunun production linear-solver arayüzüne hazırlanması
-- [ ] bağımsız solver/reference karşılaştırmasının genişletilmesi
+```text
+Neo-Hookean
+→ material point
+→ Q4 element
+→ small mesh
+→ global assembly
+→ Full Newton
+→ adaptive cutback/retry
+→ InternalMesh
+→ raw Gauss-point results
+→ patch / mesh refinement
+```
+
+### Kalanlar
+
+- [ ] stdlib tabanlı full build + 18/18 CTest doğrulaması
 - [ ] ek nonlinear distortion / robustness benchmark'ları
+- [ ] production linear-solver adapter sınırı
+- [ ] bağımsız solver/reference karşılaştırmasının genişletilmesi
 - [ ] macOS Apple Silicon + gfortran build/test
 - [ ] Windows x64 + Intel ifx build/test
 - [ ] Windows x64 + gfortran build/test
+
+### V0.2 çıkış kriteri
+
+Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik/bağımsız referanslarla tolerans içinde uyuşmalı; mesh refinement ve robustness testleri geçmeli; compiler matrisi doğrulanmalıdır.
 
 ---
 
 ## V0.3 — Nearly-Incompressible Formulation Bake-off
 
-Amaç: production elastomer eleman teknolojisini varsayımla değil benchmark ile seçmek.
+Amaç: production elastomer element teknolojisini varsayımla değil benchmark ile seçmek.
 
 Karşılaştırılacak adaylar:
 
-1. displacement-only Q4 — baseline/doğrulama
+1. displacement-only Q4 — baseline
 2. mixed displacement-pressure (`u-p`) adayı
 3. F-bar veya eşdeğer locking azaltıcı aday
 
@@ -134,7 +115,9 @@ Karşılaştırılacak adaylar:
 - mesh convergence
 - nonlinear convergence
 - distortion sensitivity
+- minimum `J`
 - DOF ve assembly maliyeti
+- linear-system conditioning
 - axisymmetric genişletilebilirlik
 - axisymmetric torsion genişletilebilirliği
 
@@ -144,6 +127,7 @@ Ek teslimatlar:
 - block residual/tangent desteği
 - formulation diagnostics
 - locking benchmark seti
+- `InternalMesh` ve raw integration-point result modelinin mixed formulation'a genişletilmesi
 
 Çıkış kriteri:
 
@@ -162,15 +146,13 @@ Teslimatlar:
 - reaction force
 - axisymmetric benchmark seti
 
-Çıkış kriteri:
-
-Analitik ve bağımsız solver benchmark'larıyla mesh-convergent ve tekrarlanabilir sonuçlar.
+Çıkış kriteri: analitik ve bağımsız solver benchmark'larında mesh-convergent, tekrarlanabilir sonuç.
 
 ---
 
 ## V0.5 — Axisymmetric Torsion / 2.5D
 
-Bu kilometre taşı projenin ana farklılaştırıcılarından biridir.
+Ana farklılaştırıcı kilometre taşlarından biridir.
 
 Teslimatlar:
 
@@ -184,17 +166,13 @@ Teslimatlar:
 - torsion convergence quantities
 - torsion benchmark seti
 
-Çıkış kriteri:
-
-Seçilmiş torsion problemlerinde Dyna sonuçları bağımsız solver ve uygun fiziksel testlerle önceden tanımlanan mühendislik toleransları içinde uyuşmalıdır.
+Çıkış kriteri: bağımsız solver ve uygun fiziksel testlerle önceden tanımlanmış mühendislik toleranslarında eşleşme.
 
 ---
 
 ## V0.6 — Hedef Hiperelastik Model Kütüphanesi
 
-İlk FEM zinciri çalıştıktan sonra Material Core genişletilir.
-
-Öncelik sırası:
+Öncelik:
 
 1. Mooney-Rivlin
 2. Yeoh
@@ -202,7 +180,7 @@ Seçilmiş torsion problemlerinde Dyna sonuçları bağımsız solver ve uygun f
 4. Ogden N2/N3 ihtiyaç halinde
 5. Arruda-Boyce / Gent ihtiyaç halinde
 
-Her model için zorunlu zincir:
+Her model için:
 
 ```text
 Energy
@@ -213,15 +191,11 @@ Energy
 → FEM Benchmark
 ```
 
-Çıkış kriteri:
-
-V1.0 problem sınıfında kullanılacak her model aynı doğrulama zincirini geçmelidir.
-
 ---
 
 ## V0.7 — Minimum Calibration / Material Lab Çekirdeği
 
-Amaç: solver'da gerçekten kullanılacak malzeme modellerini deneysel veriye fit edebilmek.
+Amaç: solver'da kullanılan material modellerini deneysel veriye güvenilir biçimde fit etmek.
 
 İlk kapsam:
 
@@ -229,168 +203,123 @@ Amaç: solver'da gerçekten kullanılacak malzeme modellerini deneysel veriye fi
 - experimental dataset
 - uniaxial tension data path
 - engineering/true quantity transformations
-- shape-preserving experimental interpolation / resampling
 - objective function
 - parameter bounds
-- derivative-free bounded/constrained optimizer yolu
-- nonlinear least-squares refinement yolu
 - RMSE / residual metrics
 - provenance
 - fitted parameter set
 - model comparison
 
-### Planlanan açık kaynak araçlar
+### Planlanan açık kaynak calibration araçları
 
-#### PCHIP
+**PCHIP** — `https://github.com/jacobwilliams/PCHIP`
 
-Repo: `https://github.com/jacobwilliams/PCHIP`
+- shape-preserving interpolation/resampling
+- deney eğrilerini ortak strain grid'ine taşıma
+- cubic-spline overshoot riskini azaltma
 
-Rol:
-- ham deney eğrilerini overwrite etmeden ortak strain grid'ine resample etmek
-- monoton bölgelerde cubic-spline overshoot oluşturmadan interpolation yapmak
-- deneysel ve hesaplanan eğrileri aynı x-grid üzerinde karşılaştırmak
-- gerektiğinde interpolated derivative / integral hesaplarını desteklemek
+**PRIMA** — `https://github.com/libprima/prima`
 
-#### PRIMA
+- BOBYQA ile bound-constrained derivative-free fit
+- COBYLA ile nonlinear constraint içeren fitler
+- başlangıç değerine hassas modeller için sağlam ilk arama
 
-Repo: `https://github.com/libprima/prima`
+PRIMA global optimizer olarak değil, bounded/constrained derivative-free optimizer olarak kullanılacaktır.
 
-Rol:
-- türevsiz optimization
-- `BOBYQA` ile bound-constrained parameter fit
-- `COBYLA` ile nonlinear inequality constraint gereken fitler
-- Ogden benzeri başlangıç değerine hassas modellerde güvenilir başlangıç çözümü aramak
+**Modernized MINPACK** — `https://github.com/fortran-lang/minpack`
 
-PRIMA global optimizer olarak kabul edilmeyecek; bounded/constrained derivative-free local search aracı olarak kullanılacaktır.
-
-#### Modernized MINPACK
-
-Repo: `https://github.com/fortran-lang/minpack`
-
-Rol:
 - Levenberg–Marquardt nonlinear least-squares
 - analitik veya finite-difference Jacobian
-- PRIMA veya başka bir başlangıç çözümünden sonra hassas local refinement
-- residual/RMSE odaklı final fit
+- PRIMA başlangıcından sonra hassas local refinement
 
-### İlk hedef calibration pipeline
+İlk hedef pipeline:
 
 ```text
 Raw Experimental Data
         ↓
-PCHIP shape-preserving preprocessing
+PCHIP
         ↓
-Canonical test quantities
+Canonical Test Quantities
         ↓
-Objective + physical admissibility
+Objective + Physical Admissibility
         ↓
 PRIMA BOBYQA / COBYLA
-initial bounded/constrained fit
         ↓
 MINPACK Levenberg–Marquardt
-local least-squares refinement
         ↓
-Material validation
+Material Validation
         ↓
-parameter set + metrics + provenance
+Parameter Set + Metrics + Provenance
 ```
 
-Bu pipeline model ve dataset davranışına göre değiştirilebilir. Amaç tek optimizere bağımlı olmak değil; derivative-free arama ile least-squares refinement'i kontrollü biçimde birleştirmektir.
-
-Basma, shear, planar ve biaxial testler sonraki gereksinime göre eklenir.
-
-Çıkış kriteri:
-
-En az bir hiperelastik model, deneysel uniaxial dataset üzerinde tekrarlanabilir şekilde fit edilmeli; optimizer geçmişi, residual/RMSE, parameter bounds ve provenance kaydedilmeli; fit sonucu aynı Material Core üzerinden bağımsız material-point validation testini geçmelidir.
+Çıkış kriteri: en az bir hiperelastik modelin deneysel uniaxial dataset üzerinde tekrarlanabilir fit edilmesi ve aynı Material Core ile bağımsız validation testini geçmesi.
 
 ---
 
 ## V0.8 — Solver Robustness / NonlinearSolutionManager
 
-Amaç: çalışan Full Newton solver'ı gerçek elastomer problemlerinin gösterdiği ihtiyaçlara göre üretim seviyesine taşımak.
+V0.2'de gerçek ihtiyaçtan doğan adaptive increment, cutback/retry, state management ve history mekanizmaları formulation-independent production seviyesine taşınacaktır.
 
-V0.2'de adaptive increment, cutback/retry, deterministic state commit/revert ve temel solver history gerçek ihtiyaç üzerinden erken uygulanmıştır. V0.8 bu mekanizmaları genel, formulation-independent ve production seviyesinde bir `NonlinearSolutionManager` altında olgunlaştıracaktır.
-
-İlk zorunlu özellikler:
+Zorunlu hedefler:
 
 - Full Newton referans yolu
 - adaptive increment
-- cutback / retry
-- deterministic state revert / commit
-- convergence reason
-- divergence reason
-- negative `J` detection
+- deterministic commit/revert
+- convergence/divergence reason
+- negative `J`
 - severe distortion diagnostics
 - mixed pressure diagnostics
 - linear solver report
 - solver history
 
-İhtiyaç kanıtlanırsa eklenecek özellikler:
+İhtiyaç kanıtlanırsa:
 
 - line search
 - Modified Newton
 - BFGS / Broyden
-- gelişmiş predictor
-- otomatik recovery politikaları
+- predictor
+- otomatik recovery
 
-V1.0 zorunlu değildir:
-
-- trust-region
-- arc-length / continuation
-- generic stabilization ailesi
-
-Çıkış kriteri:
-
-Tanımlı zor elastomer benchmark'ları belgelenmiş increment/cutback geçmişleriyle tekrarlanabilir şekilde çözülmelidir.
+Trust-region ve arc-length V1.0 zorunluluğu değildir.
 
 ---
 
 ## V0.9 — Minimum Mühendislik İş Akışı
 
-Solver bilimsel olarak doğrulandıktan sonra tam kullanıcı workflow'u genişletilir.
-
 ### Geometri / Mesh
 
 - DXF import adaptörü
 - `AnalysisGeometry`
-- named boundaries / selections
-- Gmsh üzerinden `IMeshProvider`
+- named boundaries/selections
+- Gmsh `IMeshProvider`
+- harici mesh → `InternalMesh`
 - mesh precheck
-
-### AnalysisPrecheck
-
-- geometry
-- mesh
-- material
-- formulation
-- boundary condition
-- solver settings
 
 ### Results
 
+- raw integration-point database
 - displacement
 - principal stretch
 - Cauchy stress
 - pressure
 - `J`
 - strain-energy density
-- reaction force / torque
+- reaction force/torque
 - torque–angle
 - force–displacement
 - `GaussPointInspector`
-- contour / chart / table
+- contour/chart/table
 
 ### UI
 
 - Qt frontend sınırı korunur
-- yalnız doğrulanmış solver workflow'unu destekleyen minimum shell ile başlanır
-- tam UI kapsamı bilimsel çekirdeğin önüne geçirilmez
+- yalnız doğrulanmış solver workflow'unu destekleyen minimum shell
 
 ---
 
 ## V1.0 — Doğrulanmış Nonlineer Elastomer Solver
 
-### Birincil doğrulanmış problem sınıfı
+Birincil problem sınıfı:
 
 - quasi-static
 - finite strain / large deformation
@@ -399,78 +328,48 @@ Solver bilimsel olarak doğrulandıktan sonra tam kullanıcı workflow'u genişl
 - plane strain
 - axisymmetric
 - axisymmetric torsion / 2.5D
-- prescribed displacement / prescribed rotation
-- reaction force / reaction torque
+- displacement / rotation control
+- reaction force / torque
 - nearly-incompressible formulation
-- seçilmiş ve doğrulanmış hiperelastik modeller
+- seçilmiş doğrulanmış hiperelastik modeller
 
-### Başarı tanımı
+Başarı; özellik sayısıyla değil material-point, element, mesh convergence, incompressibility, robustness, bağımsız solver ve fiziksel test doğrulamalarıyla ölçülür.
 
-V1.0, özellik sayısı ile değil aşağıdaki kanıtlarla kabul edilir:
+ANSYS Mechanical ve Hexagon Marc kalite/robustness benchmark'ıdır; genel feature parity hedefi değildir.
 
-1. material-point doğrulaması
-2. element benchmark
-3. patch/mesh convergence
-4. incompressibility/locking benchmark
-5. nonlinear robustness testleri
-6. bağımsız solver karşılaştırması
-7. uygun fiziksel ürün testi karşılaştırması
-8. önceden tanımlanmış toleransların karşılanması
-
-ANSYS Mechanical ve Hexagon Marc kalite/robustness benchmark'ıdır; genel kapsam parity hedefi değildir.
-
----
-
-## V1.0 Kapsam Dışı
+## V1.0 kapsam dışı
 
 - separation / frictional contact
 - self-contact
-- debonding / cohesive failure
+- debonding
 - viscoelasticity
 - strain-rate dependence
 - Mullins effect
 - hysteresis
-- damage
-- rubber fatigue / life prediction
-- tearing-energy life models
-- transient / harmonic dynamics
-- explicit dynamics
+- damage/fatigue/life prediction
+- transient/harmonic/explicit dynamics
 - binary User Material Plugin
-- plugin marketplace
 - genel amaçlı CAD
-- yüzlerce eleman ailesi
 - full ANSYS/Marc feature parity
 
-### Binary plugin politikası
-
-V1.0'da yeni native material modelleri aynı kaynak/build zincirinde eklenebilir.
-
-Gelecekte bağımsız `.dll` / `.dylib` / `.so` material plugin desteklenirse sözleşme native Fortran module ABI'si değil, sürümlenmiş `BIND(C)` / C ABI olacaktır.
-
----
-
 ## Bilimsel geliştirme kuralı
-
-Her yeni bilimsel özellik:
 
 ```text
 Teori
  ↓
-Minimal uygulama
+Minimal implementation
  ↓
-Unit / constitutive doğrulama
+Unit / constitutive validation
  ↓
 Element benchmark
  ↓
 Mesh convergence
  ↓
-Bağımsız solver karşılaştırması
+Independent solver comparison
  ↓
 Uygun olduğunda fiziksel test
  ↓
-Ancak sonra production kapsamına alma
+Production kapsamı
 ```
-
-## Ürün ilkesi
 
 > Önce çalışan ve doğrulanan en küçük fizik zinciri; sonra yalnız kanıtlanmış ihtiyaca göre mimari genişleme.
