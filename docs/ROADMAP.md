@@ -38,6 +38,8 @@ Teslimatlar:
 
 Neo-Hookean enerji, stress ve tangent sonuçları analitik referanslarla tanımlı tolerans içinde eşleşmeli; sayısal tangent kontrolü geçmelidir.
 
+Bilimsel çekirdek ve tangent doğrulaması tamamlanmıştır. Cross-platform compiler matrisi V0.2 kapanış kontrolüne taşınmıştır.
+
 ---
 
 ## V0.2 — İlk Çalışan Nonlinear FEM Dikey Dilimi
@@ -76,6 +78,39 @@ Neo-Hookean
 Çıkış kriteri:
 
 Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik veya bağımsız referans çözümle tanımlı tolerans içinde uyuşmalı ve mesh refinement altında beklenen davranışı göstermelidir.
+
+### Gerçekleşen durum — 2026-08-17
+
+Tamamlananlar:
+
+- [x] Q4 plane-strain shape functions ve 2×2 Gauss integration
+- [x] finite-strain Total-Lagrangian residual
+- [x] consistent element tangent
+- [x] tangent finite-difference doğrulaması
+- [x] çok elemanlı global assembly
+- [x] temel displacement-control sınır şartı
+- [x] Full Newton solver
+- [x] increment tabanlı yükleme
+- [x] adaptive increment yolu
+- [x] cutback / retry
+- [x] reusable `solution_state_t`
+- [x] `trial → commit / revert` state akışı
+- [x] convergence history
+- [x] cutback exhaustion tanısı
+- [x] okunabilir status/failure açıklamaları
+- [x] nonlinear patch benchmark
+- [x] 1×1 / 2×2 / 4×4 mesh-refinement benchmark
+
+Kalanlar:
+
+- [ ] minimal `Node / Element / InternalMesh` veri modelinin gerçek mesh akışına taşınması
+- [ ] ham integration-point result saklama yolu
+- [ ] dense test solver yolunun production linear-solver arayüzüne hazırlanması
+- [ ] bağımsız solver/reference karşılaştırmasının genişletilmesi
+- [ ] ek nonlinear distortion / robustness benchmark'ları
+- [ ] macOS Apple Silicon + gfortran build/test
+- [ ] Windows x64 + Intel ifx build/test
+- [ ] Windows x64 + gfortran build/test
 
 ---
 
@@ -206,6 +241,8 @@ Basma, shear, planar ve biaxial testler sonraki gereksinime göre eklenir.
 ## V0.8 — Solver Robustness / NonlinearSolutionManager
 
 Amaç: çalışan Full Newton solver'ı gerçek elastomer problemlerinin gösterdiği ihtiyaçlara göre üretim seviyesine taşımak.
+
+V0.2'de adaptive increment, cutback/retry, deterministic state commit/revert ve temel solver history gerçek ihtiyaç üzerinden erken uygulanmıştır. V0.8 bu mekanizmaları genel, formulation-independent ve production seviyesinde bir `NonlinearSolutionManager` altında olgunlaştıracaktır.
 
 İlk zorunlu özellikler:
 
