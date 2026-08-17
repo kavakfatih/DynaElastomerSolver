@@ -76,6 +76,7 @@ Amaç: mimari ile çalışan fizik arasındaki mesafeyi erken kapatmak.
 - [x] Newton solver içinde doğrudan `solve_linear_system(...)` kullanımı
 - [x] `InternalMesh` solver adapterinde lineer backend seçimi
 - [x] terminal backend konfigürasyon hatalarının adaptive cutback dışında tutulması
+- [x] severe geometrik distorsiyonlu Q4 nonlinear benchmark tanımı
 
 ### V0.2 doğrulama zinciri
 
@@ -92,13 +93,14 @@ Neo-Hookean
 → Dyna linear solver boundary
 → Newton linear diagnostics
 → patch / mesh refinement
+→ severe-distortion benchmark
 ```
 
 ### Kalanlar
 
-- [ ] stdlib tabanlı full build + 19/19 CTest doğrulaması
-- [ ] ek nonlinear distortion / robustness benchmark'ları
+- [ ] stdlib tabanlı full build + 20/20 CTest doğrulaması
 - [ ] bağımsız solver/reference karşılaştırmasının genişletilmesi
+- [ ] gerekirse ek severe-distortion/cutback benchmark
 - [ ] macOS Apple Silicon + gfortran build/test
 - [ ] Windows x64 + Intel ifx build/test
 - [ ] Windows x64 + gfortran build/test
