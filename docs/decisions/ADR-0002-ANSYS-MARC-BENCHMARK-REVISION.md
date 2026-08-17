@@ -1,37 +1,37 @@
-# ADR-0002 — ANSYS / Hexagon Marc Benchmark Revision
+# ADR-0002 — ANSYS / Hexagon Marc Benchmark Revizyonu
 
-**Status:** Accepted  
-**Project:** DynaElastomerSolver  
-**Architecture target:** v1.2
+**Durum:** Kabul edildi  
+**Proje:** DynaElastomerSolver  
+**Mimari hedef:** v1.2
 
-## Context
+## Bağlam
 
-The foundational architecture was compared against the elastomer/nonlinear analysis workflow of ANSYS Mechanical and Hexagon Marc/Mentat. The purpose was not feature parity. The benchmark was used to identify mature architectural patterns that matter directly to rubber/elastomer engineering.
+Temel mimari; ANSYS Mechanical ve Hexagon Marc/Mentat'ın elastomer/doğrusal olmayan analiz iş akışlarıyla karşılaştırıldı. Amaç özellik eşitliği değildi. Benchmark, kauçuk/elastomer mühendisliğini doğrudan etkileyen olgun mimari kalıpları belirlemek için kullanıldı.
 
-The comparison focused on:
+Karşılaştırma şu alanlara odaklandı:
 
-- material definition
-- hyperelastic material models
-- experimental curve fitting
-- geometry and geometry preparation
-- meshing and mesh controls
-- nearly-incompressible formulations
-- nonlinear solution strategy
-- sparse linear solution
-- solver controls
-- integration-point results
-- postprocessing
-- experiment/simulation validation
+- malzeme tanımı
+- hiperelastik malzeme modelleri
+- deneysel curve fitting
+- geometri ve geometri hazırlığı
+- mesh üretimi ve kontrolleri
+- yaklaşık sıkıştırılamaz formulasyonlar
+- doğrusal olmayan çözüm stratejisi
+- seyrek doğrusal çözüm
+- solver kontrolleri
+- integrasyon noktası sonuçları
+- post-processing
+- deney/simülasyon doğrulaması
 
-## Decision 1 — Keep the specialized product boundary
+## Karar 1 — Uzmanlaşmış ürün sınırını koru
 
-DynaElastomerSolver remains an elastomer engineering platform, not a general-purpose ANSYS/Marc clone.
+DynaElastomerSolver genel amaçlı bir ANSYS/Marc klonu değil, elastomer mühendisliği platformu olarak kalacaktır.
 
-General CAD, broad multiphysics, CFD, electromagnetics, large beam/shell catalogs and general-purpose metal plasticity are not added merely because commercial CAE systems provide them.
+Genel CAD, geniş multiphysics, CFD, elektromanyetik, büyük beam/shell katalogları ve genel metal plastisitesi yalnız ticari CAE sistemlerinde bulunduğu için kapsamımıza alınmaz.
 
-## Decision 2 — Add first-class AnalysisPrecheck
+## Karar 2 — Birinci sınıf AnalysisPrecheck ekle
 
-Mature CAE workflows validate model consistency before or during solve setup. DynaElastomerSolver therefore introduces:
+Olgun CAE iş akışları çözüm öncesi veya setup sırasında model tutarlılığını doğrular. Bu nedenle:
 
 ```text
 AnalysisModel
@@ -43,13 +43,13 @@ Validated SolverInput
 Solve
 ```
 
-Precheck aggregates geometry, mesh, material, formulation and boundary-condition diagnostics.
+Precheck; geometri, mesh, malzeme, formulasyon ve sınır şartı tanılarını birleştirir.
 
-Fatal errors block solve. Engineering warnings remain visible but may be overridable later under controlled expert workflows.
+Kritik hatalar çözümü engeller. Mühendislik uyarıları görünür kalır ve ileride kontrollü expert workflow altında override edilebilir.
 
-## Decision 3 — Add native material-plugin architecture
+## Karar 3 — Native material-plugin mimarisi ekle
 
-Marc user-material extensibility and the solver-independent material concepts studied in open-source systems reinforce the need for a stable material contract.
+Marc user-material genişletilebilirliği ve açık kaynak sistemlerde incelenen solver-independent malzeme kavramları kararlı bir material sözleşmesinin gerekliliğini desteklemektedir.
 
 ```text
 Material Core
@@ -58,11 +58,11 @@ Material Core
 └── External Material Adapter
 ```
 
-A new material model must not require FEM source changes.
+Yeni bir malzeme modeli FEM kaynak değişikliği gerektirmemelidir.
 
-## Decision 4 — Separate incompressibility enforcement from constitutive law
+## Karar 4 — Sıkıştırılamazlık uygulamasını bünye yasasından ayır
 
-Hyperelastic constitutive science and FE constraint enforcement are explicitly separated.
+Hiperelastik bünye bilimi ile FE kısıt uygulaması açıkça ayrılır.
 
 ```text
 Constitutive Law
@@ -74,11 +74,11 @@ IIncompressibilityStrategy
 Element Formulation
 ```
 
-Mixed `u-p` is an FE-formulation technology, not a property hard-coded into Yeoh, Ogden or other material classes.
+Karma `u-p` bir FE formulasyon teknolojisidir; Yeoh, Ogden veya başka malzeme sınıflarına hard-code edilmez.
 
-## Decision 5 — Replace monolithic nonlinear solver design
+## Karar 5 — Monolitik nonlinear solver tasarımını değiştir
 
-The old `NonlinearSolver` abstraction is refined into:
+Eski `NonlinearSolver` soyutlaması şu yapıya dönüştürülür:
 
 ```text
 NonlinearSolutionManager
@@ -94,23 +94,23 @@ NonlinearSolutionManager
 └── StateCommitManager
 ```
 
-This reflects the fact that production nonlinear robustness comes from coordination of multiple mechanisms, not Newton iteration alone.
+Üretim seviyesinde doğrusal olmayan sağlamlığın yalnız Newton iterasyonundan değil, birden fazla mekanizmanın koordinasyonundan geldiği kabul edilir.
 
-## Decision 6 — Add Automatic and Advanced solver-control modes
+## Karar 6 — Automatic ve Advanced solver kontrol modları ekle
 
-Commercial solvers expose extensive nonlinear controls, but DynaElastomerSolver will not force all complexity onto normal users.
+Ticari solver'lar çok sayıda doğrusal olmayan kontrol sunar; ancak DynaElastomerSolver bu karmaşıklığı normal kullanıcıya zorunlu kılmaz.
 
 ### Automatic
 
-The software selects sensible elastomer-specific defaults for incrementing, convergence, Newton strategy and linear solver.
+Yazılım increment, yakınsama, Newton stratejisi ve linear solver için elastomer odaklı uygun varsayılanları seçer.
 
 ### Advanced
 
-Expert users may control Newton type, convergence tolerances, increment limits, line search, cutback and backend selection.
+Uzman kullanıcı Newton tipi, yakınsama toleransları, increment sınırları, line search, cutback ve backend seçimini kontrol edebilir.
 
-## Decision 7 — Expand InternalMesh metadata
+## Karar 7 — InternalMesh metadatasını genişlet
 
-`InternalMesh` now includes more than nodes/elements:
+`InternalMesh` artık yalnız nodes/elements içermez:
 
 ```text
 InternalMesh
@@ -126,13 +126,11 @@ InternalMesh
 └── Metadata
 ```
 
-Orientation, integration and quality are required for trustworthy analysis and diagnostics.
+Yönelim, integrasyon ve kalite güvenilir analiz ve tanılar için gereklidir.
 
-## Decision 8 — Separate raw and display results
+## Karar 8 — Ham sonuçları görüntüleme sonuçlarından ayır
 
-Stress and related constitutive quantities originate at integration points. Display systems may extrapolate/average them to nodes.
-
-DynaElastomerSolver makes this distinction explicit:
+Stress ve benzeri bünye büyüklükleri integrasyon noktalarında oluşur. Görüntüleme sistemleri bunları nodal değerlere ekstrapole/ortalama yapabilir.
 
 ```text
 ResultDatabase
@@ -142,35 +140,35 @@ ResultDatabase
     └── Extrapolated/Averaged
 ```
 
-A displayed contour must not obscure the origin/transformation of the data.
+Görüntülenen contour verisinin kökeni ve dönüşümü gizlenmemelidir.
 
-## Decision 9 — GaussPointInspector is a V1.0 engineering feature
+## Karar 9 — GaussPointInspector V1.0 mühendislik özelliğidir
 
-Direct integration-point inspection is valuable for constitutive verification, mixed formulations and investigation of high-strain rubber regions.
+Doğrudan integrasyon noktası incelemesi; bünye doğrulaması, karma formulasyonlar ve yüksek şekil değiştirmeli kauçuk bölgelerinin araştırılması için değerlidir.
 
-The V1.0 postprocessor therefore includes a first-class Gauss-point inspection path.
+V1.0 postprocessor bu nedenle birinci sınıf Gauss-point inceleme yolu içerir.
 
-## Decision 10 — Native experiment/FEA comparison
+## Karar 10 — Native deney/FEA karşılaştırması
 
-DynaElastomerSolver treats physical validation as part of the product, not an external spreadsheet activity.
+DynaElastomerSolver fiziksel doğrulamayı harici spreadsheet işi değil ürünün parçası kabul eder.
 
 ```text
-FEA Result
+FEA Sonucu
    +
-Physical Product Test
+Fiziksel Ürün Testi
         ↓
 Overlay
         ↓
-Error Metrics
+Hata Metrikleri
         ↓
-Validation Record
+Doğrulama Kaydı
 ```
 
-Target metrics include RMSE, maximum/mean error, relative error and stiffness error.
+Hedef metrikler RMSE, maksimum/ortalama hata, bağıl hata ve rijitlik hatasını içerir.
 
-## Decision 11 — Extend the initial hyperelastic library
+## Karar 11 — İlk hiperelastik kütüphaneyi genişlet
 
-The V1.0 target material family becomes:
+V1.0 hedef malzeme ailesi:
 
 - Neo-Hookean
 - Mooney-Rivlin
@@ -179,63 +177,63 @@ The V1.0 target material family becomes:
 - Arruda-Boyce
 - Gent
 
-This remains intentionally smaller than general commercial libraries but covers a stronger practical elastomer baseline.
+Bu kapsam genel ticari kütüphanelerden bilinçli olarak daha küçüktür ancak pratik elastomer analizleri için güçlü bir temel sağlar.
 
-## Decision 12 — Preserve the project-owned nonlinear FEM core
+## Karar 12 — Projeye ait doğrusal olmayan FEM çekirdeğini koru
 
-ANSYS and Marc comparisons do not change the ownership boundary:
+ANSYS ve Marc karşılaştırmaları sahiplik sınırını değiştirmez.
 
-DynaElastomerSolver owns:
+DynaElastomerSolver şunların sahibidir:
 
-- kinematics
-- material models
-- element formulations
+- kinematik
+- malzeme modelleri
+- eleman formulasyonları
 - assembly
-- mixed formulation logic
-- nonlinear solution management
-- convergence/cutback logic
-- result semantics
+- karma formulasyon mantığı
+- doğrusal olmayan çözüm yönetimi
+- yakınsama/cutback mantığı
+- sonuç anlamı
 
-A replaceable external sparse solver may solve the algebraic system only.
+Değiştirilebilir harici seyrek solver yalnız cebirsel sistemi çözebilir.
 
-## Decision 13 — Keep geometry narrow
+## Karar 13 — Geometri kapsamını dar tut
 
-Commercial systems include broad CAD/geometry tools. DynaElastomerSolver does not adopt that scope.
+Ticari sistemler geniş CAD/geometri araçları içerir. DynaElastomerSolver bu kapsamı benimsemez.
 
-The geometry subsystem provides only:
+Geometri alt sistemi yalnız şunları sağlar:
 
 - DXF import
-- topology interpretation
-- region/boundary/selection definitions
-- validation
-- controlled healing
-- axis definition
-- mesh preparation
+- topoloji yorumlama
+- region/boundary/selection tanımları
+- doğrulama
+- kontrollü iyileştirme
+- eksen tanımı
+- mesh hazırlığı
 
-No internal sketcher is added.
+Dahili sketcher eklenmez.
 
-## Consequences
+## Sonuçlar
 
-### Positive
+### Olumlu
 
-- architecture better reflects production nonlinear-solver needs
-- integration-point physics becomes transparent
-- material extensibility improves
-- solver controls remain usable for both normal and expert users
-- mixed incompressibility infrastructure is cleaner
-- experimental validation becomes a native workflow
-- mesh and solver diagnostics become auditable
+- mimari üretim seviyesinde nonlinear solver ihtiyaçlarını daha iyi yansıtır
+- integrasyon noktası fiziği şeffaflaşır
+- malzeme genişletilebilirliği artar
+- solver kontrolleri normal ve uzman kullanıcılar için kullanılabilir kalır
+- karma sıkıştırılamazlık altyapısı daha temiz olur
+- deneysel doğrulama native iş akışına dönüşür
+- mesh ve solver tanıları denetlenebilir hale gelir
 
-### Cost
+### Maliyet
 
-- more interfaces and state-management code
-- more verification cases
-- result extrapolation/averaging must be tested independently
-- nonlinear control logic becomes a substantial engineering subsystem
-- Material Plugin API requires strict ABI/versioning discipline
+- daha fazla arayüz ve state-management kodu
+- daha fazla doğrulama senaryosu
+- sonuç ekstrapolasyon/ortalama yöntemlerinin bağımsız test edilmesi gerekir
+- doğrusal olmayan kontrol mantığı önemli bir mühendislik alt sistemine dönüşür
+- Material Plugin API için sıkı ABI/sürüm disiplini gerekir
 
-## Benchmark principle
+## Benchmark ilkesi
 
-ANSYS and Marc are reference systems for mature behavior and verification, not implementation templates to copy blindly.
+ANSYS ve Marc; olgun davranış ve doğrulama için referans sistemlerdir, körü körüne kopyalanacak uygulama şablonları değildir.
 
-> Adopt mature engineering principles where they strengthen elastomer analysis; reject breadth that does not serve the specialized product.
+> Elastomer analizini güçlendiren olgun mühendislik ilkelerini benimse; uzmanlaşmış ürüne hizmet etmeyen kapsam genişliğini alma.
