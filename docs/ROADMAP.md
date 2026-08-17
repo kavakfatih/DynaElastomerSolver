@@ -12,124 +12,111 @@ DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamaz. Hedef; büyük de
 **Durum:** Bilimsel çekirdek tamamlandı.
 
 Tamamlananlar:
-- Fortran 2018 + CMake
-- precision/status katmanı
-- tensör ve finite-strain yardımcıları
-- Neo-Hookean enerji, `P`, Cauchy stress
-- analitik consistent tangent `dP/dF`
-- material-point testleri
-- merkezi finite-difference tangent kontrolü
+- Fortran 2018 / CMake
+- precision/status
+- finite-strain helpers
+- Neo-Hookean `W / P / Cauchy`
+- analytic consistent tangent
+- material-point + FD tangent tests
 
 Kanıt:
-- material tangent normalize FD hatası yaklaşık `1.26e-9`.
-
-Cross-platform compiler doğrulaması V0.2 kapanışına taşındı.
+- material tangent normalized FD error ≈ `1.26e-9`.
 
 ---
 
 ## V0.2 — İlk Çalışan Nonlinear FEM Dikey Dilimi
 
-**Güncel durum:** `V0.2-dev — Nonlinear FEM Robustness`
+**Durum:** `V0.2-dev — kapanış doğrulaması`
 
 ### Tamamlanan implementasyon
 
-- [x] Q4 plane-strain baseline element
+- [x] Q4 plane-strain baseline
 - [x] 2×2 Gauss integration
-- [x] Total-Lagrangian residual
-- [x] consistent element tangent
-- [x] element tangent FD doğrulaması
-- [x] çok elemanlı global assembly
-- [x] displacement-control Full Newton
-- [x] increment stepping
+- [x] Total-Lagrangian residual/tangent
+- [x] element tangent FD
+- [x] global assembly
+- [x] Full Newton
 - [x] adaptive increment
 - [x] rollback / cutback / retry
-- [x] `solution_state_t` ile trial/commit/revert
+- [x] trial / commit / revert
 - [x] convergence history
-- [x] failure/status diagnostics
-- [x] nonlinear patch benchmark
-- [x] 1×1 / 2×2 / 4×4 mesh refinement
+- [x] status/failure diagnostics
+- [x] nonlinear patch
+- [x] mesh refinement
 - [x] pinlenmiş `kavakfatih/stdlib`
-- [x] stdlib/LAPACK dense lineer solve
-- [x] minimal `internal_mesh_t`
+- [x] stdlib/LAPACK dense solve
+- [x] `InternalMesh`
 - [x] connectivity validation
-- [x] InternalMesh assembly
-- [x] eski `X + connectivity` yolu ile regression eşdeğerliği
-- [x] ham integration-point result modeli
-- [x] Gauss-point `F / J / P / Cauchy / W`
-- [x] InternalMesh Newton solver adapteri
-- [x] backend-bağımsız `des_linear_solver`
-- [x] `linear_solver_settings_t` / `linear_solver_report_t`
-- [x] lineer backend/residual diagnostics
-- [x] `newton_report_t` içinde lineer solver diagnostics
-- [x] terminal backend hatalarının cutback dışında tutulması
-- [x] severe-distortion nonlinear Q4 benchmark
-- [x] severe-distortion için FEM'den bağımsız kapalı-form `J / P / W` continuum referansı
-- [x] V0.2 benchmark kataloğu
-- [x] GitHub Actions compiler matrix tanımı
-- [x] CI action/tool sürümlerinin commit SHA ile pinlenmesi
+- [x] raw integration-point results
+- [x] `F / J / P / Cauchy / W` Gauss outputs
+- [x] InternalMesh Newton adapter
+- [x] backend-independent linear solver API
+- [x] Newton linear-solver diagnostics
+- [x] severe-distortion benchmark
+- [x] independent closed-form `J / P / W` reference
+- [x] V0.2 benchmark catalogue
+- [x] GitHub Actions compiler matrix
+- [x] FEniCSx/DOLFINx independent external FEM validation
 
 ### Doğrulama zinciri
 
 ```text
-Neo-Hookean material point
-        ↓
-Material tangent FD
-        ↓
-Q4 element tangent FD
-        ↓
-Global assembly
-        ↓
-Full Newton
-        ↓
-Adaptive cutback/retry
-        ↓
-InternalMesh
-        ↓
-Raw Gauss results
-        ↓
-Linear solver diagnostics
-        ↓
-Patch + mesh refinement
-        ↓
-Severe distortion
-        ↓
-Closed-form continuum P/W/J
-        ↓
-Cross-compiler CI
-        ↓
-Independent external FEM solver
+Material point
+→ material tangent FD
+→ Q4 tangent FD
+→ global assembly
+→ Full Newton
+→ adaptive recovery
+→ InternalMesh
+→ raw Gauss results
+→ linear diagnostics
+→ patch / mesh refinement
+→ severe distortion
+→ closed-form continuum
+→ cross-compiler CI
+→ independent FEniCSx FEM
 ```
 
-Detaylı katalog:
-`docs/verification/V0.2_REFERENCE_BENCHMARKS.md`
+### Bağımsız dış FEM
+
+**Durum: GEÇTİ**
+
+FEniCSx / DOLFINx `0.11.0.post0` ile homojen plane-strain extension yeniden çözüldü.
+
+Dyna ↔ FEniCSx mutlak farkları:
+
+```text
+lambda_y   ≈ 2.00e-15
+reaction_x ≈ 6.66e-16
+```
+
+FEniCSx ↔ closed-form:
+
+```text
+J            ≈ 4.88e-15
+total energy ≈ 5.72e-15
+```
+
+Kayıt:
+- `docs/verification/V0.2_EXTERNAL_FEM_VALIDATION.md`
+- `docs/verification/results/FENICSX_V0.2_HOMOGENEOUS_EXTENSION.json`
 
 ### Compiler matrix
 
-Workflow: `.github/workflows/fortran-ci.yml`
+20 CTest:
 
-Hedef:
-1. Ubuntu 24.04 / gfortran 14
-2. macOS 26 ARM64 / gfortran 14
-3. Windows 2025 / gfortran 14
-4. Windows 2025 / Intel ifx 2025.2
+- [x] Ubuntu 24.04 / gfortran 14
+- [x] macOS 26 ARM64 / gfortran 14
+- [x] Windows 2025 / gfortran 14
+- [ ] Windows 2022 / Intel ifx 2025.2
 
-Doğrulanmış ilk sonuçlar:
-- [x] Ubuntu 24.04 / gfortran 14 — configure + build + CTest başarılı
-- [x] macOS 26 ARM64 / gfortran 14 — configure + build + CTest başarılı
-- [ ] Windows 2025 / gfortran 14 — aktif doğrulama
-- [ ] Windows 2025 / Intel ifx 2025.2 — aktif doğrulama
+ifx için Windows 2025 runner'ın VS2026'ya yönlendirilmesi nedeniyle job, GitHub'ın VS2022 uyumluluk yolu olan Windows 2022 runner'a taşındı ve CMake Visual Studio generator `-T fortran=ifx` ile doğrulanıyor.
 
-### V0.2 kapanışından önce kalanlar
+### V0.2 kapanışında kalan tek büyük madde
 
-- [ ] Güncel `main` üzerinde compiler matrixin tüm job'larını yeşile getirmek
-- [ ] 20/20 CTest'i hedef compiler matrisinde doğrulamak
-- [ ] en az bir benchmarkı bağımsız dış FEM solver ile çözmek
-- [ ] dış solver sürümü, energy formu, element/integration ayarı ve sonuçlarını kaydetmek
-- [ ] yalnız ihtiyaç çıkarsa ek robustness benchmarkı
+- [ ] Windows 2022 / Intel ifx 2025.2 configure + build + 20 CTest
 
-### V0.2 çıkış kriteri
-
-Plane-strain Neo-Hookean benchmarkları kapalı-form ve bağımsız referanslarla tolerans içinde uyuşmalı; robustness/mesh testleri geçmeli; lineer diagnostics raporlanabilir olmalı; compiler matrix yeşil olmalı ve en az bir dış FEM karşılaştırması belgelenmelidir.
+Bu tamamlandığında compiler matrix ve external FEM kriterleri birlikte kapanmış olacak; ardından V0.2 son exit-criteria kontrolü yapılacak.
 
 ---
 
@@ -137,10 +124,10 @@ Plane-strain Neo-Hookean benchmarkları kapalı-form ve bağımsız referanslarl
 
 Amaç: production elastomer element teknolojisini varsayımla değil benchmark ile seçmek.
 
-Karşılaştırılacak yollar:
+Karşılaştırılacak adaylar:
 1. displacement-only Q4 — baseline
 2. mixed displacement-pressure (`u-p`)
-3. F-bar veya eşdeğer locking azaltıcı formulation
+3. F-bar veya eşdeğer locking-reduction formulation
 
 Karar ölçütleri:
 - volumetric locking
@@ -149,20 +136,20 @@ Karar ölçütleri:
 - nonlinear convergence
 - distortion sensitivity
 - minimum `J`
-- DOF ve assembly maliyeti
+- DOF / assembly maliyeti
 - linear-system conditioning
-- axisymmetric genişletilebilirlik
-- axisymmetric torsion genişletilebilirliği
+- axisymmetric extensibility
+- axisymmetric torsion extensibility
 
 Gerekli altyapı:
 - mixed DOF
 - block residual/tangent
 - pressure diagnostics
 - locking benchmark seti
-- InternalMesh/results modelinin pressure alanına genişlemesi
-- mevcut Dyna lineer solver sınırı üzerinden mixed-system benchmark
+- InternalMesh/results pressure extension
+- Dyna linear-solver boundary üzerinden mixed-system benchmark
 
-**Çıkış:** Production nearly-incompressible formulation ölçülmüş benchmark kanıtıyla seçilir ve ADR ile sabitlenir.
+**Çıkış:** Production nearly-incompressible formulation benchmark kanıtıyla seçilir ve ADR ile sabitlenir.
 
 ---
 
@@ -173,23 +160,20 @@ Gerekli altyapı:
 - seçilmiş incompressibility formulation'ın axisymmetric türevi
 - axisymmetric BC
 - reaction force
-- analitik ve bağımsız solver benchmarkları
+- analitik + bağımsız solver benchmarkları
 
 ---
 
 ## V0.5 — Axisymmetric Torsion / 2.5D
 
-Projenin ana farklılaştırıcı kilometre taşlarından biridir.
-
-- twist field `φ`
-- `ur, uz, φ` kinematics
-- gerekiyorsa pressure coupling
+Ana farklılaştırıcı kilometre taşlarından biri:
+- `ur, uz, φ`
 - prescribed rotation
 - reaction torque
-- torque–angle history
-- secant/tangent torsional stiffness
-- torsion convergence quantities
-- bağımsız solver ve fiziksel test doğrulaması
+- torque–angle
+- torsional stiffness
+- pressure coupling gerektiğinde
+- bağımsız solver + fiziksel test doğrulaması
 
 ---
 
@@ -217,49 +201,35 @@ Energy
 
 ## V0.7 — Minimum Calibration / Material Lab
 
-Amaç: kullanılan material modellerini deneysel veriye güvenilir biçimde fit etmek.
-
-Planlanan araç zinciri:
+Planlanan açık kaynak zincir:
 
 ```text
 Experimental Data
-    ↓
-PCHIP
-shape-preserving interpolation
-    ↓
-Objective + physical admissibility
-    ↓
-PRIMA BOBYQA / COBYLA
-    ↓
-MINPACK Levenberg–Marquardt
-    ↓
-Material validation
-    ↓
-Parameters + metrics + provenance
+→ PCHIP
+→ Objective + Physical Admissibility
+→ PRIMA BOBYQA / COBYLA
+→ MINPACK Levenberg–Marquardt
+→ Material Validation
+→ Parameters + Metrics + Provenance
 ```
-
-Kütüphaneler:
-- `https://github.com/jacobwilliams/PCHIP`
-- `https://github.com/libprima/prima`
-- `https://github.com/fortran-lang/minpack`
 
 ---
 
 ## V0.8 — Production NonlinearSolutionManager
 
-V0.2'de gerçek ihtiyaçtan doğan mekanizmalar formulation-independent production seviyesine taşınır:
+V0.2'de gerçek ihtiyaçtan doğan mekanizmaların formulation-independent production seviyesi:
 - Full Newton
 - adaptive increment
 - commit/revert
 - cutback/retry
 - convergence/divergence reason
 - negative `J`
-- severe distortion diagnostics
+- distortion diagnostics
 - mixed pressure diagnostics
-- backend-independent linear solver report
+- backend-independent linear report
 - solver history
 
-Yalnız benchmark ihtiyacı gösterirse:
+Benchmark ihtiyacı gösterirse:
 - line search
 - Modified Newton
 - BFGS/Broyden
@@ -269,38 +239,24 @@ Yalnız benchmark ihtiyacı gösterirse:
 
 ## V0.9 — Minimum Mühendislik İş Akışı
 
-Geometri/Mesh:
-- DXF adapter
-- `AnalysisGeometry`
+- DXF / geometry adapters
 - named boundaries
-- Gmsh `IMeshProvider`
-- harici mesh → `InternalMesh`
+- Gmsh → `InternalMesh`
 - mesh precheck
-
-Results:
-- raw integration-point database
-- displacement
-- principal stretch
-- Cauchy stress
-- pressure
-- `J`
-- strain-energy
+- raw results database
+- displacement / stretch / stress / pressure / `J` / energy
 - reaction force/torque
-- torque–angle
-- force–displacement
-- `GaussPointInspector`
-
-UI:
-- Qt sınırı korunur
-- yalnız doğrulanmış workflow için minimum shell
+- torque–angle / force–displacement
+- GaussPointInspector
+- minimum Qt shell
 
 ---
 
 ## V1.0 — Doğrulanmış Nonlineer Elastomer Solver
 
-Birincil problem sınıfı:
+Birincil kapsam:
 - quasi-static
-- finite strain / large deformation
+- finite strain
 - hyperelastic elastomer
 - bonded metal–elastomer
 - plane strain
@@ -308,21 +264,19 @@ Birincil problem sınıfı:
 - axisymmetric torsion / 2.5D
 - prescribed displacement/rotation
 - reaction force/torque
-- nearly-incompressible formulation
-- seçilmiş doğrulanmış hiperelastik modeller
-
-Başarı; özellik sayısıyla değil material-point, element, mesh convergence, incompressibility, robustness, bağımsız solver ve fiziksel test kanıtlarıyla ölçülür.
+- validated nearly-incompressible formulation
+- selected hyperelastic models
 
 V1.0 dışında:
-- separation/frictional contact
+- general contact/friction
 - self-contact
 - debonding
 - viscoelasticity
 - Mullins/hysteresis
-- damage/fatigue/life
-- transient/harmonic/explicit dynamics
+- fatigue/life/damage
+- dynamics
 - binary material plugin
-- genel amaçlı CAD
+- general CAD
 - ANSYS/Marc feature parity
 
 ## Bilimsel geliştirme kuralı
@@ -340,9 +294,9 @@ Mesh convergence
  ↓
 Independent solver comparison
  ↓
-Uygun olduğunda fiziksel test
+Uygun olduğunda physical test
  ↓
-Production kapsamı
+Production scope
 ```
 
 > Önce çalışan ve doğrulanan en küçük fizik zinciri; sonra yalnız kanıtlanmış ihtiyaca göre mimari genişleme.
