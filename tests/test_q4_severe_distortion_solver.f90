@@ -10,8 +10,11 @@ program test_q4_severe_distortion_solver
 
   real(dp) :: X(9,2), u(9,2), residual(18), H(2,2)
   real(dp) :: prescribed_values(16), expected_center(2), expected_F(3,3)
+  real(dp) :: expected_P(3,3), weighted_P(3,3)
   real(dp) :: center_error, force_sum_x, force_sum_y
   real(dp) :: min_weight, max_weight, weight_ratio, max_F_error, expected_J
+  real(dp) :: reference_J, expected_energy_density, total_reference_area
+  real(dp) :: integrated_energy, energy_error, P_error
   integer :: connectivity(4,4), boundary_nodes(8), prescribed_dofs(16)
   integer :: status, a, node, idx, g
   type(neo_hookean_parameters_t) :: parameters
@@ -69,6 +72,18 @@ program test_q4_severe_distortion_solver
 
   parameters%mu = 2.7_dp
   parameters%lambda = 25.0_dp
+
+  ! Bu referans hesabı FEM assembly/material-response yolunu çağırmaz.
+  ! Aynı constitutive denklemin kapalı-form plane-strain ifadesi test içinde
+  ! bağımsız olarak hesaplanır ve Gauss entegrasyonuyla karşılaştırılır.
+  call neo_hookean_closed_form( &
+    expected_F, parameters%mu, parameters%lambda, &
+    expected_P, expected_energy_density, reference_J)
+
+  if (abs(reference_J-expected_J) > 5.0e-14_dp) then
+    error stop 'Kapali-form continuum J referansi kendi geometrik referansiyla uyusmuyor.'
+  end if
+
   u = 0.0_dp
 
   call solve_q4_internal_mesh_displacement_control( &
@@ -97,6 +112,10 @@ program test_q4_severe_distortion_solver
   min_weight = huge(1.0_dp)
   max_weight = 0.0_dp
   max_F_error = 0.0_dp
+  total_reference_area = 0.0_dp
+  integrated_energy = 0.0_dp
+  weighted_P = 0.0_dp
+
   do g = 1,integration_results%count()
     if (.not. integration_results%points(g)%valid) then
       error stop 'Yuksek distorsiyon benchmarkinda gecersiz Gauss sonucu var.'
@@ -106,6 +125,14 @@ program test_q4_severe_distortion_solver
     max_weight = max(max_weight, integration_results%points(g)%reference_weight)
     max_F_error = max(max_F_error, &
       maxval(abs(integration_results%points(g)%F - expected_F)))
+
+    total_reference_area = total_reference_area + &
+      integration_results%points(g)%reference_weight
+    integrated_energy = integrated_energy + &
+      integration_results%points(g)%strain_energy_density * &
+      integration_results%points(g)%reference_weight
+    weighted_P = weighted_P + integration_results%points(g)%P * &
+      integration_results%points(g)%reference_weight
 
     if (abs(integration_results%points(g)%J - expected_J) > 5.0e-10_dp) then
       error stop 'Gauss J sonucu affine referansla uyusmuyor.'
@@ -132,10 +159,62 @@ program test_q4_severe_distortion_solver
     error stop 'Severe-distortion benchmark lineer residual toleransi asti.'
   end if
 
+  ! Referans dikdörtgen 2x2 ve birim kalınlıktadır; toplam referans alanı 4'tür.
+  if (abs(total_reference_area-4.0_dp) > 5.0e-12_dp) then
+    error stop 'Distorsiyonlu mesh toplam referans alanini korumadi.'
+  end if
+
+  weighted_P = weighted_P/total_reference_area
+  P_error = maxval(abs(weighted_P-expected_P))
+  if (P_error > 5.0e-10_dp) then
+    error stop 'Agirlikli Gauss P tensörü kapali-form continuum referansiyla uyusmuyor.'
+  end if
+
+  energy_error = abs(integrated_energy - total_reference_area*expected_energy_density)
+  if (energy_error > 5.0e-10_dp) then
+    error stop 'Toplam strain-energy kapali-form continuum referansiyla uyusmuyor.'
+  end if
+
   write(*,'(A,ES12.4)') 'Severe mesh min reference weight = ', min_weight
   write(*,'(A,ES12.4)') 'Severe mesh weight ratio = ', weight_ratio
   write(*,'(A,ES12.4)') 'Affine center displacement error = ', center_error
   write(*,'(A,ES12.4)') 'Max Gauss F error = ', max_F_error
+  write(*,'(A,ES12.4)') 'Closed-form P tensor max error = ', P_error
+  write(*,'(A,ES12.4)') 'Closed-form total energy error = ', energy_error
   write(*,'(A,I0)') 'Newton lineer solve sayisi = ', report%linear_solve_count
   write(*,'(A)') 'Yuksek distorsiyonlu Q4 nonlinear benchmark testi BASARILI.'
+
+contains
+
+  pure subroutine neo_hookean_closed_form(F, mu, lame_lambda, P, energy, J)
+    real(dp), intent(in) :: F(3,3), mu, lame_lambda
+    real(dp), intent(out) :: P(3,3), energy, J
+
+    real(dp) :: FinvT(3,3), alpha, lnJ, I1
+
+    ! Bu bağımsız referans V0.2 plane-strain benchmarkına özeldir:
+    ! F13=F23=F31=F32=0 ve F33=1.
+    J = F(1,1)*F(2,2) - F(1,2)*F(2,1)
+    if (J <= 0.0_dp) then
+      P = 0.0_dp
+      energy = huge(1.0_dp)
+      return
+    end if
+
+    FinvT = 0.0_dp
+    FinvT(1,1) =  F(2,2)/J
+    FinvT(1,2) = -F(2,1)/J
+    FinvT(2,1) = -F(1,2)/J
+    FinvT(2,2) =  F(1,1)/J
+    FinvT(3,3) = 1.0_dp
+
+    lnJ = log(J)
+    alpha = lame_lambda*lnJ - mu
+    I1 = sum(F*F)
+
+    P = mu*F + alpha*FinvT
+    energy = 0.5_dp*mu*(I1-3.0_dp) - mu*lnJ &
+           + 0.5_dp*lame_lambda*lnJ*lnJ
+  end subroutine neo_hookean_closed_form
+
 end program test_q4_severe_distortion_solver
