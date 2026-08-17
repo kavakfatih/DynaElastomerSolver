@@ -182,4 +182,30 @@ Ham integration-point sonuçları, ekstrapole/ortalama alınmış display sonuç
 
 ## Mevcut durum
 
-Mimari yön yeterince tanımlanmıştır ve yeni mimari genişleme bilinçli olarak sınırlandırılmıştır. Sıradaki iş dokümantasyon değil, **V0.1 Material Core ve hemen ardından V0.2 ilk çalışan nonlinear FEM dikey dilimidir**.
+V0.1 Material Core implementasyonu başlamış ve ilk doğrulanmış hesaplama çekirdeği repoya alınmıştır.
+
+Şu anda çalışan temel parçalar:
+
+- CMake tabanlı Modern Fortran çekirdeği
+- `des_kinds` precision tanımları
+- `des_status` açık durum/hata kodları
+- `des_tensor3` determinant / inverse / identity yardımcıları
+- `des_finite_strain` Cauchy-Green ve invariant yardımcıları
+- `material_kinematics_t` / `material_response_t`
+- sıkıştırılabilir Neo-Hookean enerji modeli
+- First Piola-Kirchhoff gerilmesi
+- Cauchy gerilmesi
+- analitik `dP/dF` consistent material tangent
+- parametre, singular `F` ve non-positive `J` doğrulaması
+
+Mevcut CTest paketi beş testi kapsar:
+
+1. 3×3 tensor yardımcıları
+2. finite-strain kinematik/invariant hesabı
+3. Neo-Hookean analitik referans state'leri
+4. parametre ve kinematik hata sınıflandırması
+5. analitik tangent / merkezi finite-difference karşılaştırması
+
+Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. macOS gfortran ile Windows ifx/gfortran derleyici matrisi ayrıca doğrulanacaktır.
+
+Sıradaki bilimsel hedef: V0.1'i derleyici/kontrat açısından kapatıp **Q4 plane-strain tek eleman + element residual/tangent + Full Newton** içeren V0.2 ilk nonlinear FEM dikey dilimine geçmek.
