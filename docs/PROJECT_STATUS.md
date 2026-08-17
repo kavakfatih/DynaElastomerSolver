@@ -9,7 +9,7 @@
 
 Bu sürüm yayınlanmış bir ürün sürümü değil; aktif geliştirme kilometre taşıdır.
 
-### Çalışan çekirdek
+## Çalışan çekirdek
 
 - Modern Fortran bilimsel çekirdek
 - CMake build altyapısı
@@ -24,17 +24,24 @@ Bu sürüm yayınlanmış bir ürün sürümü değil; aktif geliştirme kilomet
 - 2×2 Gauss integration
 - Total-Lagrangian element residual
 - consistent element tangent
-- çok elemanlı global assembly
+- çok elemanlı Q4 global assembly
 - pivotlamalı dense lineer çözücü
 - incremental Full Newton displacement-control solver
 - adaptive displacement-control solver
 - rollback
 - cutback / retry
+- reusable `solution_state_t`
+- açık `trial → commit / revert` çözüm state akışı
+- `convergence_history_t` ile attempt/iteration geçmişi
+- load factor / increment size / residual / minimum `J` history kaydı
+- accepted increment kayıtları
+- cutback exhaustion tanısı
 - açık material/FEM/solver status kodları
+- `des_status_message()` ile okunabilir hata açıklamaları
 - minimum `J` takibi
 - Newton iteration/increment raporlaması
 
-### Kanıtlanmış doğrulamalar
+## Kanıtlanmış doğrulamalar
 
 - Material tangent normalize FD hatası: yaklaşık `1.26e-9`
 - Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
@@ -43,40 +50,74 @@ Bu sürüm yayınlanmış bir ürün sürümü değil; aktif geliştirme kilomet
 - Distorsiyonlu nonlinear patch merkez displacement hatası: yaklaşık `3.9e-17`
 - Adaptive cutback final residual: yaklaşık `3.9e-15`
 - 1×1 / 2×2 / 4×4 homojen mesh refinement reaksiyonu: `1.605586`
+- Adaptive failure benchmark'ında 2 commit / 1 revert beklenen akışla eşleşti
+- Convergence history içinde non-positive `J` failure olayı korunarak kaydedildi
+- `max_cutbacks=0` testinde trial state dışarı sızmadan committed state'e rollback doğrulandı
+- Cutback exhaustion sırasında alt failure nedeni `DES_ERROR_NONPOSITIVE_J` olarak korundu
+- `des_status_message()` durum açıklama testi geçti
 
-### Adaptive failure senaryosu
+Yeni state/history ve durum mesajı değişiklikleri GNU Fortran **14.2.0** ile yerel olarak derlenip ilgili solver testleri üzerinde doğrulandı.
+
+## Adaptive failure senaryosu
 
 ```text
 %100 ilk increment
       ↓
 non-positive J
       ↓
-trial çözüm reddedildi
+trial state reddedildi
       ↓
-rollback
+revert → committed state
       ↓
 %50 cutback
       ↓
 retry
       ↓
+commit
+      ↓
 ikinci kabul edilmiş increment
+      ↓
+commit
       ↓
 %100 final yük seviyesi
 ```
 
-Bu davranış, solver robustness mimarisindeki rollback/cutback kavramının gerçek bir failure benchmark'ı ile kanıtlandığını gösterir.
+Bu zincir artık geçici bir `committed_u` kopyasıyla değil, reusable `solution_state_t` üzerinden çalışır.
+
+## Convergence history yapısı
+
+Her Newton değerlendirmesinde aşağıdaki bilgiler saklanabilir:
+
+- attempt numarası
+- iteration numarası
+- target load factor
+- increment size
+- residual norm
+- minimum `J`
+- status code
+- increment'in kabul edilip edilmediği
+
+Bu kayıt, ileride Results/Solver paneli ile `DivergenceReason` ve otomatik recovery kararlarının veri kaynağı olacaktır.
 
 ## V0.2 kapanışından önce kalan işler
 
-1. Committed / trial çözüm state'ini reusable ve genel bir yapı haline getirmek.
-2. Convergence history kaydı.
-3. Cutback exhaustion / retry limit tanıları.
-4. Failure reason raporlarını daha açık hale getirmek.
-5. Ek nonlinear distortion ve robustness benchmark'ları.
-6. macOS Apple Silicon + gfortran doğrulaması.
-7. Windows x64 + Intel ifx doğrulaması.
-8. Windows x64 + gfortran doğrulaması.
+1. Ek nonlinear distortion ve robustness benchmark'ları.
+2. Minimal `Node / Element / InternalMesh` veri modelini gerçek mesh akışına taşımak.
+3. Ham integration-point result saklama yolunu eklemek.
+4. V0.2 için bağımsız solver/reference karşılaştırmasını genişletmek.
+5. macOS Apple Silicon + gfortran doğrulaması.
+6. Windows x64 + Intel ifx doğrulaması.
+7. Windows x64 + gfortran doğrulaması.
+8. Tüm CTest paketini compiler matrisi üzerinde çalıştırmak.
 9. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
+
+### Bu turda kapanan V0.2 maddeleri
+
+- committed/trial çözüm state'i
+- convergence history
+- cutback exhaustion / retry limit tanısı
+- başarısız trial state'in güvenli rollback'i
+- failure status için okunabilir açıklama katmanı
 
 ---
 
