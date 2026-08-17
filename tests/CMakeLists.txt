@@ -20,6 +20,12 @@ des_add_fortran_test(
 )
 
 des_add_fortran_test(
+  test_finite_strain
+  core.finite_strain
+  test_finite_strain.f90
+)
+
+des_add_fortran_test(
   test_neo_hookean_reference_states
   material.neo_hookean.reference_states
   test_neo_hookean_reference_states.f90
