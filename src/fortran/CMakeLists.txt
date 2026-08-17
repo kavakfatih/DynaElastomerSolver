@@ -22,6 +22,10 @@ target_include_directories(DynaElastomerCore PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>"
 )
 
+# stdlib artık Dyna bilimsel çekirdeğinin gerçek bir bağımlılığıdır.
+# İlk somut kullanım des_dense_linear içinde stdlib_linalg::solve yoludur.
+target_link_libraries(DynaElastomerCore PUBLIC ${DES_STDLIB_TARGET})
+
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   target_compile_options(DynaElastomerCore PRIVATE
     -Wall -Wextra -Wimplicit-interface -Werror=implicit-interface
