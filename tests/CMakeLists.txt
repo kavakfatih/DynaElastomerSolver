@@ -72,3 +72,9 @@ des_add_fortran_test(
   fem.q4.plane_strain.mesh_incremental_newton
   test_q4_plane_strain_mesh_newton.f90
 )
+
+des_add_fortran_test(
+  test_q4_solver_api
+  solver.q4.plane_strain.displacement_control
+  test_q4_solver_api.f90
+)
