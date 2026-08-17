@@ -79,7 +79,7 @@ Neo-Hookean
 
 Seçilmiş plane-strain Neo-Hookean benchmark'ları analitik veya bağımsız referans çözümle tanımlı tolerans içinde uyuşmalı ve mesh refinement altında beklenen davranışı göstermelidir.
 
-### Gerçekleşen durum — 2026-08-17
+### Gerçekleşen durum — 2026-08-18
 
 Tamamlananlar:
 
@@ -100,9 +100,12 @@ Tamamlananlar:
 - [x] okunabilir status/failure açıklamaları
 - [x] nonlinear patch benchmark
 - [x] 1×1 / 2×2 / 4×4 mesh-refinement benchmark
+- [x] `kavakfatih/stdlib` pinlenmiş dependency entegrasyonu
+- [x] dense doğrulama yolunun `stdlib_linalg::solve` üzerine taşınması
 
 Kalanlar:
 
+- [ ] stdlib tabanlı build'in tam CTest/compiler matrisi doğrulaması
 - [ ] minimal `Node / Element / InternalMesh` veri modelinin gerçek mesh akışına taşınması
 - [ ] ham integration-point result saklama yolu
 - [ ] dense test solver yolunun production linear-solver arayüzüne hazırlanması
@@ -226,15 +229,79 @@ Amaç: solver'da gerçekten kullanılacak malzeme modellerini deneysel veriye fi
 - experimental dataset
 - uniaxial tension data path
 - engineering/true quantity transformations
+- shape-preserving experimental interpolation / resampling
 - objective function
 - parameter bounds
-- ilk güvenilir optimizer
+- derivative-free bounded/constrained optimizer yolu
+- nonlinear least-squares refinement yolu
 - RMSE / residual metrics
 - provenance
 - fitted parameter set
 - model comparison
 
+### Planlanan açık kaynak araçlar
+
+#### PCHIP
+
+Repo: `https://github.com/jacobwilliams/PCHIP`
+
+Rol:
+- ham deney eğrilerini overwrite etmeden ortak strain grid'ine resample etmek
+- monoton bölgelerde cubic-spline overshoot oluşturmadan interpolation yapmak
+- deneysel ve hesaplanan eğrileri aynı x-grid üzerinde karşılaştırmak
+- gerektiğinde interpolated derivative / integral hesaplarını desteklemek
+
+#### PRIMA
+
+Repo: `https://github.com/libprima/prima`
+
+Rol:
+- türevsiz optimization
+- `BOBYQA` ile bound-constrained parameter fit
+- `COBYLA` ile nonlinear inequality constraint gereken fitler
+- Ogden benzeri başlangıç değerine hassas modellerde güvenilir başlangıç çözümü aramak
+
+PRIMA global optimizer olarak kabul edilmeyecek; bounded/constrained derivative-free local search aracı olarak kullanılacaktır.
+
+#### Modernized MINPACK
+
+Repo: `https://github.com/fortran-lang/minpack`
+
+Rol:
+- Levenberg–Marquardt nonlinear least-squares
+- analitik veya finite-difference Jacobian
+- PRIMA veya başka bir başlangıç çözümünden sonra hassas local refinement
+- residual/RMSE odaklı final fit
+
+### İlk hedef calibration pipeline
+
+```text
+Raw Experimental Data
+        ↓
+PCHIP shape-preserving preprocessing
+        ↓
+Canonical test quantities
+        ↓
+Objective + physical admissibility
+        ↓
+PRIMA BOBYQA / COBYLA
+initial bounded/constrained fit
+        ↓
+MINPACK Levenberg–Marquardt
+local least-squares refinement
+        ↓
+Material validation
+        ↓
+parameter set + metrics + provenance
+```
+
+Bu pipeline model ve dataset davranışına göre değiştirilebilir. Amaç tek optimizere bağımlı olmak değil; derivative-free arama ile least-squares refinement'i kontrollü biçimde birleştirmektir.
+
 Basma, shear, planar ve biaxial testler sonraki gereksinime göre eklenir.
+
+Çıkış kriteri:
+
+En az bir hiperelastik model, deneysel uniaxial dataset üzerinde tekrarlanabilir şekilde fit edilmeli; optimizer geçmişi, residual/RMSE, parameter bounds ve provenance kaydedilmeli; fit sonucu aynı Material Core üzerinden bağımsız material-point validation testini geçmelidir.
 
 ---
 
