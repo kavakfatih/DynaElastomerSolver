@@ -108,3 +108,9 @@ des_add_fortran_test(
   core.status_message
   test_status_message.f90
 )
+
+des_add_fortran_test(
+  test_internal_mesh_integration_results
+  fem.internal_mesh.integration_point_results
+  test_internal_mesh_integration_results.f90
+)
