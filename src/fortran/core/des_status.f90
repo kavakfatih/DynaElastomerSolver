@@ -14,6 +14,7 @@ module des_status
   integer, parameter, public :: DES_ERROR_LINEAR_SOLVE = -301
   integer, parameter, public :: DES_ERROR_NEWTON_DID_NOT_CONVERGE = -302
   integer, parameter, public :: DES_ERROR_CUTBACK_EXHAUSTED = -303
+  integer, parameter, public :: DES_ERROR_UNSUPPORTED_LINEAR_BACKEND = -304
 
   public :: des_status_message
 contains
@@ -47,6 +48,8 @@ contains
       message = 'Newton iterasyonları yakınsamadı'
     case (DES_ERROR_CUTBACK_EXHAUSTED)
       message = 'Cutback/retry sınırı tükendi'
+    case (DES_ERROR_UNSUPPORTED_LINEAR_BACKEND)
+      message = 'Desteklenmeyen lineer solver backend seçildi'
     case default
       message = 'Bilinmeyen DES durum kodu'
     end select
