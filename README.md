@@ -4,8 +4,9 @@ DynaElastomerSolver; kauçuk/elastomer malzemeler ve elastomer tabanlı ürünle
 
 **Ana ürün yönü:** nonlineer elastomer solver uzmanlaşması  
 **Geliştirme disiplini:** implementasyon öncelikli doğrulama — ADR-0006  
-**UI:** Qt 6 / Qt Quick-QML, değiştirilebilir frontend sınırı arkasında  
-**Results:** elastomer odaklı, ham integrasyon noktası verisini görüntüleme sonuçlarından ayıran sonuç sistemi
+**Aktif geliştirme sürümü:** `V0.2-dev — Nonlinear FEM Robustness`  
+**Ana ve sürekli güncellenen branch:** `main`  
+**UI hedefi:** Qt 6 / Qt Quick-QML, değiştirilebilir frontend sınırı arkasında
 
 ## Proje odağı
 
@@ -45,16 +46,18 @@ Global Assembly
    ↓
 Full Newton
    ↓
-Dense Solver
+Adaptive Increment
    ↓
-Analitik + Mesh/Patch Benchmark
+Rollback / Cutback / Retry
+   ↓
+Mesh + Patch Benchmark
 ```
 
 Bu zincir doğrulanmadan geniş material library, kapsamlı calibration, binary plugin sistemi, tam UI veya çoklu Quasi-Newton implementasyonları öncelik değildir.
 
 ## Nearly-incompressible formulation yaklaşımı
 
-Production elastomer eleman formulasyonu peşinen sabitlenmez. İlk benchmark dalgasında en az şu adaylar karşılaştırılacaktır:
+Production elastomer eleman formulasyonu peşinen sabitlenmez. V0.3 benchmark dalgasında en az şu adaylar karşılaştırılacaktır:
 
 ```text
 Displacement-only Q4
@@ -68,20 +71,41 @@ Karar; locking, pressure stability, mesh convergence, nonlinear convergence, dis
 
 ## Solver yaklaşımı
 
-Hedef mimari geniştir ancak implementasyon ihtiyaç kanıtlandıkça açılır.
-
-İlk zorunlu solver yolu:
+Çalışan minimal solver yolu şu anda:
 
 ```text
 Full Newton
 + consistent tangent
 + increment stepping
-+ convergence diagnostics
++ adaptive displacement control
++ trial / commit / revert
++ rollback
++ cutback / retry
++ convergence history
++ minimum J tracking
++ açık failure status
 ```
 
-Çalışan minimal solver API bu temel yolu gerçekleştirmektedir. Cutback/retry, trial/commit/revert ve line search bir sonraki robustness dalgasında, gerçek benchmark ihtiyacına göre eklenecektir.
+Adaptive yol, başarısız increment'te trial state'i reddeder, son committed state'e döner ve daha küçük increment ile yeniden dener.
 
-Daha sonra gerekirse:
+`newton_report_t` artık:
+
+- increment/attempt sayıları
+- Newton iteration sayıları
+- residual norm
+- minimum `J`
+- cutback sayısı
+- son failure status
+- commit/revert sayaçları
+- convergence history
+
+bilgilerini taşır.
+
+`convergence_history_t` her Newton değerlendirmesi için attempt, iteration, load factor, increment size, residual, minimum `J`, status ve accepted bilgisini saklar.
+
+`des_status_message()` sayısal çekirdek status kodlarını okunabilir mühendislik açıklamalarına dönüştürür.
+
+Daha sonra gerçek benchmark ihtiyacına göre:
 
 - line search
 - Modified Newton
@@ -144,7 +168,7 @@ Qt 6 + Qt Quick/QML + Dyna Design System
 
 Qt yalnız frontend/platform katmanıdır. Scientific core, application model, presentation contracts ve result semantics Qt'den bağımsız kalır.
 
-Tam UI geliştirmesi solver doğrulamasının önüne geçirilmez; erken aşamada yalnız gerekli minimal teknik shell/test harness kullanılabilir.
+Tam UI geliştirmesi solver doğrulamasının önüne geçirilmez.
 
 ## Results yaklaşımı
 
@@ -164,29 +188,13 @@ Contour / Chart / Table / Inspector
 
 Ham integration-point sonuçları, ekstrapole/ortalama alınmış display sonuçlarından ayrı tutulur. `GaussPointInspector`, torque–angle, force–displacement ve stiffness sonuçları temel ürün özellikleridir.
 
-## Dokümantasyon
+## Mevcut implementasyon durumu
 
-- `docs/PROJECT_CONTEXT.md`
-- `docs/ROADMAP.md`
-- `docs/architecture/ARCHITECTURE.md`
-- `docs/architecture/MATERIAL_CORE_ARCHITECTURE.md`
-- `docs/architecture/SOLVER_ARCHITECTURE.md`
-- `docs/architecture/UI_ARCHITECTURE.md`
-- `docs/architecture/RESULTS_ARCHITECTURE.md`
-- `docs/decisions/ADR-0001-FOUNDATION.md`
-- `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
-- `docs/decisions/ADR-0003-OWNED-UI-ARCHITECTURE.md`
-- `docs/decisions/ADR-0004-QT-FRONTEND-BOUNDARY.md`
-- `docs/decisions/ADR-0005-NONLINEAR-ELASTOMER-SOLVER-SPECIALIZATION.md`
-- `docs/decisions/ADR-0006-IMPLEMENTATION-FIRST-VALIDATION-AND-V1-SCOPE.md`
-
-## Mevcut durum
-
-V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2'nin ilk nonlinear plane-strain FEM dikey dilimi gerçek kodla doğrulandı.
+V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2 nonlinear plane-strain FEM dikey dilimi gerçek kodla doğrulanıyor.
 
 Şu anda çalışan temel parçalar:
 
-- CMake tabanlı Modern Fortran çekirdeği
+- Modern Fortran scientific core
 - precision ve açık status/error kodları
 - 3×3 tensör ve finite-strain/invariant yardımcıları
 - `material_kinematics_t` / `material_response_t`
@@ -196,37 +204,70 @@ V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2'nin ilk nonli
 - Total-Lagrangian Q4 plane-strain residual ve consistent element tangent
 - çok elemanlı Q4 global assembly
 - pivotlamalı dense lineer çözücü
-- displacement-control incremental Full Newton solver API
-- `newton_report_t` ile increment/iteration/residual/min-J raporu
-- material-point hata nedeninin element ve global katmanlara korunarak aktarılması
+- fixed-step ve adaptive displacement-control Full Newton solver
+- reusable `solution_state_t`
+- convergence history
+- rollback / cutback / retry
+- cutback exhaustion tanısı
+- okunabilir status message katmanı
 
-Mevcut CTest paketi **12 testi** kapsar. Başlıca doğrulamalar:
+Mevcut CTest paketi **16 test** içerir.
 
-1. tensör ve finite-strain yardımcıları
-2. Neo-Hookean analitik referans state'leri
-3. parametre ve kinematik hata sınıflandırması
-4. analitik material tangent / merkezi finite-difference karşılaştırması
-5. Q4 shape function kontrolleri
-6. Q4 element residual/tangent finite-difference doğrulaması
-7. tek eleman incremental Full Newton benchmark'ı
-8. dense lineer çözücü doğrulaması
-9. iki elemanlı global assembly + Full Newton benchmark'ı
-10. reusable Full Newton solver API benchmark'ı
-11. distorsiyonlu 2×2 nonlinear Q4 patch testi
+Öne çıkan doğrulamalar:
 
-Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. Öne çıkan sayısal sonuçlar:
-
+- Material tangent normalize FD hatası: yaklaşık `1.26e-9`
 - Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
 - iki elemanlı reaksiyon referans hatası: yaklaşık `1.0e-15`
 - solver API final free residual normu: yaklaşık `5.4e-15`
 - distorsiyonlu nonlinear patch merkez displacement hatası: yaklaşık `3.9e-17`
-- patch global kuvvet toplamları: makine hassasiyeti seviyesinde
+- adaptive cutback final residual: yaklaşık `3.9e-15`
+- 1×1 / 2×2 / 4×4 homojen mesh-refinement reaksiyonu: `1.605586`
+- adaptive failure benchmark: `2 commit / 1 revert`
+- cutback exhaustion sonrası committed state korunuyor
 
-macOS gfortran ile Windows ifx/gfortran derleyici matrisi ayrıca doğrulanacaktır.
+Yeni state/history ve status-message değişiklikleri GNU Fortran **14.2.0** ile yerel olarak derlenip ilgili testlerde doğrulandı.
 
-Sıradaki bilimsel hedefler:
+## Sıradaki V0.2 işleri
 
-1. V0.2 için mesh refinement ve ek patch/robustness benchmark'ları
-2. fixed-step Newton başarısızlıklarının açık tanıları ve minimal retry/cutback davranışı
-3. macOS/Windows compiler doğrulaması
-4. ardından V0.3 nearly-incompressible formulation bake-off: displacement-only Q4 vs mixed `u-p` vs F-bar adayı
+1. Ek nonlinear distortion ve robustness benchmark'ları.
+2. Minimal `Node / Element / InternalMesh` veri modelini gerçek mesh akışına taşımak.
+3. Ham integration-point result saklama yolunu eklemek.
+4. Bağımsız solver/reference karşılaştırmasını genişletmek.
+5. macOS Apple Silicon + gfortran doğrulaması.
+6. Windows x64 + Intel ifx doğrulaması.
+7. Windows x64 + gfortran doğrulaması.
+8. Tüm compiler matrisi üzerinde CTest çalıştırmak.
+
+Bunlar tamamlandıktan sonra V0.3 nearly-incompressible formulation bake-off'a geçilecektir.
+
+## Sürekli proje kayıtları
+
+`main` üzerinde sürekli güncel tutulur:
+
+- `docs/PROJECT_STATUS.md`
+- `docs/PROJECT_RULES.md`
+- `docs/ROADMAP.md`
+- `docs/sohbetler/ChatGPT Sohbet 1.md`
+
+`Sistem-ve-Mimari` branch'i kullanıcı ayrıca istemedikçe güncellenmez.
+
+## Dokümantasyon
+
+- `docs/PROJECT_CONTEXT.md`
+- `docs/PROJECT_STATUS.md`
+- `docs/PROJECT_RULES.md`
+- `docs/ROADMAP.md`
+- `docs/sohbetler/ChatGPT Sohbet 1.md`
+- `docs/architecture/ARCHITECTURE.md`
+- `docs/architecture/MATERIAL_CORE_ARCHITECTURE.md`
+- `docs/architecture/SOLVER_ARCHITECTURE.md`
+- `docs/architecture/UI_ARCHITECTURE.md`
+- `docs/architecture/RESULTS_ARCHITECTURE.md`
+- `docs/benchmarks/ANSYS_MARC_COMPARISON.md`
+- `docs/references/OPEN_SOURCE_REFERENCES.md`
+- `docs/decisions/ADR-0001-FOUNDATION.md`
+- `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
+- `docs/decisions/ADR-0003-OWNED-UI-ARCHITECTURE.md`
+- `docs/decisions/ADR-0004-QT-FRONTEND-BOUNDARY.md`
+- `docs/decisions/ADR-0005-NONLINEAR-ELASTOMER-SOLVER-SPECIALIZATION.md`
+- `docs/decisions/ADR-0006-IMPLEMENTATION-FIRST-VALIDATION-AND-V1-SCOPE.md`
