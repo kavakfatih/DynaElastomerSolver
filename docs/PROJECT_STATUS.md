@@ -27,8 +27,7 @@ Bu sürüm yayınlanmış ürün sürümü değil; aktif geliştirme kilometre t
 - çok elemanlı Q4 global assembly
 - incremental Full Newton displacement-control solver
 - adaptive displacement-control solver
-- rollback
-- cutback / retry
+- rollback / cutback / retry
 - reusable `solution_state_t`
 - açık `trial → commit / revert` çözüm state akışı
 - `convergence_history_t`
@@ -64,7 +63,9 @@ InternalMesh
     ↓
 Q4 Newton Solver Adapter
     ↓
-mevcut doğrulanmış Full Newton solver
+Full Newton / Adaptive Newton
+    ↓
+Dyna Linear Solver API
     ↓
 Raw Integration-Point Results
 ```
@@ -73,7 +74,7 @@ Mevcut `X + connectivity` yolu regression amacıyla korunur.
 
 ## Lineer solver altyapısı
 
-V0.2'de ilk backend-bağımsız Dyna lineer solver sınırı eklendi:
+Backend-bağımsız Dyna lineer solver sınırı:
 
 ```text
 Nonlinear Solver / FEM
@@ -87,7 +88,7 @@ Backend
         └── stdlib/LAPACK dense  ← aktif
 ```
 
-Yeni `des_linear_solver` modülü:
+`des_linear_solver` şu bilgileri raporlar:
 
 - backend kimliği
 - denklem sayısı
@@ -95,13 +96,29 @@ Yeni `des_linear_solver` modülü:
 - status
 - converged bilgisi
 
-taşır.
-
 İlk backend `DES_LINEAR_BACKEND_STDLIB_DENSE` olup `stdlib_linalg::solve` üzerinden LAPACK `*GESV` ailesini kullanır.
 
-`des_dense_linear` artık yalnız geriye dönük uyumluluk wrapper'ıdır; doğrudan stdlib ayrıntısı taşımaz. İleride MUMPS ve iterative/GMRES çözücüleri aynı Dyna sınırının arkasına eklenecektir.
+`des_dense_linear` yalnız geriye dönük uyumluluk wrapper'ıdır. İleride MUMPS ve iterative/GMRES çözücüleri aynı Dyna sınırının arkasına eklenecektir.
 
-Desteklenmeyen backend için `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` status kodu eklendi.
+### Newton → lineer solver diagnostics entegrasyonu
+
+`newton_report_t` artık lineer çözüm katmanını da doğrudan raporlar:
+
+- `linear_solve_count`
+- `max_linear_equation_count`
+- `max_linear_residual_inf_norm`
+- `last_linear_report`
+  - backend
+  - equation count
+  - residual infinity norm
+  - status
+  - converged
+
+Hem fixed-step hem adaptive Newton yolu artık eski `solve_dense_system` wrapper'ını çağırmak yerine doğrudan `solve_linear_system(...)` kullanır.
+
+`InternalMesh` solver adapterleri opsiyonel `linear_solver_settings_t` kabul eder; böylece ileride aynı FEM problemi farklı backend'lerle benchmark edilebilir.
+
+Desteklenmeyen backend gibi konfigürasyon hataları genel `linear solve failed` koduna ezilmez. `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` Newton raporunda ve `last_failure_status` içinde aynen korunur. Adaptive solver bu tür terminal konfigürasyon hatalarında cutback/retry yapmaz.
 
 ## Fortran kütüphane altyapısı
 
@@ -158,35 +175,40 @@ Material validation
 - InternalMesh ve eski assembly yolu residual/tangent açısından eşdeğer
 - affine `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045`
 - geçersiz duplicate-node Q4 mesh oluşturma aşamasında reddediliyor
+- lineer solver interface normal çözüm, residual raporu ve unsupported-backend failure yolunu kapsıyor
+- InternalMesh Newton regression testi lineer solve count/backend/equation count/residual diagnostics alanlarını ve unsupported-backend propagation davranışını kapsayacak şekilde genişletildi
 
-Mevcut CTest tanımı **19 test** içerir. Yeni lineer solver interface testi normal çözümü, residual raporunu ve desteklenmeyen backend failure yolunu kapsar.
+Mevcut CTest tanımı **19 test** içerir.
 
 ## Önemli doğrulama notu
 
 `kavakfatih/stdlib` tabanlı tam dependency build ortamı bu çalışma ortamında henüz tam hazır olmadığı için 19/19 CTest toplu compiler-matrix doğrulaması V0.2 kapanış maddesi olarak korunmaktadır.
 
+Bu nedenle yeni Newton-lineer diagnostics entegrasyonu kaynak/API ve regression-test tanımı seviyesinde uygulanmıştır; full stdlib build üzerinde doğrulanması kapanış kriteridir.
+
 ## V0.2 kapanışından önce kalan işler
 
 1. stdlib tabanlı tam build'i GNU Fortran üzerinde 19/19 CTest ile doğrulamak.
-2. Newton `newton_report_t` içine son lineer solver raporunu taşımak.
-3. Ek nonlinear distortion / robustness benchmark'ları.
-4. Bağımsız solver/reference karşılaştırmasını genişletmek.
-5. macOS Apple Silicon + gfortran build/test.
-6. Windows x64 + Intel ifx build/test.
-7. Windows x64 + gfortran build/test.
-8. Compiler matrisi üzerinde regression testlerini çalıştırmak.
-9. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
+2. Ek nonlinear distortion / robustness benchmark'ları.
+3. Bağımsız solver/reference karşılaştırmasını genişletmek.
+4. macOS Apple Silicon + gfortran build/test.
+5. Windows x64 + Intel ifx build/test.
+6. Windows x64 + gfortran build/test.
+7. Compiler matrisi üzerinde regression testlerini çalıştırmak.
+8. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
 
-### Bu turda tamamlanan V0.2 maddeleri
+### Son tamamlanan V0.2 maddeleri
 
 - backend-bağımsız `des_linear_solver`
-- `linear_solver_settings_t`
-- `linear_solver_report_t`
+- `linear_solver_settings_t` / `linear_solver_report_t`
 - aktif stdlib/LAPACK dense backend
 - lineer residual raporlama
 - unsupported-backend status/failure yolu
-- eski `des_dense_linear` yolunun compatibility wrapper'a dönüştürülmesi
-- lineer solver interface regression testi
+- `newton_report_t` içine lineer solver diagnostics entegrasyonu
+- Newton içinde doğrudan Dyna lineer solver API kullanımı
+- InternalMesh üzerinden lineer backend seçimi
+- adaptive solverda terminal backend hatasının cutback dışında tutulması
+- mevcut InternalMesh regression testinin lineer diagnostics ile genişletilmesi
 
 ---
 
