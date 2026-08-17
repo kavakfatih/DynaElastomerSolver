@@ -1,0 +1,76 @@
+{
+  "record_type": "independent_external_fem_validation",
+  "project": "DynaElastomerSolver",
+  "milestone": "V0.2-dev",
+  "date": "2026-08-18",
+  "github_actions": {
+    "workflow": "FEniCSx V0.2 Reference",
+    "run_id": 32075320773,
+    "head_sha": "3ba4c23e94f94b9d067c45f52d4bb10ee0b0542e",
+    "conclusion": "success"
+  },
+  "reference_solver": {
+    "name": "FEniCSx / DOLFINx",
+    "version": "0.11.0.post0",
+    "container_tag": "dolfinx/dolfinx:v0.11.0",
+    "nonlinear_solver": "PETSc SNES newtonls",
+    "linear_solver": "PETSc LU / MUMPS"
+  },
+  "problem": {
+    "name": "V0.2 homogeneous plane-strain extension",
+    "geometry": {
+      "length": 2.0,
+      "height": 1.0
+    },
+    "mesh": {
+      "cell": "quadrilateral Q1",
+      "nx": 8,
+      "ny": 4
+    },
+    "material": {
+      "model": "compressible Neo-Hookean",
+      "energy": "W = mu/2*(I1-3) - mu*ln(J) + lambda/2*(ln(J))^2",
+      "mu": 2.5,
+      "lambda": 20.0
+    },
+    "load": {
+      "right_displacement_x": 0.5,
+      "lambda_x": 1.25,
+      "lateral_condition": "traction-free",
+      "plane_strain_F33": 1.0
+    }
+  },
+  "fenicsx": {
+    "lambda_y_average": 0.8314690882666764,
+    "reaction_x": 1.742318310513958,
+    "J_average": 1.0393363603333432,
+    "total_strain_energy": 0.47146216298567123,
+    "snes_iterations": 4,
+    "snes_reason": 2
+  },
+  "dyna_v02_target": {
+    "lambda_y": 0.8314690882666784,
+    "reaction_x": 1.7423183105139586
+  },
+  "closed_form": {
+    "lambda_y": 0.8314690882666784,
+    "reaction_x": 1.7423183105139586,
+    "J": 1.039336360333348,
+    "total_strain_energy": 0.47146216298567695
+  },
+  "absolute_errors_vs_dyna": {
+    "lambda_y": 1.9984014443252818e-15,
+    "reaction_x": 6.661338147750939e-16
+  },
+  "absolute_errors_vs_closed_form": {
+    "lambda_y": 1.9984014443252818e-15,
+    "reaction_x": 6.661338147750939e-16,
+    "J": 4.884981308350689e-15,
+    "total_strain_energy": 5.717648576819556e-15
+  },
+  "accepted": true,
+  "notes": [
+    "FEniCSx residual ve Jacobian UFL otomatik türevleriyle oluşturulmuştur; Dyna Fortran FEM assembly/tangent kodu kullanılmamıştır.",
+    "Bu kayıt GitHub Actions artifact içindeki başarılı JSON sonucunun kalıcı repo kopyasıdır."
+  ]
+}
