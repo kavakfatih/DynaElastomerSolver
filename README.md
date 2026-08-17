@@ -1,39 +1,39 @@
 # DynaElastomerSolver
 
-DynaElastomerSolver is a scientific engineering platform focused on nonlinear finite-element analysis, material characterization and validation of rubber/elastomer materials and elastomer-based products.
+DynaElastomerSolver; kauçuk/elastomer malzemeler ve elastomer tabanlı ürünler için doğrusal olmayan sonlu eleman analizi, malzeme karakterizasyonu ve doğrulama odaklı bilimsel bir mühendislik platformudur.
 
-**Current architecture baseline:** `v1.2 — ANSYS / Hexagon Marc benchmark revision`  
-**UI architecture baseline:** `v1.1 — Qt frontend behind a replaceable UI boundary`
+**Mevcut mimari temeli:** `v1.2 — ANSYS / Hexagon Marc benchmark revizyonu`  
+**UI mimarisi temeli:** `v1.1 — değiştirilebilir UI sınırı arkasında Qt frontend`
 
-## Project focus
+## Proje odağı
 
-The project is intentionally **not** a general-purpose CAE package. Its goal is to specialize in elastomer mechanics and provide a focused engineering chain for:
+Proje bilinçli olarak genel amaçlı bir CAE paketi **değildir**. Amaç, elastomer mekaniğinde uzmanlaşmak ve şu alanlar için odaklı bir mühendislik zinciri sağlamaktır:
 
-- large-deformation nonlinear analysis
-- plane-strain analysis
-- axisymmetric analysis
-- axisymmetric torsion
-- tension, compression and shear
-- nearly-incompressible mixed formulations
-- hyperelastic constitutive models
-- experimental material calibration
-- torque-angle and force-displacement prediction
-- transparent integration-point results
-- independent-solver verification
-- physical product-test validation
+- büyük deformasyonlu doğrusal olmayan analiz
+- düzlem şekil değiştirme analizi
+- eksenel simetrik analiz
+- eksenel simetrik burulma
+- çekme, basma ve kayma
+- yaklaşık sıkıştırılamaz karma formulasyonlar
+- hiperelastik bünye modelleri
+- deneysel malzeme kalibrasyonu
+- tork–açı ve kuvvet–yer değiştirme tahmini
+- şeffaf integrasyon noktası sonuçları
+- bağımsız çözücü doğrulaması
+- fiziksel ürün testi doğrulaması
 
-## Core workflow
+## Temel iş akışı
 
 ```text
-Physical Material / Experimental Data
+Fiziksel Malzeme / Deneysel Veri
               ↓
-      Calibration / Material Core
+      Kalibrasyon / Material Core
               ↓
-External CAD → DXF
+Harici CAD → DXF
               ↓
       AnalysisGeometry
               ↓
- Geometry Validation / Topology
+ Geometri Doğrulama / Topoloji
               ↓
         IMeshProvider
               ↓
@@ -41,7 +41,7 @@ External CAD → DXF
               ↓
        AnalysisPrecheck
               ↓
- Modern Fortran FEM Core
+ Modern Fortran FEM Çekirdeği
               ↓
  NonlinearSolutionManager
               ↓
@@ -49,22 +49,22 @@ External CAD → DXF
               ↓
         ResultDatabase
               ↓
- Postprocess / Test Comparison
+ Son İşleme / Test Karşılaştırması
 ```
 
-The scientific core is written in **Modern Fortran**. External systems such as mesh generators, sparse linear solvers and UI frameworks are isolated behind interfaces/adapters so the project does not become architecturally dependent on one implementation.
+Bilimsel çekirdek **Modern Fortran** ile geliştirilmektedir. Mesh üreticileri, seyrek doğrusal çözücüler ve UI framework'leri gibi harici sistemler arayüz/adaptör sınırları arkasında tutulur; böylece proje mimarisi tek bir uygulamaya bağımlı hale gelmez.
 
-## Numerical stack
+## Sayısal teknoloji yığını
 
-- **Language baseline:** Fortran 2018
-- **Portable newer features:** selected Fortran 2023 features where supported
+- **Dil temeli:** Fortran 2018
+- **Taşınabilir yeni özellikler:** hedef derleyicilerin desteklediği seçilmiş Fortran 2023 özellikleri
 - **macOS / Apple Silicon:** GNU gfortran
-- **Windows x64:** Intel ifx + GNU gfortran validation
-- **Build system:** CMake
-- **Initial mesh provider:** Gmsh adapter
-- **Initial sparse linear solver:** MUMPS adapter
+- **Windows x64:** Intel ifx + GNU gfortran doğrulaması
+- **Build sistemi:** CMake
+- **İlk mesh sağlayıcısı:** Gmsh adaptörü
+- **İlk seyrek doğrusal çözücü:** MUMPS adaptörü
 
-## Material models — V1.0 target
+## Malzeme modelleri — V1.0 hedefi
 
 - Neo-Hookean
 - Mooney-Rivlin
@@ -73,11 +73,11 @@ The scientific core is written in **Modern Fortran**. External systems such as m
 - Arruda-Boyce
 - Gent
 
-The Material Core is solver-independent. FEM, calibration, material-point verification and future external solver adapters use the same canonical constitutive implementation.
+Material Core çözücüden bağımsızdır. FEM, kalibrasyon, material-point doğrulaması ve gelecekteki harici çözücü adaptörleri aynı kanonik bünye uygulamasını kullanır.
 
-Constitutive behavior and FE incompressibility enforcement are separate architectural concerns.
+Bünye davranışı ile FE sıkıştırılamazlık uygulama yöntemi birbirinden ayrı mimari konulardır.
 
-## Nonlinear solution architecture
+## Doğrusal olmayan çözüm mimarisi
 
 ```text
 NonlinearSolutionManager
@@ -93,35 +93,35 @@ NonlinearSolutionManager
 └── StateCommitManager
 ```
 
-The low-level sparse solver only solves the assembled algebraic system; nonlinear FEM physics and solution management remain project-owned.
+Düşük seviyeli seyrek çözücü yalnızca kurulmuş cebirsel sistemi çözer; doğrusal olmayan FEM fiziği ve çözüm yönetimi projeye ait kalır.
 
-## Geometry philosophy
+## Geometri yaklaşımı
 
-DynaElastomerSolver is **not a CAD/sketch application**. Geometry is prepared in an external CAD system and imported primarily through DXF. The application interprets, validates and converts that geometry into analysis regions, boundaries and selection sets.
+DynaElastomerSolver bir CAD/eskiz uygulaması **değildir**. Geometri harici bir CAD sisteminde hazırlanır ve öncelikle DXF üzerinden içeri alınır. Uygulama bu geometrileri analiz bölgelerine, sınırlara ve seçim kümelerine dönüştürür, doğrular ve yorumlar.
 
-## UI philosophy
+## UI yaklaşımı
 
-DynaElastomerSolver owns its complete engineering user experience. It does not embed another CAE application's user interface.
+DynaElastomerSolver mühendislik kullanıcı deneyiminin tamamına kendisi sahip olur. Başka bir CAE uygulamasının kullanıcı arayüzünü gömmez.
 
-The information architecture is ANSYS-inspired but simplified for elastomer engineering:
+Bilgi mimarisi ANSYS'ten esinlenir ancak elastomer mühendisliği için sadeleştirilir:
 
 ```text
-Context Toolbar
+Bağlamsal Araç Çubuğu
       ↓
 Navigator | Workspace | Inspector
       ↓
-Utility / Solver / Convergence Panel
+Yardımcı / Solver / Yakınsama Paneli
 ```
 
-Top-level workspaces:
+Üst seviye çalışma alanları:
 
 ```text
-Project → Geometry → Material Lab → Mesh → Analysis → Solve → Results → Validation
+Proje → Geometri → Material Lab → Mesh → Analiz → Çöz → Sonuçlar → Doğrulama
 ```
 
-The visual language is intentionally distinct from traditional CAE software: minimal, technical and Apple-inspired.
+Görsel dil geleneksel CAE yazılımlarından bilinçli olarak farklıdır: minimal, teknik ve Apple/macOS esintili.
 
-The initial production desktop frontend is:
+İlk üretim masaüstü frontend'i:
 
 ```text
 Qt 6
@@ -129,27 +129,27 @@ Qt 6
 + Dyna Design System
 ```
 
-Qt is a **replaceable frontend/platform dependency**. Scientific/domain models, application services, navigation semantics, selection state, inspector schemas, result definitions, viewport scene data and project file semantics remain Qt-independent.
+Qt, **değiştirilebilir bir frontend/platform bağımlılığıdır**. Bilimsel/domain modelleri, uygulama servisleri, navigasyon anlamı, seçim durumu, Inspector şemaları, sonuç tanımları, viewport scene verisi ve proje dosyası anlamı Qt'den bağımsız kalır.
 
 ```text
 Modern Fortran Core
         ↓
 `des_*` C ABI
         ↓
-Dyna Application Core       # no Qt
+Dyna Application Core       # Qt yok
         ↓
-Dyna Presentation Contracts # no Qt
+Dyna Presentation Contracts # Qt yok
         ↓
 Qt Frontend Adapters
         ↓
 Qt Quick / QML
 ```
 
-A future Avalonia, SwiftUI/AppKit, WinUI or other frontend can therefore be introduced without rewriting the scientific solver or canonical engineering models.
+Bu nedenle gelecekte Avalonia, SwiftUI/AppKit, WinUI veya başka bir frontend; bilimsel çözücü ya da kanonik mühendislik modelleri yeniden yazılmadan eklenebilir.
 
-## Result philosophy
+## Sonuç yaklaşımı
 
-Raw integration-point physics is kept separate from extrapolated/averaged display results.
+Ham integrasyon noktası fiziği, ekstrapole/ortalama alınmış görüntüleme sonuçlarından ayrı tutulur.
 
 ```text
 ResultDatabase
@@ -159,11 +159,11 @@ ResultDatabase
 └── GlobalHistories
 ```
 
-A first-class `GaussPointInspector` is planned for V1.0.
+V1.0 için birinci sınıf `GaussPointInspector` hedeflenmektedir.
 
-The platform also targets native simulation-to-test comparison for force-displacement and torque-angle validation.
+Platform ayrıca kuvvet–yer değiştirme ve tork–açı doğrulaması için yerleşik simülasyon–test karşılaştırmasını hedefler.
 
-## Documentation
+## Dokümantasyon
 
 - `docs/PROJECT_CONTEXT.md`
 - `docs/architecture/ARCHITECTURE.md`
@@ -177,8 +177,8 @@ The platform also targets native simulation-to-test comparison for force-displac
 - `docs/references/OPEN_SOURCE_REFERENCES.md`
 - `docs/ROADMAP.md`
 
-## Current status
+## Mevcut durum
 
-Architecture and scientific foundations are being defined before implementation. The first implementation milestone builds the constitutive material engine and verification infrastructure before introducing the full FEM solver.
+Kodlamaya geçmeden önce mimari ve bilimsel temeller tanımlanmaktadır. İlk uygulama kilometre taşı, tam FEM çözücüsünden önce bünye malzeme motorunu ve doğrulama altyapısını oluşturacaktır.
 
-The UI stack is now selected architecturally as Qt 6 / Qt Quick-QML, with a strict replacement boundary. Production UI work should begin with a small shell/viewport/native-ABI spike that verifies the boundary on both macOS Apple Silicon and Windows before broader screen implementation.
+UI teknoloji yığını mimari olarak Qt 6 / Qt Quick-QML şeklinde seçilmiştir ve katı bir değiştirme sınırı bulunmaktadır. Geniş ekran uygulamasına geçmeden önce macOS Apple Silicon ve Windows üzerinde bu sınırı doğrulayan küçük bir shell/viewport/native-ABI teknik prototipi oluşturulacaktır.
