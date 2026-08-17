@@ -126,3 +126,9 @@ des_add_fortran_test(
   solver.q4.internal_mesh.displacement_control
   test_q4_internal_mesh_solver.f90
 )
+
+des_add_fortran_test(
+  test_q4_severe_distortion_solver
+  solver.q4.internal_mesh.severe_distortion
+  test_q4_severe_distortion_solver.f90
+)
