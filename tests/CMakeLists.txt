@@ -68,6 +68,12 @@ des_add_fortran_test(
 )
 
 des_add_fortran_test(
+  test_linear_solver_interface
+  solver.linear.interface
+  test_linear_solver_interface.f90
+)
+
+des_add_fortran_test(
   test_q4_plane_strain_mesh_newton
   fem.q4.plane_strain.mesh_incremental_newton
   test_q4_plane_strain_mesh_newton.f90
