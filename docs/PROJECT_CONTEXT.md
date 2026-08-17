@@ -237,3 +237,28 @@ External libraries remain replaceable implementation details.
 ANSYS Mechanical and Hexagon Marc are used as reference systems for mature engineering behavior, solver robustness, result interpretation and verification.
 
 They are not feature-count targets and do not define DynaElastomerSolver's internal architecture.
+
+## Depo dili politikası
+
+17 Ağustos 2026 itibarıyla DynaElastomerSolver GitHub deposundaki yeni ve güncellenen proje içerikleri Türkçe hazırlanacaktır.
+
+Türkçe kullanılacak alanlar:
+
+- mimari ve tasarım dokümantasyonu
+- ADR karar kayıtları
+- roadmap ve proje bağlamı açıklamaları
+- README açıklamaları güncellendikçe
+- issue/PR açıklamaları
+- kod içi açıklamalar ve geliştirici notları
+- kullanıcıya dönük metinler
+
+Teknik uyumluluk ve yazılım ekosistemi nedeniyle aşağıdaki öğeler gerektiğinde İngilizce kalabilir:
+
+- kaynak kod sembolleri ve public API adları
+- sınıf, arayüz, modül ve fonksiyon isimleri
+- `des_*` C ABI isimleri
+- standart mühendislik terimleri ve standartların resmi adları
+- üçüncü taraf kütüphane ve ürün adları
+- dosya/klasör isimleri, değiştirmenin teknik fayda sağlamadığı durumlarda
+
+Temel ilke: **insan tarafından okunan proje açıklamaları Türkçe, makine/ABI/ekosistem uyumluluğu gerektiren teknik tanımlayıcılar gerektiğinde İngilizce** olacaktır.
