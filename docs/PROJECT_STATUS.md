@@ -76,7 +76,7 @@ Backend
         └── stdlib/LAPACK dense  ← aktif
 ```
 
-`newton_report_t` artık lineer çözüm katmanını da doğrudan raporlar:
+`newton_report_t` lineer çözüm katmanını da doğrudan raporlar:
 
 - `linear_solve_count`
 - `max_linear_equation_count`
@@ -97,6 +97,38 @@ Hem fixed-step hem adaptive Newton doğrudan `solve_linear_system(...)` kullanı
 
 Planlanan/araştırılan diğer araçlar: Reference LAPACK, MUMPS, stdlib GMRES, MINPACK, PRIMA, PCHIP, HDF5, JSON-Fortran ve FrontISTR. Ayrıntılı envanter: `docs/references/FORTRAN_LIBRARIES.md`.
 
+## GitHub Actions compiler matrisi
+
+Yeni workflow:
+
+`/.github/workflows/fortran-ci.yml`
+
+Matris:
+
+1. Ubuntu 24.04 — gfortran 14
+2. macOS 26 ARM64 — gfortran 14
+3. Windows 2025 — gfortran 14
+4. Windows 2025 — Intel ifx 2025.2
+
+Workflow ayrıca:
+
+- Python 3.12
+- `fypp 3.2`
+- pinlenmiş `kavakfatih/stdlib`
+- Ninja
+- CMake
+- tüm CTest paketi
+
+kullanır.
+
+Reproducibility için GitHub Actions bağımlılıkları tam commit SHA ile sabitlenmiştir:
+
+- `actions/checkout` v7.0.1 → `3d3c42e5aac5ba805825da76410c181273ba90b1`
+- `actions/setup-python` v6.2.0 → `a309ff8b426b58ec0e2a45f0f869d46889d02405`
+- `fortran-lang/setup-fortran` v1.9.0 → `2a1b9c55897d827a9dfeb114408f3615e53b2b72`
+
+Workflow GitHub üzerinde aktif hale gelmiş ve gerçek matrix run'ları başlamıştır. **Compiler matrisi ancak tüm ilgili job'lar yeşil olduğunda tamamlanmış kabul edilecektir.**
+
 ## Kanıtlanmış / tanımlanmış doğrulamalar
 
 Önceden geçen başlıca doğrulamalar:
@@ -112,41 +144,67 @@ Planlanan/araştırılan diğer araçlar: Reference LAPACK, MUMPS, stdlib GMRES,
 - affine `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045`
 - lineer solver interface normal çözüm, residual raporu ve unsupported-backend failure yolunu kapsıyor
 
-### Yeni severe-distortion benchmark
+### Severe-distortion + kapalı-form continuum benchmark
 
-Yeni `test_q4_severe_distortion_solver` şu senaryoyu tanımlar:
+`test_q4_severe_distortion_solver`:
 
 - 2×2 Q4 mesh
 - merkez düğüm `X5 = (1.45, 0.55)` ile ciddi geometrik skew
 - reference Gauss ağırlığı/Jacobian aralığı yaklaşık `0.07255 ... 0.42745`
 - min/max oranı yaklaşık `0.1697`
-- büyük affine finite-strain alanı:
+- exact affine finite-strain:
   - `F11 = 1.35`
   - `F12 = 0.28`
   - `F21 = 0.12`
   - `F22 = 0.78`
-  - beklenen `J = 1.0194`
+  - `J = 1.0194`
 
-Benchmark; merkez displacement'in affine referansı yeniden üretmesini, global kuvvet dengesini, 16 Gauss noktasındaki `F/J` değerlerini, `min J` davranışını ve Newton lineer residual diagnostics bilgisini kontrol eder.
+Test artık FEM/material-response yolundan bağımsız kapalı-form Neo-Hookean referansı da hesaplar:
 
-Aynı denklemler bağımsız sayısal ön kontrolde 6 increment ve toplam 24 Newton düzeltmesiyle çözüldü; merkez displacement hatası yaklaşık `1.9e-14`, global kuvvet toplamları yaklaşık `1e-16` mertebesinde çıktı. Bu ön kontrol Dyna CTest'in yerine geçmez; yalnız benchmark tanımının matematiksel tutarlılığını kontrol eder.
+```text
+W = mu/2 (I1 - 3) - mu ln(J) + lambda/2 [ln(J)]²
+P = mu F + [lambda ln(J) - mu] F^{-T}
+```
 
-Mevcut CTest tanımı artık **20 test** içerir.
+Referans yaklaşık değerler:
 
-## Önemli doğrulama notu
+```text
+P11 =  1.94662573
+P12 =  1.01728835
+P21 =  0.93367281
+P22 = -0.83349393
+P33 =  0.48035547
+W   =  0.6597314365
+```
 
-`kavakfatih/stdlib` tabanlı tam dependency build ortamı bu çalışma ortamında henüz tam hazır olmadığı için 20/20 CTest toplu compiler-matrix doğrulaması V0.2 kapanış maddesi olarak korunmaktadır.
+Toplam referans alanı `4.0` olduğundan exact toplam strain energy yaklaşık `2.6389257461`.
+
+Benchmark artık:
+
+- merkez affine displacement
+- global kuvvet dengesi
+- 16 Gauss noktasındaki `F/J`
+- weighted-average `P`
+- toplam referans alanı
+- toplam strain energy
+- minimum `J`
+- Newton/lineer solver diagnostics
+
+kontrollerini birlikte yapar.
+
+Ayrıntılı benchmark kataloğu:
+
+`docs/verification/V0.2_REFERENCE_BENCHMARKS.md`
+
+Mevcut CTest tanımı **20 test** içerir.
 
 ## V0.2 kapanışından önce kalan işler
 
-1. stdlib tabanlı tam build'i GNU Fortran üzerinde 20/20 CTest ile doğrulamak.
-2. Bağımsız solver/reference karşılaştırmasını genişletmek.
-3. Gerekirse severe-distortion/cutback benchmark setini bir örnek daha genişletmek.
-4. macOS Apple Silicon + gfortran build/test.
-5. Windows x64 + Intel ifx build/test.
-6. Windows x64 + gfortran build/test.
-7. Compiler matrisi üzerinde regression testlerini çalıştırmak.
-8. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
+1. GitHub Actions compiler matrisini tüm aktif job'larda yeşile getirmek.
+2. 20/20 CTest'i gfortran/ifx matrisinde doğrulamak.
+3. En az bir benchmarkı bağımsız dış FEM solver ile karşılaştırmak ve sürüm/ayarları kaydetmek.
+4. Gerekirse severe-distortion/cutback benchmark setini bir örnek daha genişletmek.
+5. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
 
 ### Son tamamlanan V0.2 maddeleri
 
@@ -154,7 +212,11 @@ Mevcut CTest tanımı artık **20 test** içerir.
 - Newton lineer solver diagnostics entegrasyonu
 - InternalMesh üzerinden lineer backend seçimi
 - terminal backend hatalarının adaptive cutback dışında tutulması
-- severe geometrik distorsiyon için yeni nonlinear Q4 benchmark tanımı
+- severe geometrik distorsiyon nonlinear Q4 benchmarkı
+- severe-distortion testine bağımsız kapalı-form `P/W/J` continuum referansı
+- V0.2 benchmark kataloğu
+- Linux/macOS/Windows gfortran + Windows ifx GitHub Actions compiler matrisi tanımı
+- CI tool/action sürümlerinin pinlenmesi
 
 ---
 
