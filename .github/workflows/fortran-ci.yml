@@ -6,11 +6,15 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+      - 'tools/reference/**'
+      - '.github/workflows/fenicsx-reference.yml'
   pull_request:
     branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+      - 'tools/reference/**'
+      - '.github/workflows/fenicsx-reference.yml'
   workflow_dispatch:
 
 permissions:
@@ -65,6 +69,22 @@ jobs:
         with:
           compiler: ${{ matrix.compiler }}
           version: ${{ matrix.compiler_version }}
+
+      # GitHub windows-2025 runner'ın CMake 4.4.x sürümü ifx 2025.2'yi
+      # compiler-id aşamasında tanımadı. Dyna kaynak koduna workaround eklemek yerine
+      # yalnız Intel job'unda önceki kararlı Kitware CMake sürümü sabitlenir.
+      - name: Windows ifx için CMake 4.3.4 kur
+        if: runner.os == 'Windows' && matrix.compiler == 'intel'
+        shell: pwsh
+        run: |
+          $version = '4.3.4'
+          $archive = Join-Path $env:RUNNER_TEMP "cmake-$version-windows-x86_64.zip"
+          $url = "https://github.com/Kitware/CMake/releases/download/v$version/cmake-$version-windows-x86_64.zip"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath $env:RUNNER_TEMP -Force
+          $cmakeBin = Join-Path $env:RUNNER_TEMP "cmake-$version-windows-x86_64\bin"
+          Add-Content -Path $env:GITHUB_PATH -Value $cmakeBin
+          & (Join-Path $cmakeBin 'cmake.exe') --version
 
       - name: Araç sürümlerini kaydet
         shell: bash
