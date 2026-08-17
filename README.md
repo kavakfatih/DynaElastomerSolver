@@ -1,14 +1,41 @@
 # DynaElastomerSolver — Sistem ve Mimari
 
-Bu branch, DynaElastomerSolver projesinin **sistem mimarisi, bilimsel planları, tasarım kararları, yol haritası ve teknik referansları** için ayrılmıştır.
+Bu branch, DynaElastomerSolver projesinin **sistem mimarisi, bilimsel planları, tasarım kararları, yol haritası, sürüm durumu, proje sohbet günlüğü ve teknik referansları** için ayrılmıştır.
 
 > **Branch:** `Sistem-ve-Mimari`
 
 ## Amaç
 
-Bu branch'te çalıştırılabilir program kaynak kodu, test kodu veya build dosyası tutulmaz. Amaç; uygulama kodundan bağımsız, okunabilir ve sürdürülebilir bir **mimari ve sistem planı baseline'ı** oluşturmaktır.
+Bu branch'te çalıştırılabilir program kaynak kodu, test kodu veya build dosyası tutulmaz. Amaç; uygulama kodundan bağımsız, okunabilir ve sürdürülebilir bir **mimari, sistem planı ve proje kayıt baseline'ı** oluşturmaktır.
 
 Gerçek implementasyon ve çalışan program kaynakları `main` branch'inde geliştirilir.
+
+## Sürekli proje kayıtları
+
+Aşağıdaki dosyalar proje boyunca sürekli güncel tutulur:
+
+- **Sohbet günlüğü:** `docs/sohbetler/ChatGPT Sohbet 1.md`
+- **Güncel sürüm ve sıradaki plan:** `docs/PROJECT_STATUS.md`
+- **Zorunlu proje kuralları:** `docs/PROJECT_RULES.md`
+- **Uzun vadeli yol haritası:** `docs/ROADMAP.md`
+
+Temel kural:
+
+> Her anlamlı proje adımı sonunda kod, sohbet günlüğü, güncel sürüm ve sıradaki plan birbiriyle tutarlı olmalıdır.
+
+## Güncel geliştirme durumu
+
+**Aktif geliştirme kilometre taşı:** `V0.2-dev — Nonlinear FEM Robustness`
+
+Aktif implementasyon `main` branch'indedir. Güncel teknik durum ve kalan işler için:
+
+`docs/PROJECT_STATUS.md`
+
+Sıradaki ana kilometre taşı:
+
+**V0.3 — Nearly-Incompressible Formulation Bake-off**
+
+Burada displacement-only Q4, mixed `u-p` ve F-bar/eşdeğer locking azaltıcı formulasyonlar aynı benchmark setinde karşılaştırılacaktır.
 
 ## Bu branch'in kapsamı
 
@@ -24,13 +51,22 @@ Gerçek implementasyon ve çalışan program kaynakları `main` branch'inde geli
 - açık kaynak referansları
 - ADR mimari karar kayıtları
 - geliştirme yol haritası ve V1.0 kapsam sınırı
+- ChatGPT proje sohbet günlüğü
+- güncel ve sıradaki sürüm kayıtları
+- proje çalışma kuralları
 
 ## Dokümantasyon haritası
 
-### Proje ve yol haritası
+### Canlı proje kayıtları
+
+- `docs/sohbetler/ChatGPT Sohbet 1.md`
+- `docs/PROJECT_STATUS.md`
+- `docs/PROJECT_RULES.md`
+- `docs/ROADMAP.md`
+
+### Proje bağlamı
 
 - `docs/PROJECT_CONTEXT.md`
-- `docs/ROADMAP.md`
 
 ### Mimari
 
@@ -82,6 +118,8 @@ Bu branch'e:
 - doğrulama planları
 - benchmark planları
 - UI bilgi mimarisi ve tasarım kuralları
+- proje sohbet kayıtları
+- sürüm ve plan kayıtları
 
 **Eklenmez:**
 - `.f90`, `.c`, `.cpp`, `.h`, `.cs`, `.swift`, `.qml` gibi uygulama kaynakları
