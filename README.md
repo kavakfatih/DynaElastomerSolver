@@ -3,7 +3,8 @@
 DynaElastomerSolver; kauçuk/elastomer malzemeler ve elastomer tabanlı ürünler için doğrusal olmayan sonlu eleman analizi, malzeme karakterizasyonu ve doğrulama odaklı bilimsel bir mühendislik platformudur.
 
 **Mevcut mimari temeli:** `v1.2 — ANSYS / Hexagon Marc benchmark revizyonu`  
-**UI mimarisi temeli:** `v1.1 — değiştirilebilir UI sınırı arkasında Qt frontend`
+**UI mimarisi temeli:** `v1.1 — değiştirilebilir UI sınırı arkasında Qt frontend`  
+**Results mimarisi temeli:** `v1.0 — ANSYS kadar anlaşılır, elastomer odaklı ve bilimsel olarak izlenebilir sonuç sistemi`
 
 ## Proje odağı
 
@@ -149,19 +150,51 @@ Bu nedenle gelecekte Avalonia, SwiftUI/AppKit, WinUI veya başka bir frontend; b
 
 ## Sonuç yaklaşımı
 
+Dyna Results sistemi ANSYS Mechanical'daki anlaşılır sonuç nesnesi kullanımını; FEBio'nun integrasyon noktası şeffaflığı, ParaView'in veri dönüşüm disiplini ve PrePoMax'ın sadeliği ile birleştirir.
+
+Kanonik yapı:
+
+```text
+ResultDatabase
+      ↓
+ResultDefinition
+      ↓
+ResultOperation
+      ↓
+ResultObject
+      ↓
+ResultViewModel
+      ↓
+Contour / Chart / Table / Inspector
+```
+
 Ham integrasyon noktası fiziği, ekstrapole/ortalama alınmış görüntüleme sonuçlarından ayrı tutulur.
 
 ```text
 ResultDatabase
 ├── RawResults
-│   └── IntegrationPoint
+│   ├── NodalPrimaryResults
+│   └── IntegrationPointResults
 ├── DisplayResults
+├── DerivedResults
 └── GlobalHistories
 ```
 
-V1.0 için birinci sınıf `GaussPointInspector` hedeflenmektedir.
+V1.0 hedefleri arasında:
 
-Platform ayrıca kuvvet–yer değiştirme ve tork–açı doğrulaması için yerleşik simülasyon–test karşılaştırmasını hedefler.
+- ANSYS benzeri anlaşılır `ResultObject` yapısı
+- elastomer odaklı Results Navigator
+- Contour / Chart / Table görünümü
+- Min/Max ve Probe araçları
+- birinci sınıf `GaussPointInspector`
+- Tork–Açı ve Kuvvet–Yer Değiştirme
+- Tangent ve Sekant Rijitlik
+- deneysel test overlay ve hata metrikleri
+- sonuç kaynağı/projection/provenance şeffaflığı
+
+bulunur.
+
+Qt yalnız Results frontend'ini render eder; `ResultDatabase`, `ResultDefinition`, `ResultOperation`, `ResultObject`, `ResultViewModel` ve `ViewportSceneModel` Qt'den bağımsız kalır.
 
 ## Dokümantasyon
 
@@ -169,6 +202,7 @@ Platform ayrıca kuvvet–yer değiştirme ve tork–açı doğrulaması için y
 - `docs/architecture/ARCHITECTURE.md`
 - `docs/architecture/MATERIAL_CORE_ARCHITECTURE.md`
 - `docs/architecture/UI_ARCHITECTURE.md`
+- `docs/architecture/RESULTS_ARCHITECTURE.md`
 - `docs/decisions/ADR-0001-FOUNDATION.md`
 - `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
 - `docs/decisions/ADR-0003-OWNED-UI-ARCHITECTURE.md`
@@ -181,4 +215,6 @@ Platform ayrıca kuvvet–yer değiştirme ve tork–açı doğrulaması için y
 
 Kodlamaya geçmeden önce mimari ve bilimsel temeller tanımlanmaktadır. İlk uygulama kilometre taşı, tam FEM çözücüsünden önce bünye malzeme motorunu ve doğrulama altyapısını oluşturacaktır.
 
-UI teknoloji yığını mimari olarak Qt 6 / Qt Quick-QML şeklinde seçilmiştir ve katı bir değiştirme sınırı bulunmaktadır. Geniş ekran uygulamasına geçmeden önce macOS Apple Silicon ve Windows üzerinde bu sınırı doğrulayan küçük bir shell/viewport/native-ABI teknik prototipi oluşturulacaktır.
+UI teknoloji yığını mimari olarak Qt 6 / Qt Quick-QML şeklinde seçilmiştir ve katı bir değiştirme sınırı bulunmaktadır. Results mimarisi de kullanıcı-facing `ResultObject` yapısı ve elastomer odaklı Navigator dahil olmak üzere v1.0 seviyesinde tanımlanmıştır.
+
+Geniş ekran uygulamasına geçmeden önce macOS Apple Silicon ve Windows üzerinde UI bağımlılık sınırını doğrulayan küçük bir shell/viewport/native-ABI teknik prototipi oluşturulacaktır.
