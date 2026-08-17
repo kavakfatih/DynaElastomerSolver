@@ -35,49 +35,29 @@ Bu sürüm yayınlanmış ürün sürümü değil; aktif geliştirme kilometre t
 - minimum `J` takibi
 - okunabilir solver/material hata açıklamaları
 
-## Yeni V0.2 veri modeli
+## V0.2 veri modeli
 
 ### Minimal `InternalMesh`
 
-`internal_mesh_t` artık bilimsel çekirdeğin ilk kanonik mesh modelidir.
-
-Şimdilik kasıtlı olarak yalnız:
-
-- 2B düğüm koordinatları
-- Q4 connectivity
-- düğüm/eleman sayısı
-- connectivity doğrulaması
-- aynı elemanda yinelenen node kontrolü
-
-taşır.
-
-Harici mesher/CAD tipleri bu sınıra geçirilmez. Gmsh veya başka bir mesh sağlayıcı ileride bu kanonik tipe dönüştürülecektir.
-
-Mevcut dizi tabanlı `X + connectivity` yolu geriye dönük regression testleri için korunur.
+`internal_mesh_t` bilimsel çekirdeğin ilk kanonik mesh modelidir. Şimdilik yalnız 2B düğüm koordinatları, Q4 connectivity, node/element sayıları ve connectivity doğrulamasını taşır. Harici mesher/CAD tipleri bu sınıra geçirilmez.
 
 ### Ham integration-point sonuçları
 
-`integration_point_result_t` ve `integration_point_results_t` eklendi.
+`integration_point_result_t` / `integration_point_results_t` ile her Q4 Gauss noktasında:
 
-Her Q4 Gauss noktası için şu ham bilgiler saklanabilir:
-
-- `element_id`
-- `point_id`
-- doğal koordinatlar `xi / eta`
-- referans integration weight/Jacobian katkısı
-- deformation gradient `F`
-- `J = det(F)`
-- First Piola-Kirchhoff stress `P`
+- `element_id`, `point_id`
+- `xi / eta`
+- reference integration weight
+- `F`
+- `J`
+- First Piola-Kirchhoff `P`
 - Cauchy stress
 - strain-energy density
-- material/status code
-- valid flag
+- status / valid
 
-Bu veriler **ham Gauss-point sonuçlarıdır**. V0.2'de nodal extrapolation, averaging veya contour sonucu üretilmez.
+saklanabilir. V0.2'de nodal extrapolation/averaging yapılmaz.
 
 ### InternalMesh solver adapteri
-
-Yeni adapter yolu:
 
 ```text
 InternalMesh
@@ -86,54 +66,74 @@ Q4 Newton Solver Adapter
     ↓
 mevcut doğrulanmış Full Newton solver
     ↓
-final assembly
-    ↓
 Raw Integration-Point Results
 ```
 
-Mevcut Newton solver yeniden yazılmadı; doğrulanmış `X + connectivity` solver yolu adapter arkasında yeniden kullanıldı. Böylece veri modeli değişikliği nonlinear çözüm fiziğini gereksiz yere riske atmadı.
+Mevcut `X + connectivity` yolu regression amacıyla korunur.
+
+## Lineer solver altyapısı
+
+V0.2'de ilk backend-bağımsız Dyna lineer solver sınırı eklendi:
+
+```text
+Nonlinear Solver / FEM
+        ↓
+solve_linear_system(...)
+        ↓
+linear_solver_settings_t
+linear_solver_report_t
+        ↓
+Backend
+        └── stdlib/LAPACK dense  ← aktif
+```
+
+Yeni `des_linear_solver` modülü:
+
+- backend kimliği
+- denklem sayısı
+- lineer residual infinity normu
+- status
+- converged bilgisi
+
+taşır.
+
+İlk backend `DES_LINEAR_BACKEND_STDLIB_DENSE` olup `stdlib_linalg::solve` üzerinden LAPACK `*GESV` ailesini kullanır.
+
+`des_dense_linear` artık yalnız geriye dönük uyumluluk wrapper'ıdır; doğrudan stdlib ayrıntısı taşımaz. İleride MUMPS ve iterative/GMRES çözücüleri aynı Dyna sınırının arkasına eklenecektir.
+
+Desteklenmeyen backend için `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` status kodu eklendi.
 
 ## Fortran kütüphane altyapısı
 
 ### Aktif dependency — Fortran stdlib
 
-- Dyna repo/fork: `https://github.com/kavakfatih/stdlib`
+- Dyna fork: `https://github.com/kavakfatih/stdlib`
 - upstream: `https://github.com/fortran-lang/stdlib`
 - sürüm: `0.8.1`
 - pinlenen commit: `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
 - lisans: MIT; BLAS/LAPACK backend bölümlerinde ilgili modified-BSD koşulları
 - build gereksinimi: `fypp`
 
-İlk aktif kullanım:
-
-```text
-des_dense_linear
-      ↓
-stdlib_linalg::solve
-      ↓
-Reference LAPACK / *GESV backend
-```
-
 ### Planlanan/araştırılan kütüphaneler
 
-- Reference-LAPACK/lapack — dense lineer cebir referansı/backend
-- fortran-lang/minpack — nonlinear least-squares / Levenberg-Marquardt
-- libprima/prima — BOBYQA/COBYLA ve türevsiz bounded/constrained optimization
-- jacobwilliams/PCHIP — deneysel eğrilerde shape-preserving interpolation/resampling
+- Reference-LAPACK/lapack — dense lineer cebir backend/referansı
 - MUMPS — production sparse direct solver adayı
-- HDF5 — büyük ResultDatabase/checkpoint adayı
-- JSON-Fortran — metadata/config adayı
-- FrontISTR — Fortran FEM/MUMPS entegrasyon mimari referansı
+- stdlib GMRES — iterative solver benchmark/adayı
+- fortran-lang/minpack — nonlinear least-squares / Levenberg-Marquardt
+- libprima/prima — BOBYQA/COBYLA bounded/constrained optimization
+- jacobwilliams/PCHIP — deneysel eğri interpolation/resampling
+- HDF5 — büyük ResultDatabase/checkpoint
+- JSON-Fortran — metadata/config
+- FrontISTR — Fortran FEM/MUMPS entegrasyon referansı
 
 Ayrıntılı envanter: `docs/references/FORTRAN_LIBRARIES.md`
 
-## V0.7 için planlanan calibration zinciri
+## V0.7 calibration planı
 
 ```text
 Raw Experimental Data
         ↓
 PCHIP
-shape-preserving preprocessing
         ↓
 Objective + physical admissibility
         ↓
@@ -142,15 +142,9 @@ PRIMA BOBYQA / COBYLA
 MINPACK Levenberg–Marquardt
         ↓
 Material validation
-        ↓
-parameter set + metrics + provenance
 ```
 
-Bu kütüphaneler V0.2 build dependency'si yapılmamıştır.
-
 ## Kanıtlanmış doğrulamalar
-
-Önceki doğrulamalar:
 
 - Material tangent normalize FD hatası: yaklaşık `1.26e-9`
 - Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
@@ -161,29 +155,21 @@ Bu kütüphaneler V0.2 build dependency'si yapılmamıştır.
 - 1×1 / 2×2 / 4×4 homojen mesh refinement reaksiyonu: `1.605586`
 - adaptive failure benchmark: `2 commit / 1 revert`
 - cutback exhaustion sonrası committed state korunuyor
-
-Yeni InternalMesh/result doğrulaması:
-
-- yeni `InternalMesh` assembly yolu bağımsız GNU Fortran derlemesinde çalıştı
-- eski `X + connectivity` assembly ile residual farkı: test toleransı içinde sıfır
-- tangent farkı: test toleransı içinde sıfır
+- InternalMesh ve eski assembly yolu residual/tangent açısından eşdeğer
 - affine `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045`
-- Q4 başına dört ham integration-point sonucu üretildi
-- yinelenen node içeren geçersiz Q4 connectivity mesh oluşturma aşamasında reddedildi
+- geçersiz duplicate-node Q4 mesh oluşturma aşamasında reddediliyor
 
-Mevcut CTest tanımı **18 test** içerir. Yeni stdlib dependency nedeniyle 18 testin tamamı bu çalışma ortamında toplu olarak henüz koşturulmuş sayılmaz.
+Mevcut CTest tanımı **19 test** içerir. Yeni lineer solver interface testi normal çözümü, residual raporunu ve desteklenmeyen backend failure yolunu kapsar.
 
 ## Önemli doğrulama notu
 
-`kavakfatih/stdlib` entegrasyonu kaynak/API/build-konfigürasyonu seviyesinde uygulanmıştır. Bu çalışma ortamında stdlib için gereken tam dependency build ortamı hazır olmadığı için full CTest/compiler matrix doğrulaması V0.2 kapanış maddesi olarak korunmaktadır.
-
-Yeni `InternalMesh + integration-point` alt zinciri ise stdlib'den bağımsız minimal kaynak setiyle GNU Fortran altında ayrıca derlenip çalıştırılmıştır.
+`kavakfatih/stdlib` tabanlı tam dependency build ortamı bu çalışma ortamında henüz tam hazır olmadığı için 19/19 CTest toplu compiler-matrix doğrulaması V0.2 kapanış maddesi olarak korunmaktadır.
 
 ## V0.2 kapanışından önce kalan işler
 
-1. stdlib tabanlı tam build'i GNU Fortran üzerinde 18/18 CTest ile doğrulamak.
-2. Ek nonlinear distortion / robustness benchmark'ları.
-3. Dense doğrulama solver yolunu production `ILinearSolver`/adapter sınırına hazırlamak.
+1. stdlib tabanlı tam build'i GNU Fortran üzerinde 19/19 CTest ile doğrulamak.
+2. Newton `newton_report_t` içine son lineer solver raporunu taşımak.
+3. Ek nonlinear distortion / robustness benchmark'ları.
 4. Bağımsız solver/reference karşılaştırmasını genişletmek.
 5. macOS Apple Silicon + gfortran build/test.
 6. Windows x64 + Intel ifx build/test.
@@ -193,22 +179,20 @@ Yeni `InternalMesh + integration-point` alt zinciri ise stdlib'den bağımsız m
 
 ### Bu turda tamamlanan V0.2 maddeleri
 
-- minimal `InternalMesh` veri modeli
-- Q4 connectivity validation
-- `InternalMesh` tabanlı assembly yolu
-- ham integration-point result modeli
-- `F / J / P / Cauchy / strain-energy` Gauss-point çıktısı
-- eski dizi tabanlı assembly ile eşdeğerlik regression testi
-- `InternalMesh` solver adapteri
-- başarılı solver final state'inden ham Gauss sonuçlarını toplama yolu
+- backend-bağımsız `des_linear_solver`
+- `linear_solver_settings_t`
+- `linear_solver_report_t`
+- aktif stdlib/LAPACK dense backend
+- lineer residual raporlama
+- unsupported-backend status/failure yolu
+- eski `des_dense_linear` yolunun compatibility wrapper'a dönüştürülmesi
+- lineer solver interface regression testi
 
 ---
 
 ## Sıradaki geliştirme sürümü
 
 **V0.3 — Nearly-Incompressible Formulation Bake-off**
-
-Karşılaştırma:
 
 ```text
 Displacement-only Q4
@@ -218,31 +202,7 @@ Mixed u-p
 F-bar / eşdeğer locking azaltıcı formulation
 ```
 
-Karar ölçütleri:
-
-- volumetric locking
-- pressure stability / oscillation
-- mesh convergence
-- nonlinear Newton convergence
-- distortion sensitivity
-- minimum `J`
-- DOF maliyeti
-- assembly karmaşıklığı
-- linear-system conditioning
-- axisymmetric genişletilebilirlik
-- axisymmetric torsion / 2.5D genişletilebilirliği
-
-Production nearly-incompressible formulation benchmark kanıtıyla seçilecek ve ADR ile sabitlenecektir.
-
-## V0.3 sonrasındaki ana sıra
-
-1. V0.4 — Axisymmetric Nonlinear Elastomer
-2. V0.5 — Axisymmetric Torsion / 2.5D
-3. V0.6 — Mooney-Rivlin / Yeoh / Ogden material library
-4. V0.7 — PCHIP + PRIMA + MINPACK tabanlı Material Calibration
-5. V0.8 — Production NonlinearSolutionManager
-6. V0.9 — Minimum engineering workflow / Results / Qt shell
-7. V1.0 — doğrulanmış nonlinear elastomer solver
+Karar; locking, pressure stability, mesh convergence, Newton convergence, distortion sensitivity, conditioning ve axisymmetric/torsion genişletilebilirliği üzerinden verilecektir.
 
 ## Branch güncelleme kuralı
 
