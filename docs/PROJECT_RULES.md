@@ -1,0 +1,175 @@
+# DynaElastomerSolver — Proje Kayıt ve Güncelleme Kuralları
+
+**Durum:** Zorunlu proje çalışma kuralı  
+**Tarih:** 2026-08-17
+
+## 1. Ana kural
+
+Her anlamlı DynaElastomerSolver geliştirmesinin sonunda GitHub üzerindeki proje kayıtları da güncellenmelidir.
+
+Kod geliştirmek tek başına tamamlanmış iş sayılmaz. Gerçek implementasyon ile proje planı ve sohbet kaydı senkron tutulmalıdır.
+
+## 2. Branch sorumlulukları
+
+### `main`
+
+Gerçek implementasyon branch'idir.
+
+İçerir:
+- Modern Fortran kaynak kodu
+- FEM
+- solver
+- testler
+- build altyapısı
+- ileride uygulama ve UI kaynakları
+
+### `Sistem-ve-Mimari`
+
+Dokümantasyon ve proje kayıt branch'idir.
+
+İçerir:
+- mimari
+- sistem planları
+- ADR kararları
+- roadmap
+- benchmark planları
+- proje durumu
+- sürüm planları
+- ChatGPT proje sohbet günlüğü
+
+Bu branch'e çalıştırılabilir program kodu eklenmez.
+
+## 3. Zorunlu sürekli güncellenen dosyalar
+
+### A. `docs/sohbetler/ChatGPT Sohbet 1.md`
+
+Bu ChatGPT sohbetinin sürekli proje günlüğüdür.
+
+Her anlamlı konuşmada aşağıdakiler kaydedilir:
+- kullanıcının yeni yönlendirmesi
+- alınan teknik karar
+- değiştirilen plan
+- yapılan implementasyon
+- önemli test / benchmark sonucu
+- kapsam değişikliği
+- branch / repository politikası değişikliği
+
+### B. `docs/PROJECT_STATUS.md`
+
+Her zaman projenin en güncel durumunu göstermelidir.
+
+Zorunlu alanlar:
+- güncel geliştirme sürümü
+- tamamlanan özellikler
+- çalışan bilimsel zincir
+- son doğrulama sonuçları
+- açık eksikler
+- mevcut riskler
+- sıradaki sürüm
+- sıradaki teknik plan
+
+### C. `docs/ROADMAP.md`
+
+Milestone sırası veya kapsam değişirse güncellenmelidir.
+
+ROADMAP yalnız gelecek planını değil, gerçekleşen teknik öğrenmelere göre plan değişikliklerini de yansıtmalıdır.
+
+## 4. Güncelleme tetikleyicileri
+
+Aşağıdaki durumlardan biri oluştuğunda kayıt dosyaları kontrol edilmelidir:
+
+1. Yeni bir bilimsel/fizik özelliği tamamlandığında.
+2. Yeni FEM formulasyonu eklendiğinde.
+3. Solver davranışı değiştiğinde.
+4. Yeni material model eklendiğinde.
+5. Benchmark/test sonucu önemli bir karar doğurduğunda.
+6. Roadmap sırası değiştiğinde.
+7. V1.0 kapsamı değiştiğinde.
+8. UI/Results/Material/Solver mimarisi değiştiğinde.
+9. Kullanıcı yeni bir proje kuralı koyduğunda.
+10. Yeni branch politikası veya dependency kararı alındığında.
+
+## 5. Sürüm politikası
+
+Aktif geliştirme kilometre taşları şu formatla takip edilir:
+
+- `V0.1`
+- `V0.2-dev`
+- `V0.3`
+- vb.
+
+`-dev`, kilometre taşının aktif geliştirme altında olduğunu belirtir.
+
+Bir sürüm yalnız roadmap çıkış kriterleri karşılandığında tamamlanmış kabul edilir.
+
+## 6. Güncel ve sıradaki sürüm kuralı
+
+Her zaman GitHub üzerinde aşağıdaki iki bilgi açıkça bulunmalıdır:
+
+```text
+Güncel sürüm
+→ Şu anda hangi milestone üzerinde çalışılıyor?
+→ Neler çalışıyor?
+→ Neler eksik?
+
+Sıradaki sürüm
+→ Sonraki milestone nedir?
+→ Hangi teknik problemi çözecek?
+→ Çıkış kriteri nedir?
+```
+
+Bu bilginin ana kaynağı `docs/PROJECT_STATUS.md` dosyasıdır.
+
+## 7. Sohbet günlüğü biçimi
+
+Yeni kayıtlar kronolojik eklenir.
+
+Önerilen biçim:
+
+```text
+## YYYY-MM-DD — Konu
+
+Kullanıcı:
+Yeni yönlendirme / talep.
+
+Karar:
+Alınan teknik karar.
+
+Gerçekleştirilen:
+Varsa repo değişikliği / test / benchmark.
+
+Sonuç:
+Sürüm ve plan üzerindeki etkisi.
+```
+
+Birebir uzun transkript zorunlu değildir; ancak kararın anlamını değiştirecek hiçbir teknik detay kaybedilmemelidir.
+
+## 8. Doküman-kod tutarlılığı
+
+Bir doküman gelecekteki hedefi anlatıyorsa bunun `hedef`, `planlanan`, `gelecek` gibi ifadelerle açıkça belirtilmesi gerekir.
+
+Henüz implementasyonu olmayan bir özellik `çalışıyor`, `hazır`, `tamamlandı` diye yazılamaz.
+
+Aynı şekilde gerçek kod ve test ile doğrulanmış bir özellik de roadmap'te hâlâ yalnız gelecek hedefi gibi bırakılmamalıdır.
+
+## 9. Kanıta dayalı geliştirme
+
+Yeni mimari soyutlama yalnız aşağıdaki kaynaklardan biri gerçek ihtiyaç gösterdiğinde eklenir:
+
+- çalışan kod
+- başarısız benchmark
+- solver robustness ihtiyacı
+- doğrulama sonucu
+- platform/dependency gereksinimi
+
+Mimari, implementasyonun önüne kontrolsüz biçimde geçmemelidir.
+
+## 10. Dil kuralı
+
+GitHub üzerindeki insan tarafından okunan proje kayıtları Türkçe tutulur.
+
+Teknik identifier, API adı, matematiksel sembol, standart veya üçüncü taraf ürün adı gerektiğinde İngilizce kalabilir.
+
+## 11. Değiştirilemez kayıt ilkesi
+
+> Her anlamlı proje adımı sonunda kod, sohbet günlüğü, güncel sürüm ve sıradaki plan birbiriyle tutarlı olmalıdır.
