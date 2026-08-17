@@ -79,10 +79,21 @@ jobs:
       - name: CMake configure
         shell: bash
         run: |
+          set +e
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_Fortran_COMPILER="$FC" \
-            -DDES_BUILD_TESTS=ON
+            -DDES_BUILD_TESTS=ON \
+            > cmake-configure.log 2>&1
+          status=$?
+          set -e
+
+          cat cmake-configure.log
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 60 cmake-configure.log | tr '\n' ' ' | cut -c1-4000)
+            echo "::error file=CMakeLists.txt::CMake configure başarısız (${FC}): ${message}"
+            exit "$status"
+          fi
 
       - name: Derle
         shell: bash
