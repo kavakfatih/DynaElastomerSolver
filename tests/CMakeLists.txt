@@ -114,3 +114,9 @@ des_add_fortran_test(
   fem.internal_mesh.integration_point_results
   test_internal_mesh_integration_results.f90
 )
+
+des_add_fortran_test(
+  test_q4_internal_mesh_solver
+  solver.q4.internal_mesh.displacement_control
+  test_q4_internal_mesh_solver.f90
+)
