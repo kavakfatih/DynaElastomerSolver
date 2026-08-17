@@ -1,19 +1,19 @@
-# ADR-0004 — Qt Frontend Behind a Replaceable UI Boundary
+# ADR-0004 — Değiştirilebilir UI Sınırı Arkasında Qt Frontend
 
-**Status:** Accepted  
-**Project:** DynaElastomerSolver
+**Durum:** Kabul edildi  
+**Proje:** DynaElastomerSolver
 
-## Context
+## Bağlam
 
-DynaElastomerSolver requires one professional desktop frontend that can run on both macOS and Windows. The product must preserve an Apple-inspired visual language while supporting CAE-style navigation, inspectors, engineering charts, a custom 2D/axisymmetric viewport, solver monitoring and future high-performance visualization.
+DynaElastomerSolver, hem macOS hem Windows üzerinde çalışabilen tek bir profesyonel masaüstü frontend'e ihtiyaç duyar. Ürün; Apple/macOS esintili görsel dili korurken CAE tipi navigasyon, Inspector'lar, mühendislik grafikleri, özel 2D/eksenel simetrik viewport, solver izleme ve gelecekte yüksek performanslı görselleştirme gereksinimlerini desteklemelidir.
 
-Qt 6 / Qt Quick provides a mature cross-platform desktop and graphics stack for these requirements. However, DynaElastomerSolver must not become a Qt-shaped application internally. A future move to another UI technology must remain possible without rewriting the scientific core, project model, application behavior or engineering interaction model.
+Qt 6 / Qt Quick bu ihtiyaçlar için olgun bir cross-platform masaüstü ve grafik altyapısı sağlar. Buna rağmen DynaElastomerSolver içeride Qt biçiminde şekillenmiş bir uygulamaya dönüşmemelidir. Gelecekte farklı bir UI teknolojisine geçiş; bilimsel çekirdeği, proje modelini, uygulama davranışını veya mühendislik etkileşim modelini yeniden yazmayı gerektirmemelidir.
 
-This decision supersedes only the framework-candidate portion of ADR-0003. ADR-0003 remains valid for the broader principle that DynaElastomerSolver owns its UI architecture and user experience.
+Bu karar ADR-0003'ün yalnız framework adayı bölümünü günceller. DynaElastomerSolver'ın UI mimarisine ve kullanıcı deneyimine sahip olduğu temel ilke geçerliliğini korur.
 
-## Decision
+## Karar
 
-The initial production desktop frontend will use:
+İlk üretim masaüstü frontend'i:
 
 ```text
 Qt 6
@@ -21,9 +21,7 @@ Qt 6
 + Dyna Design System
 ```
 
-Qt is classified as a **replaceable frontend/platform dependency**, not as a domain or application dependency.
-
-The architecture is:
+Qt, domain veya application bağımlılığı değil **değiştirilebilir frontend/platform bağımlılığı** olarak sınıflandırılır.
 
 ```text
 Modern Fortran Scientific Core
@@ -39,11 +37,11 @@ Framework-neutral Presentation Contracts
        Qt Quick / QML UI
 ```
 
-## Hard dependency boundary
+## Katı bağımlılık sınırı
 
-Qt types are forbidden outside the Qt frontend implementation boundary.
+Qt tipleri Qt frontend uygulama sınırı dışına çıkamaz.
 
-The following types and concepts must not appear in the scientific core, canonical project model, application services or framework-neutral presentation contracts:
+Aşağıdaki tip ve kavramlar bilimsel çekirdekte, kanonik proje modelinde, application servislerinde veya framework-neutral presentation sözleşmelerinde bulunamaz:
 
 - `QObject`
 - `QString`
@@ -52,21 +50,19 @@ The following types and concepts must not appear in the scientific core, canonic
 - `QModelIndex`
 - `QAbstractItemModel`
 - `QQuickItem`
-- QML object references
-- Qt-specific signals/slots as domain events
-- Qt-specific serialization as the canonical project format
+- QML nesne referansları
+- domain event olarak Qt signals/slots
+- kanonik proje formatı olarak Qt serialization
 
-Qt-specific code belongs under a dedicated frontend namespace/directory such as:
+Qt'ye özgü kod şu sınırda tutulur:
 
 ```text
 src/ui/frontends/qt/
 ```
 
-## Framework-neutral presentation contracts
+## Framework-neutral presentation sözleşmeleri
 
-DynaElastomerSolver owns neutral models for UI-relevant application state.
-
-Examples:
+DynaElastomerSolver UI ile ilişkili application state için tarafsız modellerin sahibidir:
 
 ```text
 NavigationNode
@@ -82,52 +78,31 @@ ViewportSceneModel
 DesignTokenSet
 ```
 
-These models use stable identifiers and framework-neutral data types.
+Qt adaptörü bu modelleri Qt/QML nesnelerine dönüştürür. Aynı neutral modeller daha sonra Avalonia, native veya başka frontend tarafından çizilebilir.
 
-A Qt adapter translates them into Qt/QML-facing objects:
+## Uygulama davranışı sahipliği
 
-```text
-NavigationNode
-      ↓
-QtNavigationModel
-      ↓
-QML Navigator
-```
+Aşağıdaki davranış Qt dışında kalır:
 
-The same neutral model could later be rendered by another frontend:
-
-```text
-NavigationNode
-├── QtNavigationModel
-├── FutureAvaloniaAdapter
-└── FutureNativeAdapter
-```
-
-## Application behavior ownership
-
-The following behavior remains outside Qt:
-
-- project state and project file semantics
-- module definitions
-- navigation hierarchy
+- proje state'i ve proje dosyası anlamı
+- modül tanımları
+- navigasyon hiyerarşisi
 - selection semantics
-- command enable/disable rules
-- undo/redo intent
-- validation and precheck rules
+- command enable/disable kuralları
+- undo/redo niyeti
+- validation ve precheck kuralları
 - solver job state
-- result definitions
-- inspector metadata
-- engineering units and validation rules
-- viewport scene data
-- material, mesh, analysis and result workflows
+- sonuç tanımları
+- Inspector metadatası
+- mühendislik birimleri ve doğrulama kuralları
+- viewport scene verisi
+- material, mesh, analysis ve result iş akışları
 
-Qt renders and forwards user interaction. It does not define these semantics.
+Qt yalnız render eder ve kullanıcı etkileşimini iletir; bu anlamların sahibi değildir.
 
-## Design-system ownership
+## Design system sahipliği
 
-The Apple-inspired Dyna visual language is project-owned.
-
-Canonical design tokens are kept independently from QML implementation details:
+Apple/macOS esintili Dyna görsel dili projeye aittir.
 
 ```text
 Color
@@ -141,13 +116,9 @@ Elevation
 SemanticState
 ```
 
-QML components implement these specifications, but QML files are not the canonical definition of the design language.
+QML bu spesifikasyonları uygular; QML dosyaları görsel dilin kanonik tanımı değildir.
 
-This permits another frontend to reproduce the same product identity later.
-
-## Visualization boundary
-
-The V1 visualization data model is project-owned:
+## Görselleştirme sınırı
 
 ```text
 ViewportSceneModel
@@ -162,7 +133,7 @@ ViewportSceneModel
 └── camera state
 ```
 
-Rendering is behind an interface:
+Rendering:
 
 ```text
 ViewportSceneModel
@@ -172,21 +143,17 @@ IViewportRenderer
 QtViewportBackend
 ```
 
-Qt rendering APIs may be used inside `QtViewportBackend`, but raw Qt renderer objects must not leak into `InternalMesh`, `ResultDatabase`, `AnalysisGeometry`, selection state or result-processing code.
+Qt renderer nesneleri `InternalMesh`, `ResultDatabase`, `AnalysisGeometry`, selection state veya result-processing koduna sızamaz. Gelecekte Metal, Vulkan, VTK, Avalonia veya başka bir backend kanonik mühendislik modelleri değiştirilmeden eklenebilir.
 
-A later Metal, Vulkan, VTK, Avalonia or other backend can therefore be introduced without changing the canonical engineering models.
-
-## Repository boundary
-
-Target structure:
+## Repository sınırı
 
 ```text
 src/
-├── fortran/                 # scientific core; no Qt
-├── application/             # application/domain services; no Qt
-├── presentation/            # neutral UI contracts; no Qt
+├── fortran/                 # bilimsel çekirdek; Qt yok
+├── application/             # application/domain servisleri; Qt yok
+├── presentation/            # neutral UI contracts; Qt yok
 └── ui/
-    ├── design/              # canonical Dyna design tokens/specification
+    ├── design/              # kanonik Dyna design specification
     └── frontends/
         └── qt/
             ├── app/
@@ -196,67 +163,61 @@ src/
             └── viewport/
 ```
 
-## Build boundary
-
-Qt should be discoverable only by frontend build targets.
-
-Conceptually:
+## Build sınırı
 
 ```text
-DynaCoreFortran        -> no Qt
-DynaApplication        -> no Qt
-DynaPresentation       -> no Qt
-DynaQtFrontend         -> Qt dependency allowed
-DynaDesktopApp         -> links DynaQtFrontend
+DynaCoreFortran        -> Qt yok
+DynaApplication        -> Qt yok
+DynaPresentation       -> Qt yok
+DynaQtFrontend         -> Qt bağımlılığına izin var
+DynaDesktopApp         -> DynaQtFrontend linkler
 ```
 
-Tests or build checks should fail if Qt headers or Qt-linked libraries appear in lower layers.
+Alt katmanlarda Qt header'ı veya Qt-linked library görülürse build/architecture testleri başarısız olmalıdır.
 
-## Platform strategy
+## Platform stratejisi
 
-The initial Qt frontend targets:
+İlk Qt frontend hedefleri:
 
-- macOS on Apple Silicon
+- macOS / Apple Silicon
 - Windows x64
-- Windows ARM64 later if required
+- gerektiğinde ileride Windows ARM64
 
-macOS and Windows use the same Dyna information architecture and design system. Platform-specific window chrome, menus, keyboard conventions and system integration may adapt to the host OS without changing engineering workflows.
+macOS ve Windows aynı Dyna bilgi mimarisini ve design system'i kullanır. Window chrome, menu, keyboard conventions ve OS entegrasyonu host platforma göre uyarlanabilir; mühendislik workflow'u değişmez.
 
-## Licensing policy
+## Lisans politikası
 
-Qt licensing is treated as an explicit infrastructure concern.
+Qt lisansı açık bir altyapı konusu olarak yönetilir.
 
-- Use only intentionally approved Qt modules.
-- Keep a dependency/license registry for every Qt module shipped.
-- Avoid introducing GPL-only modules without an explicit product/licensing decision.
-- Preserve the architectural ability to replace Qt if licensing, commercial, technical or strategic requirements change.
+- yalnız bilinçli olarak onaylanmış Qt modülleri kullanılacak
+- dağıtılan her Qt modülü için dependency/license registry tutulacak
+- açık ürün/lisans kararı olmadan GPL-only modül eklenmeyecek
+- lisans, ticari, teknik veya stratejik gereksinimler değişirse Qt'nin değiştirilebilme kabiliyeti korunacak
 
-The legal distribution model must be reviewed separately before commercial release.
+Ticari dağıtım modeli yayın öncesi ayrıca incelenmelidir.
 
-## Consequences
+## Sonuçlar
 
-### Positive
+### Olumlu
 
-- one frontend codebase for macOS and Windows
-- strong desktop and graphics capabilities
-- native-capable engineering viewport path
-- Apple-inspired appearance remains project-owned
-- scientific and application architecture remains independent of Qt
-- future frontend replacement is possible without rewriting the solver or canonical engineering models
+- macOS ve Windows için tek frontend kod tabanı
+- güçlü desktop ve grafik yetenekleri
+- native seviyede engineering viewport yolu
+- Apple/macOS esintili görünüm projeye ait kalır
+- bilimsel ve application mimarisi Qt'den bağımsız kalır
+- gelecekte frontend değişimi solver veya kanonik mühendislik modelleri yeniden yazılmadan mümkündür
 
-### Costs
+### Maliyetler
 
-- adapters must be maintained between neutral presentation models and Qt/QML
-- some UI code will necessarily be rewritten if the frontend framework changes
-- strict architecture tests are required to prevent Qt types from leaking downward
-- Qt module/license choices must be tracked deliberately
+- neutral presentation modelleri ile Qt/QML arasında adaptör bakımı gerekir
+- frontend framework değişirse UI kodunun bir bölümü yeniden yazılır
+- Qt tiplerinin alt katmanlara sızmasını engelleyen katı architecture testleri gerekir
+- Qt modül/lisans seçimleri bilinçli olarak izlenmelidir
 
-## Replacement test
+## Değiştirme testi
 
-The architecture is considered healthy only if this statement remains true:
+> `src/ui/frontends/qt` klasörünü kaldırmak mevcut masaüstü UI'yi kaldırabilir; ancak DynaElastomerSolver'ın bilimsel çekirdeğini, proje modelini, application servislerini, presentation sözleşmelerini, result database'i veya mühendislik iş akışlarını ortadan kaldırmamalı ya da geçersiz kılmamalıdır.
 
-> Removing `src/ui/frontends/qt` may remove the current desktop UI, but it must not remove or invalidate DynaElastomerSolver's scientific core, project model, application services, presentation contracts, result database or engineering workflows.
+## Yönlendirici ilke
 
-## Guiding principle
-
-> Qt is the first DynaElastomerSolver frontend implementation; Qt is not DynaElastomerSolver's architecture.
+> Qt, DynaElastomerSolver'ın ilk frontend uygulamasıdır; Qt, DynaElastomerSolver'ın mimarisi değildir.

@@ -1,67 +1,65 @@
-# DynaElastomerSolver — ANSYS / Hexagon Marc Architecture Benchmark
+# DynaElastomerSolver — ANSYS / Hexagon Marc Mimari Benchmark
 
-**Purpose:** Compare DynaElastomerSolver with mature commercial nonlinear FEA systems specifically in the elastomer-analysis chain.  
-**Scope:** Materials, geometry, meshing, formulations, nonlinear solution, result semantics and validation.  
-**Non-goal:** Feature-count parity with general-purpose CAE platforms.
+**Amaç:** DynaElastomerSolver'ı, özellikle elastomer analiz zinciri açısından olgun ticari doğrusal olmayan FEA sistemleriyle karşılaştırmak.  
+**Kapsam:** Malzemeler, geometri, mesh, formulasyonlar, doğrusal olmayan çözüm, sonuç anlamı ve doğrulama.  
+**Amaç dışı:** Genel amaçlı CAE platformlarıyla özellik sayısı eşitliği.
 
 ---
 
-## 1. Executive comparison
+## 1. Yönetici özeti karşılaştırması
 
-| Area | ANSYS Mechanical | Hexagon Marc / Mentat | DynaElastomerSolver direction |
+| Alan | ANSYS Mechanical | Hexagon Marc / Mentat | DynaElastomerSolver yönü |
 |---|---|---|---|
-| Product scope | General-purpose CAE | Strong nonlinear/general-purpose FEA | Specialized elastomer platform |
-| Material management | Engineering Data / libraries / Granta ecosystem | Built-in material definitions, fitting and user materials | Material Lab + solver-independent Material Core |
-| Hyperelasticity | Broad built-in family | Strong nonlinear rubber material capability | Focused native family + plugin API |
-| Experimental fitting | Built into Engineering Data workflows | Dedicated experimental elastomer workflows/material fitting | Central product workflow |
-| Material provenance | General material-data infrastructure | General material-data infrastructure | Explicit parameter provenance + validation states |
-| Geometry | Broad CAD/import ecosystem | Mentat/CAD import and model setup | DXF → project-owned AnalysisGeometry |
-| Sketch/CAD tools | Extensive | Broader than required here | Explicitly out of scope |
-| Geometry checking | Mature geometry validation/repair workflows | Preprocessing/model checking capabilities | Geometry Check → Heal → Recheck |
-| Mesh | Extensive controls and element families | Mature mesh/preprocessor environment | Replaceable IMeshProvider; Gmsh first |
-| Nearly incompressible elastomers | Mixed displacement-pressure formulations available | Specialized incompressible/Herrmann-type formulations | Mixed `u-p` early in roadmap |
-| Axisymmetric torsion | Supported in relevant 2D element technology | Nonlinear axisymmetric capabilities | Core specialized formulation |
-| Nonlinear solver | Mature Newton/step/convergence controls | Core strength; mature nonlinear controls | Project-owned NonlinearSolutionManager |
-| Linear solver | Direct/iterative solver options | Mature solver backend | `ILinearSolver`, MUMPS initial candidate |
-| Raw integration-point data | Available through solver/result infrastructure | Calculated at integration points; postprocessing often extrapolates | Explicit RawResults + GaussPointInspector |
-| Display result fields | Rich contours/probes/paths | Mentat postprocessing | Elastomer-focused contours/probes/path/history |
-| Experiment comparison | Possible through broader workflows | Possible through broader workflows | Native simulation ↔ physical-test comparison |
+| Ürün kapsamı | Genel amaçlı CAE | Güçlü doğrusal olmayan/genel amaçlı FEA | Uzmanlaşmış elastomer platformu |
+| Malzeme yönetimi | Engineering Data / kütüphaneler / Granta ekosistemi | Dahili malzeme tanımları, fitting ve user material | Material Lab + solver-independent Material Core |
+| Hiperelastisite | Geniş dahili model ailesi | Güçlü doğrusal olmayan kauçuk malzeme yeteneği | Odaklı native aile + plugin API |
+| Deneysel fitting | Engineering Data iş akışlarında yerleşik | Deneysel elastomer fitting iş akışları | Merkezi ürün iş akışı |
+| Malzeme provenance | Genel material-data altyapısı | Genel material-data altyapısı | Açık parametre provenance + doğrulama durumları |
+| Geometri | Geniş CAD/import ekosistemi | Mentat/CAD import ve model setup | DXF → projeye ait AnalysisGeometry |
+| Sketch/CAD araçları | Geniş | İhtiyacımızdan geniş | Bilinçli olarak kapsam dışı |
+| Geometri kontrolü | Olgun doğrulama/repair iş akışları | Preprocessing/model check yetenekleri | Geometry Check → Heal → Recheck |
+| Mesh | Geniş kontroller ve eleman aileleri | Olgun mesh/preprocessor ortamı | Değiştirilebilir IMeshProvider; ilk Gmsh |
+| Yaklaşık sıkıştırılamaz elastomer | Karma displacement-pressure formulasyonları | Özel incompressible/Herrmann tipi formulasyonlar | Karma `u-p` erken roadmap aşamasında |
+| Eksenel simetrik burulma | İlgili 2D eleman teknolojisinde destek | Doğrusal olmayan eksenel simetrik yetenekler | Temel uzman formulasyon |
+| Nonlinear solver | Olgun Newton/step/convergence kontrolleri | Temel güçlü yönlerinden biri | Projeye ait NonlinearSolutionManager |
+| Linear solver | Direct/iterative seçenekleri | Olgun backend | `ILinearSolver`, ilk aday MUMPS |
+| Ham integrasyon noktası verisi | Solver/result altyapısıyla erişilebilir | Integrasyon noktalarında hesaplanır, postprocess çoğu zaman ekstrapole eder | Açık RawResults + GaussPointInspector |
+| Display result alanları | Zengin contour/probe/path | Mentat postprocessing | Elastomer odaklı contour/probe/path/history |
+| Deney karşılaştırması | Daha geniş workflow'larla mümkün | Daha geniş workflow'larla mümkün | Native simülasyon ↔ fiziksel test karşılaştırması |
 
 ---
 
-## 2. Material definition
+## 2. Malzeme tanımı
 
-### ANSYS pattern
+### ANSYS yaklaşımı
 
-ANSYS uses Engineering Data as the main project material-definition environment. Materials may be pulled from libraries or created/edited in the project. Hyperelastic data can be defined from parameters and experimental curve-fitting workflows.
+ANSYS, Engineering Data'yı ana proje malzeme tanım ortamı olarak kullanır. Malzemeler kütüphanelerden alınabilir veya projede oluşturulup düzenlenebilir. Hiperelastik veri doğrudan parametrelerle veya deneysel curve-fitting iş akışıyla tanımlanabilir.
 
-### Marc pattern
+### Marc yaklaşımı
 
-Marc/Mentat provides built-in nonlinear material models and routes for experimental data fitting; custom behavior can be introduced through user-material capabilities.
+Marc/Mentat dahili doğrusal olmayan malzeme modelleri, deneysel veri fitting yolları ve user-material genişletilebilirliği sağlar.
 
-### DynaElastomerSolver decision
+### DynaElastomerSolver kararı
 
-Dyna uses three distinct concepts:
+Dyna üç ayrı kavram kullanır:
 
 ```text
-Physical Material
+Fiziksel Malzeme
        ↓
-Experimental Data
+Deneysel Veri
        ↓
-Constitutive Parameter Sets
+Bünye Parametre Kümeleri
        ↓
-Validation Records
+Doğrulama Kayıtları
 ```
 
-A compound name is not itself a constitutive model. One physical material may own several fits, such as Yeoh and Ogden.
-
-The system records where each parameter set came from.
+Bir compound adı tek başına bünye modeli değildir. Aynı fiziksel malzeme Yeoh ve Ogden gibi birden fazla uyuma sahip olabilir. Her parametre kümesinin kaynağı kaydedilir.
 
 ---
 
-## 3. Hyperelastic material family
+## 3. Hiperelastik malzeme ailesi
 
-### Target V1.0 Dyna library
+V1.0 hedef Dyna kütüphanesi:
 
 ```text
 Hyperelastic
@@ -73,11 +71,9 @@ Hyperelastic
 └── Gent
 ```
 
-Commercial solvers contain a broader catalog. Dyna intentionally targets a smaller, highly verified elastomer set first.
+Ticari solver'lar daha geniş kataloglara sahiptir. Dyna önce daha küçük ancak yüksek düzeyde doğrulanmış elastomer setini hedefler.
 
-### Main architectural difference
-
-Dyna separates:
+Ana mimari fark:
 
 ```text
 Constitutive Law
@@ -87,15 +83,13 @@ Incompressibility Strategy
 Element Formulation
 ```
 
-The material class does not decide the FE constraint method.
+Malzeme sınıfı FE kısıt yöntemini belirlemez.
 
 ---
 
-## 4. Material extensibility
+## 4. Malzeme genişletilebilirliği
 
-Marc user-material mechanisms demonstrate the value of an extensible constitutive interface. Open-source MFront/FEBio references reinforce the same principle.
-
-Dyna therefore defines:
+Marc user-material mekanizmaları, genişletilebilir bünye arayüzünün değerini gösterir. MFront ve FEBio gibi açık kaynak referanslar da aynı prensibi destekler.
 
 ```text
 Material Core
@@ -104,54 +98,52 @@ Material Core
 └── External Material Adapter
 ```
 
-The canonical material call returns energy/stress/tangent/state through the project-owned data model.
+Kanonik material çağrısı enerji/stress/tangent/state bilgisini projeye ait veri modeliyle döndürür.
 
 ---
 
-## 5. Experimental calibration
+## 5. Deneysel kalibrasyon
 
-Commercial reference systems support hyperelastic fitting from experimental test data.
+Ticari referans sistemler deneysel test verisinden hiperelastik fitting destekler.
 
-Dyna makes calibration a primary system rather than a supporting utility:
+Dyna kalibrasyonu yardımcı araç değil, ana sistem olarak ele alır:
 
 ```text
-Experimental Dataset
+Deneysel Veri Kümesi
         ↓
-Data Transformation
+Veri Dönüşümü
         ↓
 Material Core
         ↓
 Optimizer
         ↓
-Parameter Set
+Parametre Kümesi
         ↓
-Fit Metrics + Provenance
+Uyum Metrikleri + Provenance
 ```
 
-Model selection considers more than one scalar goodness-of-fit value. The framework is designed to support:
+Model seçimi tek bir goodness-of-fit değerine dayanmaz. Sistem şu ölçütleri destekleyecek şekilde tasarlanır:
 
-- RMSE / residuals
-- R² as a descriptive metric
-- parameter limits
-- physical admissibility
-- stability checks
-- multi-mode consistency
-- valid strain range
-- extrapolation behavior
-- product-test validation
+- RMSE / residual'lar
+- açıklayıcı metrik olarak R²
+- parametre sınırları
+- fiziksel kabul edilebilirlik
+- kararlılık kontrolleri
+- çoklu test modu tutarlılığı
+- geçerli şekil değiştirme aralığı
+- ekstrapolasyon davranışı
+- ürün testi doğrulaması
 
 ---
 
-## 6. Geometry
+## 6. Geometri
 
-### Commercial systems
+ANSYS ve Marc birçok fizik ve eleman ailesine hizmet ettiği için daha geniş geometri/preprocessing iş akışlarına sahiptir.
 
-ANSYS and Marc support broader geometry and preprocessing workflows because they serve many physics and element families.
-
-### Dyna decision
+Dyna kararı:
 
 ```text
-External CAD
+Harici CAD
    ↓
 DXF
    ↓
@@ -160,19 +152,17 @@ IDxfImporter
 AnalysisGeometry
 ```
 
-No internal sketch environment is planned.
-
-AnalysisGeometry contains curves, loops, regions, boundaries, selection sets and axis definitions solely for analysis preparation.
+Dahili sketch ortamı planlanmaz. `AnalysisGeometry`; yalnız analiz hazırlığı için curve, loop, region, boundary, selection set ve axis definition içerir.
 
 ---
 
-## 7. Geometry tools
+## 7. Geometri araçları
 
-Dyna borrows the mature workflow concept, not the CAD breadth:
+Dyna ticari sistemlerin CAD genişliğini değil olgun workflow fikrini alır:
 
 ```text
 Geometry Check
-├── Open contour
+├── Açık contour
 ├── Gap
 ├── Duplicate
 ├── Tiny edge
@@ -187,13 +177,13 @@ Controlled Heal
 Recheck
 ```
 
-Named/selection sets represent engineering meaning independently of mesh numbering.
+Named/selection set'ler mühendislik anlamını mesh numaralandırmasından bağımsız temsil eder.
 
 ---
 
-## 8. Meshing
+## 8. Mesh
 
-ANSYS and Marc provide mature meshing environments. Dyna initially uses a replaceable provider architecture:
+ANSYS ve Marc olgun mesh ortamları sağlar. Dyna başlangıçta değiştirilebilir provider mimarisi kullanır:
 
 ```text
 AnalysisGeometry
@@ -205,7 +195,7 @@ GmshMeshProvider
 InternalMesh
 ```
 
-`InternalMesh` retains:
+`InternalMesh` şunları korur:
 
 - nodes
 - elements
@@ -216,15 +206,15 @@ InternalMesh
 - integration scheme
 - mesh-quality metadata
 
-Planned user controls include global size, edge divisions, local/region sizing, mapped quad requests and mesh-quality inspection.
+Kullanıcı kontrolleri global size, edge divisions, local/region sizing, mapped quad talepleri ve mesh-quality inspection içerecektir.
 
 ---
 
-## 9. Nearly-incompressible elastomer formulation
+## 9. Yaklaşık sıkıştırılamaz elastomer formulasyonu
 
-Commercial nonlinear FEA systems use specialized formulations because displacement-only low-order elements can lock for nearly incompressible rubber.
+Ticari doğrusal olmayan FEA sistemleri, düşük dereceli yalnız-displacement elemanların yaklaşık sıkıştırılamaz kauçukta locking yaratabilmesi nedeniyle özel formulasyonlar kullanır.
 
-Dyna therefore treats mixed technology as an early production requirement:
+Dyna bu nedenle karma teknolojiyi erken üretim gereksinimi kabul eder:
 
 ```text
 Plane strain          ux, uy, p
@@ -232,15 +222,15 @@ Axisymmetric          ur, uz, p
 Axisymmetric torsion  ur, uz, φ, p
 ```
 
-Displacement-only Q4 technology is a learning/verification foundation, not the final production elastomer formulation.
+Yalnız displacement Q4 teknoloji öğrenme/doğrulama temelidir, nihai üretim elastomer formulasyonu değildir.
 
 ---
 
-## 10. Nonlinear solution
+## 10. Doğrusal olmayan çözüm
 
-The benchmark showed that robust nonlinear analysis is not equivalent to implementing Newton-Raphson alone.
+Benchmark, sağlam nonlinear analizin yalnız Newton-Raphson uygulamakla eşdeğer olmadığını gösterdi.
 
-Dyna v1.2 architecture:
+Dyna v1.2:
 
 ```text
 NonlinearSolutionManager
@@ -256,64 +246,62 @@ NonlinearSolutionManager
 └── StateCommitManager
 ```
 
-The system owns FEM and nonlinear solution logic.
+FEM ve nonlinear çözüm mantığı projeye aittir.
 
 ---
 
-## 11. Solver-control philosophy
+## 11. Solver kontrol yaklaşımı
 
-Commercial systems expose many controls because they solve a very broad problem class.
+Ticari sistemler çok geniş problem sınıfı çözdükleri için çok sayıda kontrol sunar.
 
-Dyna uses two levels:
+Dyna iki seviye kullanır:
 
 ### Automatic
 
-Elastomer-focused defaults selected by the application.
+Uygulamanın seçtiği elastomer odaklı varsayılanlar.
 
 ### Advanced
 
-Expert control of:
+Uzman kontrolü:
 
 - Full/Modified Newton
-- tangent update behavior
-- maximum iterations
-- convergence tolerances
-- initial/min/max increment
+- tangent update davranışı
+- maksimum iterasyon
+- yakınsama toleransları
+- başlangıç/min/max increment
 - cutback
 - line search
 - predictor
 - linear solver backend
 
-This provides technical depth without making the normal workflow unnecessarily complex.
+Bu yaklaşım normal workflow'u gereksiz karmaşıklaştırmadan teknik derinlik sağlar.
 
 ---
 
-## 12. Linear solution
+## 12. Doğrusal çözüm
 
-The nonlinear FEM solver is project-owned. The low-level sparse system may be solved by replaceable infrastructure:
+Nonlinear FEM solver projeye aittir. Düşük seviyeli seyrek sistem değiştirilebilir altyapıyla çözülebilir:
 
-```text
-K Δu = -R
-```
+`K Δu = -R`
 
 ```text
 ILinearSolver
 ├── Dense/LAPACK
 ├── MUMPS
-├── PARDISO   [future]
-├── PETSc     [future]
-└── Internal  [future]
+├── PARDISO   [gelecek]
+├── PETSc     [gelecek]
+└── Internal  [gelecek]
 ```
 
-Using an external sparse solver does not outsource the FEM physics.
+Harici sparse solver kullanmak FEM fiziğini dışarı devretmek anlamına gelmez.
 
 ---
 
-## 13. Result semantics
+## 13. Sonuç anlamı
 
-Commercial FEM systems compute many constitutive quantities at integration points and then transform/extrapolate them for visualization.
+Ticari FEM sistemleri birçok bünye büyüklüğünü integrasyon noktalarında hesaplar ve görselleştirme için dönüştürür/ekstrapole eder.
 
-Dyna makes that distinction explicit:
+Dyna bu ayrımı açık yapar:
 
 ```text
 ResultDatabase
@@ -325,15 +313,13 @@ ResultDatabase
 └── GlobalHistories
 ```
 
-The application records how a display field was derived.
+Uygulama görüntüleme alanının nasıl türetildiğini kaydeder.
 
 ---
 
-## 14. Gauss-point inspection
+## 14. Gauss-point inceleme
 
-Direct integration-point access is a V1.0 requirement.
-
-Example:
+Doğrudan integrasyon noktası erişimi V1.0 gereksinimidir.
 
 ```text
 Element 1042
@@ -349,13 +335,13 @@ p
 state variables
 ```
 
-This supports constitutive debugging, verification and investigation of critical high-strain rubber regions.
+Bu özellik bünye debug/doğrulama ve kritik yüksek şekil değiştirmeli kauçuk bölgelerinin incelenmesini destekler.
 
 ---
 
-## 15. Elastomer-specific result priorities
+## 15. Elastomere özgü sonuç öncelikleri
 
-Dyna emphasizes:
+Dyna şunları öne çıkarır:
 
 - principal stretches
 - shear measures
@@ -367,13 +353,13 @@ Dyna emphasizes:
 - force-displacement
 - tangent/secant stiffness
 
-Generic quantities may still be available, but the product is optimized around elastomer engineering interpretation.
+Genel sonuçlar bulunabilir; ancak ürün elastomer mühendisliği yorumuna göre optimize edilir.
 
 ---
 
-## 16. Result tools
+## 16. Sonuç araçları
 
-Target V1.0 tools:
+V1.0 hedefleri:
 
 - contour
 - result scoping
@@ -386,106 +372,104 @@ Target V1.0 tools:
 - reaction force/torque
 - derived results
 - CSV export
-- engineering report
+- mühendislik raporu
 
-A future deformed-profile DXF export may be added for geometry comparison/design workflows.
+Gelecekte deforme profil DXF export eklenebilir.
 
 ---
 
-## 17. Experiment ↔ simulation validation
+## 17. Deney ↔ simülasyon doğrulaması
 
-This is one of the principal Dyna differentiators.
+Bu, Dyna'nın temel farklılaştırıcılarından biridir.
 
 ```text
 FEA Torque-Angle / Force-Displacement
                 +
-Physical Product Test
+Fiziksel Ürün Testi
                 ↓
 Overlay / Alignment
                 ↓
-Error Metrics
+Hata Metrikleri
                 ↓
-Validation Record
+Doğrulama Kaydı
 ```
 
-Target metrics:
+Hedef metrikler:
 
 - RMSE
-- maximum absolute error
-- mean error
-- relative error
-- stiffness error
-- comparison validity range
+- maksimum mutlak hata
+- ortalama hata
+- bağıl hata
+- rijitlik hatası
+- karşılaştırma geçerlilik aralığı
 
-This creates a closed chain from material test data to product validation.
+Bu yapı malzeme test verisinden ürün doğrulamasına kapalı bir zincir oluşturur.
 
 ---
 
-## 18. What Dyna intentionally does not copy
+## 18. Dyna'nın bilinçli olarak kopyalamadığı alanlar
 
-The initial product does not target:
+İlk ürün şu alanları hedeflemez:
 
-- broad internal CAD
+- geniş dahili CAD
 - CFD
-- electromagnetics
-- general multiphysics
-- large metal-plasticity catalog
-- general beam/shell catalog
+- elektromanyetik
+- genel multiphysics
+- geniş metal plastisite kataloğu
+- genel beam/shell kataloğu
 - topology optimization
-- broad 3D contact capability in the first release
+- ilk sürümde geniş 3D contact yeteneği
 
-These omissions are strategic, not missing architecture.
+Bunlar eksik mimari değil stratejik kapsam dışı kararlardır.
 
 ---
 
-## 19. Architectural conclusion
+## 19. Mimari sonuç
 
-ANSYS contributes valuable reference patterns for engineering-data management, preprocessing, meshing, solver controls and postprocessing breadth.
+ANSYS; engineering-data yönetimi, preprocessing, mesh, solver controls ve postprocessing genişliği için değerli referans sağlar.
 
-Marc is an especially important benchmark for nonlinear elastomer behavior, material extensibility, incompressibility and robust nonlinear solution workflows.
+Marc; nonlinear elastomer davranışı, malzeme genişletilebilirliği, sıkıştırılamazlık ve sağlam nonlinear çözüm workflow'ları için özellikle önemli benchmark'tır.
 
-DynaElastomerSolver adopts the relevant engineering principles while maintaining a narrower product identity:
+DynaElastomerSolver ilgili mühendislik ilkelerini benimser ancak daha dar ürün kimliğini korur:
 
 ```text
-Material Characterization
+Malzeme Karakterizasyonu
         ↓
-Calibration
+Kalibrasyon
         ↓
-Validated Constitutive Model
+Doğrulanmış Bünye Modeli
         ↓
-2D / Axisymmetric / Torsion FEM
+2D / Eksenel Simetrik / Burulma FEM
         ↓
-Transparent Nonlinear Solution
+Şeffaf Doğrusal Olmayan Çözüm
         ↓
-Raw + Engineering Results
+Ham + Mühendislik Sonuçları
         ↓
-Physical Test Validation
+Fiziksel Test Doğrulaması
 ```
 
 ---
 
-## 20. Reference documentation
-
-Official/reference sources used during architecture study include:
+## 20. Referans dokümantasyon
 
 ### ANSYS
 
-- ANSYS Mechanical / Engineering Data documentation
-- ANSYS hyperelastic material and curve-fitting documentation
-- ANSYS PLANE182 element documentation
-- ANSYS nonlinear Static Structural / solver-control documentation
-- ANSYS Mechanical result/postprocessing documentation
+- ANSYS Mechanical / Engineering Data dokümantasyonu
+- ANSYS hyperelastic material ve curve-fitting dokümantasyonu
+- ANSYS PLANE182 eleman dokümantasyonu
+- ANSYS nonlinear Static Structural / solver-control dokümantasyonu
+- ANSYS Mechanical result/postprocessing dokümantasyonu
 
-Primary documentation domain: `https://ansyshelp.ansys.com/`
+Ana dokümantasyon alanı: `https://ansyshelp.ansys.com/`
 
 ### Hexagon Marc
 
-- Hexagon Marc product/release information
-- Hexagon Nexus Marc documentation/community technical discussions on materials, incompressibility, user materials, nonlinear solution and postprocessing
+- Hexagon Marc ürün/release bilgileri
+- Hexagon Nexus Marc dokümantasyonu ve material, incompressibility, user material, nonlinear solution ve postprocessing teknik tartışmaları
 
-Primary product/community domains:
+Ana ürün/topluluk alanları:
 
 - `https://nexus.hexagon.com/home/product/marc/`
 - `https://nexus.hexagon.com/community/public/marc/`
 
-This benchmark document records architectural conclusions, not a compatibility certification against either commercial solver.
+Bu benchmark dokümanı mimari sonuçları kaydeder; ANSYS veya Marc ile uyumluluk sertifikası değildir.

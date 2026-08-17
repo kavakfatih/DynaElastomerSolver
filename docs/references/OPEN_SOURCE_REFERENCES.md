@@ -1,128 +1,69 @@
-# DynaElastomerSolver — Open Source Reference Registry
+# DynaElastomerSolver — Açık Kaynak Referans Kaydı
 
-This is a living registry of open-source projects studied, referenced or potentially used through adapters during DynaElastomerSolver development.
+Bu belge, DynaElastomerSolver geliştirilirken incelenen veya adaptörler üzerinden kullanılması değerlendirilen açık kaynak projelerin yaşayan kaydıdır.
 
-> Rule: an external project's data model must never become the canonical DynaElastomerSolver data model.
+> Kural: Harici bir projenin veri modeli hiçbir zaman DynaElastomerSolver'ın kanonik veri modeli haline gelemez.
 
 ## 1. FEBio
 
 - Repository: https://github.com/febiosoftware/FEBio
-- Website: https://febio.org/
-- License: MIT
-- Primary language: C++
-- Role for this project: nonlinear FEM and constitutive-material architecture reference
-- Priority: very high
+- Web: https://febio.org/
+- Lisans: MIT
+- Dil: C++
+- Rol: nonlinear FEM ve bünye malzeme mimarisi referansı
+- Öncelik: çok yüksek
 
-Topics to inspect:
-
-- material base classes
-- hyperelastic model organization
-- material-point state
-- stress / consistent-tangent contract
-- nearly-incompressible material strategy
-- tangent diagnostics
-- regression and verification workflow
-
-DynaElastomerSolver interpretation:
+İncelenecek başlıklar: material base class yapısı, hyperelastic model organizasyonu, MaterialPoint state, stress/consistent tangent sözleşmesi, yaklaşık sıkıştırılamazlık stratejisi ve regression/doğrulama yaklaşımı.
 
 ```text
-FEBio Material Point concept
-          ↓
-DynaElastomer MaterialPointState
-          ↓
+FEBio Material Point
+        ↓
+Dyna MaterialPointState
+        ↓
 MaterialResponse
 ```
 
 ## 2. FEBio Studio
 
 - Repository: https://github.com/febiosoftware/FEBioStudio
-- Website: https://febio.org/
-- License: MIT
-- Primary language: C++
-- Role: pre/postprocessing workflow reference
-- Priority: medium-high
+- Lisans: MIT
+- Dil: C++
+- Rol: pre/postprocessing ve model iş akışı referansı
+- Öncelik: orta-yüksek
 
-Focus areas:
-
-- model tree organization
-- material assignment
-- mesh/result separation
-- job management
-- model validation
-- import/export boundaries
-
-The goal is not to copy the UI; it is to study analysis workflow separation.
+Model tree, malzeme atama, mesh/result ayrımı, job yönetimi ve model doğrulama incelenir. Amaç UI'yi kopyalamak değil analiz iş akışını anlamaktır.
 
 ## 3. TFEL / MFront
 
 - Repository: https://github.com/thelfer/tfel
-- Documentation: https://thelfer.github.io/tfel/
-- License: GPL / CeCILL-A family with project-specific linking provisions that must be rechecked before integration
-- Primary language: C++
-- Role: solver-independent material-behaviour architecture
-- Priority: very high
+- Dokümantasyon: https://thelfer.github.io/tfel/
+- Lisans: GPL / CeCILL-A ailesi; entegrasyon öncesi kesin şartlar tekrar kontrol edilmelidir
+- Dil: C++
+- Rol: solver-independent material behaviour mimarisi
+- Öncelik: çok yüksek
 
-Key idea:
+Ana ilke: **Malzeme bilgisi onu kullanan solver'dan bağımsız olmalıdır.**
 
-**Material knowledge should be independent of the solver that consumes it.**
-
-Topics to inspect:
-
-- material behaviour definition
-- material-point testing / MTest concepts
-- external solver interfaces
-- parameter metadata
-- finite-strain behaviour integration
-- behaviour verification
-
-DynaElastomerSolver target:
-
-```text
-Material Core
-├── FEM
-├── Calibration
-├── Material Point Tests
-└── Future Solver Adapters
-```
+İncelenecek başlıklar: material behaviour tanımı, MTest/material-point testing, harici solver arayüzleri, parametre metadatası, finite-strain entegrasyonu ve doğrulama.
 
 ## 4. CalculiX
 
 - Repository: https://github.com/Dhondtguido/CalculiX
-- Website: https://www.calculix.de/
-- License: GPL-2.0
-- Primary implementation: Fortran-heavy with C components
-- Role: real-world Fortran FEM architecture and external sparse-solver integration reference
-- Priority: very high
+- Web: https://www.calculix.de/
+- Lisans: GPL-2.0
+- Uygulama: Fortran ağırlıklı, C bileşenleri
+- Rol: gerçek dünya Fortran FEM ve harici sparse-solver entegrasyon referansı
+- Öncelik: çok yüksek
 
-Topics to inspect:
-
-- Fortran FEM organization
-- element routines
-- global assembly
-- nonlinear solution flow
-- external sparse solver interfaces
-- input-model to solver-model transformation
-
-Policy: primarily an architectural/algorithmic reference. Direct code reuse must respect GPL implications.
+Fortran FEM organizasyonu, element rutinleri, global assembly, nonlinear solution flow ve sparse solver arayüzleri incelenir. Doğrudan kod kullanımı GPL etkileri nedeniyle ayrı değerlendirilmelidir.
 
 ## 5. OpenRadioss
 
 - Repository: https://github.com/OpenRadioss/OpenRadioss
-- Website: https://www.openradioss.org/
-- License: AGPL-3.0
-- Role: industrial nonlinear solver workflow, Starter/Engine separation and material-curve input
-- Priority: high
-
-Topics to inspect:
-
-- Starter → Engine architecture
-- model precheck
-- experimental material curves
-- direct-parameter vs curve-based material definition
-- industrial verification practices
-- compiler/build strategy
-
-DynaElastomerSolver interpretation:
+- Web: https://www.openradioss.org/
+- Lisans: AGPL-3.0
+- Rol: endüstriyel nonlinear solver iş akışı, Starter/Engine ayrımı ve material-curve input
+- Öncelik: yüksek
 
 ```text
 AnalysisModel
@@ -137,32 +78,22 @@ Nonlinear Engine
 ## 6. FEniCSx / DOLFINx
 
 - Repository: https://github.com/FEniCS/dolfinx
-- Website: https://fenicsproject.org/
-- License: LGPL-3.0-or-later
-- Primary languages: C++ + Python
-- Role: mathematical and variational FEM reference / independent verification environment
-- Priority: high for verification, low as a production dependency
+- Web: https://fenicsproject.org/
+- Lisans: LGPL-3.0-or-later
+- Diller: C++ + Python
+- Rol: matematiksel/varyasyonel FEM referansı ve bağımsız doğrulama ortamı
+- Öncelik: doğrulama için yüksek, üretim bağımlılığı olarak düşük
 
-Topics to inspect:
-
-- hyperelastic potential-energy formulation
-- residual and Jacobian construction
-- automatic differentiation
-- mixed function spaces
-- reference benchmark generation
-
-Planned use: independent verification of new formulations rather than as the core DynaElastomerSolver runtime.
+Hyperelastic potential-energy, residual/Jacobian, automatic differentiation ve mixed function spaces yeni formulasyonların doğrulanmasında referans olacaktır.
 
 ## 7. Gmsh
 
-- Website: https://gmsh.info/
-- Official development repository: https://gitlab.onelab.info/gmsh/gmsh
-- License: GPL v2 or later; commercial licensing is also offered for incompatible distribution scenarios
-- Role: initial mesh provider
-- Platforms: Windows, Linux, macOS Intel and macOS ARM
-- Priority: high
-
-Integration rule:
+- Web: https://gmsh.info/
+- Repository: https://gitlab.onelab.info/gmsh/gmsh
+- Lisans: GPL v2+; ayrıca commercial licensing seçeneği
+- Rol: ilk mesh sağlayıcısı
+- Platformlar: Windows, Linux, macOS Intel ve macOS ARM
+- Öncelik: yüksek
 
 ```text
 AnalysisGeometry
@@ -172,42 +103,28 @@ GmshMeshProvider
 InternalMesh
 ```
 
-The Fortran FEM core never sees Gmsh-native types.
+Fortran FEM çekirdeği Gmsh native tiplerini görmez.
 
 ## 8. MUMPS
 
-- Project: MUltifrontal Massively Parallel sparse direct Solver
-- Website: https://mumps-solver.org/
-- Download: https://mumps-solver.org/index.php?page=dwnld
-- License: CeCILL-C
-- Role: initial production sparse linear solver candidate
-- Priority: high
+- Web: https://mumps-solver.org/
+- Lisans: CeCILL-C
+- Rol: ilk üretim sparse linear solver adayı
+- Öncelik: yüksek
 
-Scope boundary:
-
-MUMPS solves the assembled algebraic system such as:
+MUMPS yalnız kurulmuş cebirsel sistemi çözer:
 
 `K Δu = -R`
 
-It does not own material physics, FEM formulation, assembly or Newton-Raphson logic.
-
-```text
-ILinearSolver
-├── Dense/LAPACK
-├── MUMPS
-├── future PETSc/PARDISO
-└── future internal solver
-```
+Malzeme fiziği, FEM formulasyonu, assembly ve Newton-Raphson mantığı Dyna'ya aittir.
 
 ## 9. DIME
 
 - Repository: https://github.com/coin3d/dime
-- License: BSD-3-Clause
-- Language: C++
-- Role: free DXF parser/import-adapter candidate
-- Priority: medium-high
-
-Potential integration:
+- Lisans: BSD-3-Clause
+- Dil: C++
+- Rol: DXF parser/import-adapter adayı
+- Öncelik: orta-yüksek
 
 ```text
 DIME
@@ -217,78 +134,58 @@ DimeDxfAdapter
 AnalysisGeometry
 ```
 
-DIME data structures must not escape the adapter boundary.
+DIME veri yapıları adaptör sınırı dışına çıkmaz.
 
 ## 10. Clipper2
 
 - Repository: https://github.com/AngusJohnson/Clipper2
-- License: Boost Software License 1.0
-- Languages: C++, C#, Delphi
-- Role: optional 2D polygon/topology/healing helper
-- Priority: conditional
+- Lisans: Boost Software License 1.0
+- Diller: C++, C#, Delphi
+- Rol: isteğe bağlı 2D polygon/topoloji/iyileştirme yardımcısı
+- Öncelik: koşullu
 
-Potential uses:
+Polygon intersection, union/difference ve offset işlemleri için değerlendirilebilir; ana mesher değildir.
 
-- polygon intersection
-- union/difference
-- offset operations
+## 11. Kullanım sınıflandırması
 
-It is not selected as the main mesher.
+### Mimari referanslar
+FEBio, FEBio Studio, TFEL/MFront, CalculiX, OpenRadioss, FEniCSx.
 
-## 11. Usage classification
+### Runtime adaptörleri
+Gmsh, MUMPS, seçilirse DIME ve gerektiğinde Clipper2.
 
-### Architectural references
+### Bağımsız doğrulama ortamları
+FEniCSx, FEBio, CalculiX ve mevcut olduğunda ANSYS / Hexagon Marc benchmark'ları.
 
-- FEBio
-- FEBio Studio
-- TFEL/MFront
-- CalculiX
-- OpenRadioss
-- FEniCSx
+## 12. Lisans politikası
 
-### Runtime through adapters
-
-- Gmsh
-- MUMPS
-- DIME, if selected
-- Clipper2, only where required
-
-### Independent verification environments
-
-- FEniCSx
-- FEBio
-- CalculiX
-- commercial ANSYS / Hexagon Marc benchmarks where available
-
-## 12. License policy
-
-| Project | License | Default project policy |
+| Proje | Lisans | Proje yaklaşımı |
 |---|---|---|
-| FEBio | MIT | architectural reference; reuse may be evaluated |
-| FEBio Studio | MIT | workflow reference |
-| TFEL/MFront | GPL/CeCILL-related | architecture reference; integration requires license review |
-| CalculiX | GPL-2.0 | reference; avoid casual code copying into incompatible distribution |
-| OpenRadioss | AGPL-3.0 | reference |
-| DOLFINx | LGPL-3.0-or-later | verification/reference |
-| Gmsh | GPL-2+ / commercial option | adapter; distribution model must be reviewed |
-| MUMPS | CeCILL-C | adapter; license review before distribution |
-| DIME | BSD-3-Clause | strong DXF-adapter candidate |
-| Clipper2 | Boost-1.0 | optional geometry utility candidate |
+| FEBio | MIT | mimari referans; yeniden kullanım değerlendirilebilir |
+| FEBio Studio | MIT | workflow referansı |
+| TFEL/MFront | GPL/CeCILL ilişkili | entegrasyon lisans incelemesi gerektirir |
+| CalculiX | GPL-2.0 | referans; uyumsuz dağıtımda doğrudan kod kopyalanmaz |
+| OpenRadioss | AGPL-3.0 | referans |
+| DOLFINx | LGPL-3.0-or-later | doğrulama/referans |
+| Gmsh | GPL-2+ / commercial | adaptör; dağıtım modeli ayrıca incelenir |
+| MUMPS | CeCILL-C | adaptör; dağıtım öncesi lisans kontrolü |
+| DIME | BSD-3-Clause | güçlü DXF adaptör adayı |
+| Clipper2 | Boost-1.0 | isteğe bağlı geometri yardımcısı |
 
-This table is a technical project record, not legal advice. Licenses must be rechecked for the exact version and integration/distribution method before release.
+Bu tablo teknik proje kaydıdır, hukuki görüş değildir. Yayın öncesi tam sürüm ve entegrasyon/dağıtım yöntemi için lisanslar yeniden kontrol edilmelidir.
 
-## 13. Review priority
+## 13. İnceleme önceliği
 
 1. FEBio — MaterialPoint, hyperelasticity, tangent/state
-2. TFEL/MFront — solver-independent material architecture
-3. CalculiX — Fortran FEM and sparse-solver integration
-4. OpenRadioss — material curves and analysis precheck
-5. FEniCSx — mathematical verification
+2. TFEL/MFront — solver-independent material mimarisi
+3. CalculiX — Fortran FEM ve sparse-solver entegrasyonu
+4. OpenRadioss — material curve ve analysis precheck
+5. FEniCSx — matematiksel doğrulama
 6. DIME — DXF import
-7. Gmsh — mesh adapter
-8. MUMPS — linear-solver adapter
-9. Clipper2 — geometry utilities if needed
+7. Gmsh — mesh adaptörü
+8. MUMPS — linear-solver adaptörü
+9. Clipper2 — gerektiğinde geometri yardımcıları
 
-## 14. Project principle
+## 14. Proje ilkesi
 
-DynaElastomerSolver may learn from open-source projects and use appropriately licensed components, but its scientific data model, constitutive models, calibration system, FEM formulations and nonlinear solution architecture remain project-owned and implementation-independent.
+DynaElastomerSolver açık kaynak projelerden öğrenebilir ve uygun lisanslı bileşenleri kullanabilir; ancak bilimsel veri modeli, bünye modelleri, kalibrasyon sistemi, FEM formulasyonları ve doğrusal olmayan çözüm mimarisi projeye ait ve uygulamadan bağımsız kalır.
