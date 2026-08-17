@@ -78,3 +78,9 @@ des_add_fortran_test(
   solver.q4.plane_strain.displacement_control
   test_q4_solver_api.f90
 )
+
+des_add_fortran_test(
+  test_q4_nonlinear_patch
+  fem.q4.plane_strain.nonlinear_patch
+  test_q4_nonlinear_patch.f90
+)
