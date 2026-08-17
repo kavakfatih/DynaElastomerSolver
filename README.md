@@ -45,9 +45,9 @@ Global Assembly
    ↓
 Full Newton
    ↓
-Dense/LAPACK
+Dense Solver
    ↓
-Analitik + Bağımsız Solver Benchmark
+Analitik + Mesh/Patch Benchmark
 ```
 
 Bu zincir doğrulanmadan geniş material library, kapsamlı calibration, binary plugin sistemi, tam UI veya çoklu Quasi-Newton implementasyonları öncelik değildir.
@@ -76,12 +76,12 @@ Hedef mimari geniştir ancak implementasyon ihtiyaç kanıtlandıkça açılır.
 Full Newton
 + consistent tangent
 + increment stepping
-+ cutback / retry
-+ trial / commit / revert
 + convergence diagnostics
 ```
 
-Daha sonra gerçek benchmark ihtiyacına göre:
+Çalışan minimal solver API bu temel yolu gerçekleştirmektedir. Cutback/retry, trial/commit/revert ve line search bir sonraki robustness dalgasında, gerçek benchmark ihtiyacına göre eklenecektir.
+
+Daha sonra gerekirse:
 
 - line search
 - Modified Newton
@@ -182,40 +182,51 @@ Ham integration-point sonuçları, ekstrapole/ortalama alınmış display sonuç
 
 ## Mevcut durum
 
-V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2'nin ilk Q4 plane-strain dikey dilimine geçildi.
+V0.1 Material Core'un temel bilimsel zinciri çalışıyor ve V0.2'nin ilk nonlinear plane-strain FEM dikey dilimi gerçek kodla doğrulandı.
 
 Şu anda çalışan temel parçalar:
 
 - CMake tabanlı Modern Fortran çekirdeği
-- `des_kinds` precision tanımları
-- `des_status` açık durum/hata kodları
-- `des_tensor3` determinant / inverse / identity yardımcıları
-- `des_finite_strain` Cauchy-Green ve invariant yardımcıları
+- precision ve açık status/error kodları
+- 3×3 tensör ve finite-strain/invariant yardımcıları
 - `material_kinematics_t` / `material_response_t`
-- sıkıştırılabilir Neo-Hookean enerji modeli
-- First Piola-Kirchhoff gerilmesi
-- Cauchy gerilmesi
-- analitik `dP/dF` consistent material tangent
-- parametre, singular `F` ve non-positive `J` doğrulaması
+- sıkıştırılabilir Neo-Hookean enerji, First Piola-Kirchhoff, Cauchy ve analitik `dP/dF` tangent
+- parametre, singular `F` ve non-positive `J` tanıları
 - Q4 shape function ve 2×2 Gauss integrasyonu
-- Total-Lagrangian Q4 plane-strain iç residual hesabı
-- Q4 consistent element tangent
-- test içinde incremental Full Newton çözümü
-- prescribed extension altında reaksiyon kuvveti hesabı
+- Total-Lagrangian Q4 plane-strain residual ve consistent element tangent
+- çok elemanlı Q4 global assembly
+- pivotlamalı dense lineer çözücü
+- displacement-control incremental Full Newton solver API
+- `newton_report_t` ile increment/iteration/residual/min-J raporu
+- material-point hata nedeninin element ve global katmanlara korunarak aktarılması
 
-Mevcut CTest paketi sekiz testi kapsar:
+Mevcut CTest paketi **12 testi** kapsar. Başlıca doğrulamalar:
 
-1. 3×3 tensor yardımcıları
-2. finite-strain kinematik/invariant hesabı
-3. Neo-Hookean analitik referans state'leri
-4. parametre ve kinematik hata sınıflandırması
-5. analitik material tangent / merkezi finite-difference karşılaştırması
-6. Q4 partition-of-unity ve shape derivative kontrolleri
-7. Q4 element residual/tangent finite-difference doğrulaması
-8. beş increment'li Q4 Full Newton benchmark'ı
+1. tensör ve finite-strain yardımcıları
+2. Neo-Hookean analitik referans state'leri
+3. parametre ve kinematik hata sınıflandırması
+4. analitik material tangent / merkezi finite-difference karşılaştırması
+5. Q4 shape function kontrolleri
+6. Q4 element residual/tangent finite-difference doğrulaması
+7. tek eleman incremental Full Newton benchmark'ı
+8. dense lineer çözücü doğrulaması
+9. iki elemanlı global assembly + Full Newton benchmark'ı
+10. reusable Full Newton solver API benchmark'ı
+11. distorsiyonlu 2×2 nonlinear Q4 patch testi
 
-Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. Q4 element tangent kontrolü yaklaşık `1.16e-9` normalize hata vermiştir. Incremental Newton benchmark'ında `lambda_x=1.25` için çözülen lateral stretch yaklaşık `lambda_y=0.831469` olmuş ve FE reaksiyonu bağımsız homojen plane-strain referansıyla sayısal tolerans içinde eşleşmiştir.
+Yerel GNU Fortran doğrulamasında testlerin tamamı geçmektedir. Öne çıkan sayısal sonuçlar:
+
+- Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
+- iki elemanlı reaksiyon referans hatası: yaklaşık `1.0e-15`
+- solver API final free residual normu: yaklaşık `5.4e-15`
+- distorsiyonlu nonlinear patch merkez displacement hatası: yaklaşık `3.9e-17`
+- patch global kuvvet toplamları: makine hassasiyeti seviyesinde
 
 macOS gfortran ile Windows ifx/gfortran derleyici matrisi ayrıca doğrulanacaktır.
 
-Sıradaki bilimsel hedef: test içindeki Newton döngüsünü hemen büyük bir solver mimarisine dönüştürmeden önce **çok elemanlı global assembly + sınır şartı eliminasyonu + dense doğrusal çözüm** zincirini kurmak; ardından ilk mesh/patch benchmark'ını çalıştırmaktır.
+Sıradaki bilimsel hedefler:
+
+1. V0.2 için mesh refinement ve ek patch/robustness benchmark'ları
+2. fixed-step Newton başarısızlıklarının açık tanıları ve minimal retry/cutback davranışı
+3. macOS/Windows compiler doğrulaması
+4. ardından V0.3 nearly-incompressible formulation bake-off: displacement-only Q4 vs mixed `u-p` vs F-bar adayı
