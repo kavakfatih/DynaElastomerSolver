@@ -9,4 +9,5 @@ module des_status
   integer, parameter, public :: DES_ERROR_NONPOSITIVE_J = -102
   integer, parameter, public :: DES_ERROR_INVALID_ELEMENT_JACOBIAN = -200
   integer, parameter, public :: DES_ERROR_MATERIAL_POINT = -201
+  integer, parameter, public :: DES_ERROR_INVALID_CONNECTIVITY = -202
 end module des_status
