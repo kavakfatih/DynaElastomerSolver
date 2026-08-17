@@ -1,43 +1,43 @@
-# DynaElastomerSolver — Material Core Architecture v1.1
+# DynaElastomerSolver — Material Core Mimarisi v1.1
 
-**Revision:** ANSYS / Marc / FEBio / MFront benchmark alignment  
-**Status:** Accepted
+**Revizyon:** ANSYS / Marc / FEBio / MFront benchmark uyumu  
+**Durum:** Kabul edildi
 
-## 1. Goal
+## 1. Amaç
 
-The Material Core is a solver-independent constitutive science layer. FEM, calibration, material-point verification and future external-solver adapters use the same canonical implementation.
+Material Core, çözücüden bağımsız bünye bilimi katmanıdır. FEM, kalibrasyon, material-point doğrulaması ve gelecekteki harici çözücü adaptörleri aynı kanonik uygulamayı kullanır.
 
 ```text
                     Material Core
                          │
        ┌─────────────────┼─────────────────┐
        │                 │                 │
- Calibration        FEM Solver       Point Tests
+ Kalibrasyon        FEM Solver       Point Testleri
        │                 │                 │
        └─────────────────┼─────────────────┘
                          │
-                Future Solver Export
+             Gelecekte Harici Solver Export
 ```
 
-A physical material record and a mathematical constitutive fit are separate objects.
+Fiziksel malzeme kaydı ile matematiksel bünye uyumu birbirinden ayrı nesnelerdir.
 
-## 2. Core types
+## 2. Temel tipler
 
 ```text
-material_model_t                 abstract
-hyperelastic_model_t            abstract
-material_definition_t           physical material record
-material_parameter_set_t        constitutive parameters
-material_kinematics_t           F, J and derived quantities
-material_point_state_t          integration-point state
-material_response_t             energy/stress/tangent/state response
-material_validation_t           verification metadata
-material_provenance_t           source and calibration traceability
+material_model_t                 soyut
+hyperelastic_model_t            soyut
+material_definition_t           fiziksel malzeme kaydı
+material_parameter_set_t        bünye parametreleri
+material_kinematics_t           F, J ve türetilmiş büyüklükler
+material_point_state_t          integrasyon noktası durumu
+material_response_t             enerji/gerilme/tanjant/state cevabı
+material_validation_t           doğrulama metadatası
+material_provenance_t           kaynak ve kalibrasyon izlenebilirliği
 ```
 
-## 3. Material model contract
+## 3. Malzeme modeli sözleşmesi
 
-Illustrative Modern Fortran contract:
+Örnek Modern Fortran sözleşmesi:
 
 ```fortran
 type, abstract :: material_model_t
@@ -53,7 +53,7 @@ contains
 end type hyperelastic_model_t
 ```
 
-Target V1.0 hyperelastic family:
+V1.0 hedef hiperelastik ailesi:
 
 ```text
 hyperelastic_model_t
@@ -68,9 +68,9 @@ hyperelastic_model_t
 └── gent_t
 ```
 
-## 4. Material kinematics
+## 4. Malzeme kinematiği
 
-The constitutive model never depends on a specific FEM element.
+Bünye modeli hiçbir zaman belirli bir FEM elemanına bağımlı değildir.
 
 ```text
 material_kinematics_t
@@ -79,13 +79,13 @@ material_kinematics_t
 ├── C(3,3)
 ├── B(3,3)
 ├── principal_stretches
-├── optional time increment
-└── optional temperature fields
+├── isteğe bağlı zaman artımı
+└── isteğe bağlı sıcaklık alanları
 ```
 
-The caller may be FEM, calibration, a point-test driver or an external adapter.
+Çağıran taraf FEM, kalibrasyon, point-test sürücüsü veya harici adaptör olabilir.
 
-## 5. Material response
+## 5. Malzeme cevabı
 
 ```text
 material_response_t
@@ -93,13 +93,13 @@ material_response_t
 ├── first_piola_stress P
 ├── cauchy_stress
 ├── consistent_tangent
-├── constitutive pressure quantities where applicable
+├── uygun olduğunda bünye basınç büyüklükleri
 ├── J
-├── updated trial-state data
+├── güncellenmiş trial-state verisi
 └── status
 ```
 
-Hyperelastic foundation:
+Hiperelastik temel:
 
 `W = W(F)`
 
@@ -107,9 +107,9 @@ Hyperelastic foundation:
 
 `A = ∂P / ∂F`
 
-The exact canonical tangent representation is fixed by the Material Core API and documented independently from any external solver convention.
+Kanonik tanjant gösteriminin kesin biçimi Material Core API tarafından belirlenir ve harici çözücü kurallarından bağımsız olarak belgelenir.
 
-## 6. Material-point state
+## 6. Material-point durumu
 
 ```text
 material_point_state_t
@@ -118,25 +118,25 @@ material_point_state_t
 └── history variables
 ```
 
-Iteration policy:
+İterasyon politikası:
 
 ```text
 Committed
    ↓
 Trial
    ↓
-Newton iterations
+Newton iterasyonları
  ┌─┴──────────┐
- fail      converge
+ başarısız   yakınsadı
   │             │
 revert        commit
 ```
 
-History storage exists from the first release even when basic hyperelastic models are stateless. This enables later viscoelasticity, Mullins effect, hysteresis and damage without breaking the material API.
+İlk hiperelastik modeller state bağımsız olsa bile history depolama ilk sürümden itibaren bulunur. Böylece daha sonra viskoelastisite, Mullins etkisi, histerezis ve hasar eklenirken material API bozulmaz.
 
-## 7. Constitutive law is not the incompressibility strategy
+## 7. Bünye yasası sıkıştırılamazlık stratejisi değildir
 
-This separation is mandatory.
+Bu ayrım zorunludur.
 
 ```text
 Constitutive Law
@@ -148,15 +148,15 @@ IIncompressibilityStrategy
 Element Formulation
 ```
 
-A Yeoh, Ogden or other constitutive class does not decide whether the FE formulation uses mixed `u-p`, a volumetric penalty, or another constraint method.
+Yeoh, Ogden veya başka bir bünye sınıfı; FE formulasyonunun karma `u-p`, volumetric penalty veya başka bir kısıt yöntemi kullanıp kullanmayacağına karar vermez.
 
-Conceptually:
+Kavramsal olarak:
 
 `W = W_iso(F_bar) + W_vol(J)`
 
-but FE enforcement is owned by the formulation/constraint layer.
+ancak FE uygulama yöntemi formulasyon/kısıt katmanının sorumluluğundadır.
 
-Target strategies:
+Hedef stratejiler:
 
 ```text
 IIncompressibilityStrategy
@@ -165,9 +165,9 @@ IIncompressibilityStrategy
 └── MixedUP
 ```
 
-## 8. Native material-plugin architecture
+## 8. Native material-plugin mimarisi
 
-DynaElastomerSolver supports extensibility without modifying FEM.
+DynaElastomerSolver FEM değiştirilmeden genişletilebilirliği destekler.
 
 ```text
 Material Core
@@ -176,7 +176,7 @@ Material Core
 └── External Material Adapter
 ```
 
-Canonical plugin call:
+Kanonik plugin çağrısı:
 
 ```text
 evaluate(kinematics, trial_state, parameters)
@@ -184,24 +184,24 @@ evaluate(kinematics, trial_state, parameters)
 MaterialResponse
 ```
 
-Required plugin capabilities:
+Gerekli plugin yetenekleri:
 
-- stable model identifier/version
-- parameter metadata
-- parameter validation
-- material response evaluation
-- state initialization
-- trial/commit/revert support when stateful
-- error/status reporting
-- tangent declaration/availability
+- kararlı model kimliği/sürümü
+- parametre metadatası
+- parametre doğrulama
+- malzeme cevabı değerlendirme
+- state başlatma
+- stateful ise trial/commit/revert desteği
+- hata/status raporlama
+- tanjant bildirimi/uygunluğu
 
-A plugin cannot expose ANSYS-, Marc-, FEBio- or other solver-native parameter conventions directly into the core. External conventions are converted at adapters.
+Bir plugin ANSYS, Marc, FEBio veya başka bir çözücünün native parametre kurallarını doğrudan çekirdeğe taşıyamaz. Harici kurallar adaptörlerde dönüştürülür.
 
-## 9. Parameter metadata
+## 9. Parametre metadatası
 
-Every material model declares a schema shared by UI, calibration, serialization and validation.
+Her malzeme modeli UI, kalibrasyon, serialization ve doğrulama tarafından ortak kullanılan bir şema bildirir.
 
-Example Yeoh:
+Yeoh örneği:
 
 ```text
 Model ID: hyperelastic.yeoh.3
@@ -215,177 +215,177 @@ Capabilities:
 - history = false
 ```
 
-Example Ogden N2:
+Ogden N2 örneği:
 
 ```text
 μ1, α1, μ2, α2
 ```
 
-Metadata also records units/conventions, allowed bounds and model-version information.
+Metadata ayrıca birim/konvansiyon, izin verilen sınırlar ve model sürüm bilgisini içerir.
 
-## 10. Two material creation paths
+## 10. İki malzeme oluşturma yolu
 
 ```text
-Material Creation
+Malzeme Oluşturma
 │
-├── Direct Parameters
+├── Doğrudan Parametreler
 │      ↓
-│  Parameter Validation
+│  Parametre Doğrulama
 │
-└── Experimental Data
+└── Deneysel Veri
        ↓
-   Calibration
+   Kalibrasyon
        ↓
-   Parameter Set
+   Parametre Kümesi
 ```
 
-Both produce the same canonical `material_parameter_set_t`.
+Her iki yol da aynı kanonik `material_parameter_set_t` üretir.
 
-## 11. Experimental datasets
+## 11. Deneysel veri kümeleri
 
-Target dataset families:
+Hedef veri aileleri:
 
-- uniaxial tension
-- compression
-- simple shear
-- planar tension
-- biaxial tension
-- volumetric/compressibility
+- tek eksenli çekme
+- basma
+- basit kayma
+- düzlemsel çekme
+- iki eksenli çekme
+- hacimsel/sıkıştırılabilirlik
 
-Raw test data and processed/calibration-ready data are retained separately where practical so transformations remain traceable.
+Uygun olduğunda ham test verisi ile işlenmiş/kalibrasyona hazır veri ayrı tutulur; böylece dönüşümler izlenebilir kalır.
 
-## 12. Calibration driver
+## 12. Kalibrasyon sürücüsü
 
 ```text
-Experimental Dataset
+Deneysel Veri Kümesi
        ↓
 Test Kinematics Driver
        ↓
 Material Core
        ↓
-Predicted Response
+Tahmin Edilen Cevap
        ↓
 Objective Function
        ↓
 IOptimizer
        ↓
-Parameter Set
+Parametre Kümesi
 ```
 
-Calibration and FEM never maintain duplicate implementations of the same constitutive law.
+Kalibrasyon ile FEM aynı bünye yasasının farklı kopyalarını asla tutmaz.
 
-Model comparison is not based on R² alone. The selection/validation layer may consider:
+Model karşılaştırması yalnız R² üzerinden yapılmaz. Seçim/doğrulama katmanı şunları dikkate alabilir:
 
-- RMSE / residual structure
-- parameter bounds
-- physical admissibility
-- stability checks
-- valid strain range
-- multi-mode consistency
-- extrapolation behavior
-- product-level validation
+- RMSE / residual yapısı
+- parametre sınırları
+- fiziksel kabul edilebilirlik
+- kararlılık kontrolleri
+- geçerli şekil değiştirme aralığı
+- çoklu test modu tutarlılığı
+- ekstrapolasyon davranışı
+- ürün seviyesi doğrulama
 
-## 13. Material-point test driver
+## 13. Material-point test sürücüsü
 
-Every constitutive model can be exercised without a finite-element mesh.
+Her bünye modeli sonlu eleman mesh'i olmadan test edilebilir.
 
 ```text
-Prescribed deformation path
+Tanımlı deformasyon yolu
       ↓
 material_kinematics_t
       ↓
 Material Core
       ↓
-Energy / Stress / Tangent / State
+Enerji / Gerilme / Tanjant / State
 ```
 
-Target point-test paths include:
+Hedef point-test yolları:
 
-- uniaxial
-- equibiaxial
-- planar
-- simple shear
-- volumetric
-- cyclic paths for future stateful models
+- tek eksenli
+- eş iki eksenli
+- düzlemsel
+- basit kayma
+- hacimsel
+- gelecekte stateful modeller için çevrimsel yollar
 
-## 14. Tangent diagnostic
+## 14. Tanjant tanısı
 
-No new material becomes FEM-eligible until its consistent tangent is verified.
+Yeni bir malzeme, consistent tangent doğrulanmadan FEM kullanımına uygun sayılmaz.
 
-Finite-difference reference:
+Sonlu fark referansı:
 
 `A_FD(iJkL) ≈ [P(F + εE_kL) - P(F - εE_kL)] / (2ε)`
 
-Example relative error:
+Örnek bağıl hata:
 
 `e_A = ||A_analytic - A_FD|| / max(1, ||A_FD||)`
 
-Pipeline:
+Zincir:
 
 ```text
-Material implementation
+Malzeme uygulaması
         ↓
-Energy tests
+Enerji testleri
         ↓
-Stress tests
+Gerilme testleri
         ↓
-Tangent diagnostic
+Tanjant tanısı
         ↓
-Material-point tests
+Material-point testleri
         ↓
-FEM eligible
+FEM kullanımına uygun
 ```
 
-The diagnostic remains available as a development/verification tool even after production qualification.
+Tanı aracı üretim yeterliliği sağlandıktan sonra da geliştirme/doğrulama aracı olarak korunur.
 
-## 15. Physical material vs mathematical fit
+## 15. Fiziksel malzeme ve matematiksel uyum
 
 ```text
 material_definition_t
-├── Identity
-│   ├── polymer family
+├── Kimlik
+│   ├── polimer ailesi
 │   ├── compound ID
-│   ├── supplier
+│   ├── tedarikçi
 │   ├── batch / lot
-│   ├── hardness metadata
-│   ├── density metadata
-│   ├── cure condition
-│   └── test/environment metadata
-├── Experimental datasets
-├── Parameter sets
-│   ├── Yeoh fit
-│   ├── Ogden fit
-│   ├── Mooney-Rivlin fit
-│   └── other models
-└── Validation records
+│   ├── sertlik metadatası
+│   ├── yoğunluk metadatası
+│   ├── kür/pişirme koşulu
+│   └── test/ortam metadatası
+├── Deneysel veri kümeleri
+├── Parametre kümeleri
+│   ├── Yeoh uyumu
+│   ├── Ogden uyumu
+│   ├── Mooney-Rivlin uyumu
+│   └── diğer modeller
+└── Doğrulama kayıtları
 ```
 
-Not every identity/traceability field is a solver input; those fields preserve engineering provenance.
+Her kimlik/izlenebilirlik alanı çözücü girdisi değildir; bazı alanlar mühendislik provenance bilgisini korur.
 
-## 16. Provenance
+## 16. Provenance / kaynak izlenebilirliği
 
-Each parameter set records at minimum:
+Her parametre kümesi en az şu bilgileri kaydeder:
 
-- source type
-- source/reference identifier
-- input dataset IDs
-- calibration engine version
-- material-model version
+- kaynak türü
+- kaynak/referans kimliği
+- girdi veri kümesi ID'leri
+- kalibrasyon motoru sürümü
+- malzeme modeli sürümü
 - optimizer
-- objective definition
-- parameter bounds
-- fit metrics
-- calibration date
-- valid strain range
-- test temperature range
-- verification status
-- product-validation links where available
+- objective tanımı
+- parametre sınırları
+- uyum metrikleri
+- kalibrasyon tarihi
+- geçerli şekil değiştirme aralığı
+- test sıcaklığı aralığı
+- doğrulama durumu
+- mevcutsa ürün doğrulama bağlantıları
 
-The system must be able to answer: **Where did this parameter set come from?**
+Sistem şu soruyu cevaplayabilmelidir: **Bu parametre kümesi nereden geldi?**
 
-## 17. Validation status
+## 17. Doğrulama durumu
 
-Suggested states:
+Önerilen durumlar:
 
 ```text
 REFERENCE
@@ -395,27 +395,27 @@ VERIFIED
 PRODUCT_VALIDATED
 ```
 
-A generic literature value remains `REFERENCE`. A compound fitted from controlled experimental data and confirmed through independent/product tests may become `PRODUCT_VALIDATED`.
+Genel bir literatür değeri `REFERENCE` olarak kalır. Kontrollü deneysel veriden uyarlanmış ve bağımsız/ürün testleriyle doğrulanmış bir compound `PRODUCT_VALIDATED` seviyesine çıkabilir.
 
-## 18. Material contribution to AnalysisPrecheck
+## 18. Material Core'un AnalysisPrecheck katkısı
 
-The Material Core reports:
+Material Core şu bilgileri raporlar:
 
-- parameter validity
-- missing required parameters
-- constitutive/formulation compatibility
-- known validity range
-- nearly-incompressible recommendation/requirement
-- temperature-range warning
-- stability-check status
-- calibration/validation status
-- plugin/model version availability
+- parametre geçerliliği
+- eksik zorunlu parametreler
+- bünye/formulasyon uyumluluğu
+- bilinen geçerlilik aralığı
+- yaklaşık sıkıştırılamazlık önerisi/gereksinimi
+- sıcaklık aralığı uyarısı
+- kararlılık kontrol durumu
+- kalibrasyon/doğrulama durumu
+- plugin/model sürümü kullanılabilirliği
 
-The global `AnalysisPrecheck` combines these with geometry, mesh and boundary-condition diagnostics.
+Global `AnalysisPrecheck` bunları geometri, mesh ve sınır şartı tanılarıyla birleştirir.
 
-## 19. Canonical external conversions
+## 19. Kanonik harici dönüşümler
 
-External solver conventions are never canonical.
+Harici çözücü kuralları hiçbir zaman kanonik değildir.
 
 ```text
 ANSYS Material Parameters
@@ -427,31 +427,31 @@ Marc Material Parameters
 Dyna Canonical Parameter Set
 ```
 
-The reverse direction may be provided later for export/user-material integration.
+Ters yön ileride export/user-material entegrasyonu için sağlanabilir.
 
-## 20. Future solver adapters
+## 20. Gelecekteki çözücü adaptörleri
 
 ```text
 DynaElastomer Material Core
 ├── DynaElastomerSolver native
-├── ANSYS adapter          [future]
-├── Marc UMATERIAL adapter [future]
-├── CalculiX adapter       [future]
-└── generic material API   [future]
+├── ANSYS adapter          [gelecek]
+├── Marc UMATERIAL adapter [gelecek]
+├── CalculiX adapter       [gelecek]
+└── generic material API   [gelecek]
 ```
 
-## 21. Initial implementation sequence
+## 21. İlk uygulama sırası
 
 ### MC-0.1
 - `material_kinematics_t`
 - `material_response_t`
 - `material_model_t`
 - `neo_hookean_t`
-- material-point test driver
+- material-point test sürücüsü
 
 ### MC-0.2
-- numerical tangent
-- tangent diagnostic
+- sayısal tanjant
+- tanjant tanısı
 - Mooney-Rivlin
 - Yeoh
 
@@ -459,36 +459,36 @@ DynaElastomer Material Core
 - Ogden N1/N2/N3
 - Arruda-Boyce
 - Gent
-- parameter metadata
-- stability/parameter validation
+- parametre metadatası
+- kararlılık/parametre doğrulama
 
 ### MC-0.4
 - `material_point_state_t`
-- committed/trial/revert infrastructure
-- plugin lifecycle contract
+- committed/trial/revert altyapısı
+- plugin lifecycle sözleşmesi
 
 ### MC-0.5
-- experimental-data integration
-- calibration engine
+- deneysel veri entegrasyonu
+- kalibrasyon motoru
 - provenance
-- validation records
+- doğrulama kayıtları
 
-## 22. Production acceptance rule
+## 22. Üretim kabul kuralı
 
-A constitutive model is not production-ready until it passes the applicable stages:
+Bir bünye modeli aşağıdaki uygun aşamaları geçmeden üretime hazır sayılmaz:
 
-1. parameter validation
-2. analytical energy checks
-3. analytical stress checks
-4. numerical tangent comparison
-5. material-point tests
-6. calibration round-trip tests
-7. single-element FEM tests
-8. mixed/incompressibility compatibility tests
-9. mesh-convergence benchmarks
-10. independent solver comparison
-11. experimental validation where applicable
+1. parametre doğrulama
+2. analitik enerji kontrolleri
+3. analitik gerilme kontrolleri
+4. sayısal tanjant karşılaştırması
+5. material-point testleri
+6. kalibrasyon round-trip testleri
+7. tek eleman FEM testleri
+8. karma/sıkıştırılamazlık uyumluluk testleri
+9. mesh yakınsama benchmark'ları
+10. bağımsız çözücü karşılaştırması
+11. uygun olduğunda deneysel doğrulama
 
-## 23. Principle
+## 23. İlke
 
-> Material knowledge is not embedded in the FEM solver. Calibration, FEM, point testing and future external interfaces share one canonical constitutive implementation, while incompressibility enforcement remains an FE-formulation concern.
+> Malzeme bilgisi FEM çözücüsünün içine gömülmez. Kalibrasyon, FEM, point testleri ve gelecekteki harici arayüzler tek kanonik bünye uygulamasını paylaşır; sıkıştırılamazlığın nasıl uygulandığı ise FE formulasyonunun sorumluluğudur.
