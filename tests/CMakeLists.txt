@@ -54,3 +54,9 @@ des_add_fortran_test(
   fem.q4.plane_strain.element_tangent
   test_q4_plane_strain_element.f90
 )
+
+des_add_fortran_test(
+  test_q4_plane_strain_newton
+  fem.q4.plane_strain.incremental_newton
+  test_q4_plane_strain_newton.f90
+)
