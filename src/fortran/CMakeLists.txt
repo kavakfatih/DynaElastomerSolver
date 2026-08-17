@@ -10,6 +10,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q4_shape.f90
   fem/des_q4_plane_strain_neo_hookean.f90
   fem/des_q4_plane_strain_mesh_neo_hookean.f90
+  solvers/des_linear_solver.f90
   solvers/des_dense_linear.f90
   solvers/des_solution_state.f90
   solvers/des_solver_history.f90
@@ -25,8 +26,8 @@ target_include_directories(DynaElastomerCore PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/modules>"
 )
 
-# stdlib artık Dyna bilimsel çekirdeğinin gerçek bir bağımlılığıdır.
-# İlk somut kullanım des_dense_linear içinde stdlib_linalg::solve yoludur.
+# stdlib Dyna bilimsel çekirdeğinin aktif bağımlılığıdır.
+# Lineer cebir erişimi doğrudan FEM/Newton kodundan değil des_linear_solver sınırından yapılır.
 target_link_libraries(DynaElastomerCore PUBLIC ${DES_STDLIB_TARGET})
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
