@@ -1,36 +1,36 @@
-# DynaElastomerSolver Roadmap
+# DynaElastomerSolver Yol Haritası
 
-**Architecture baseline:** v1.2 — ANSYS / Hexagon Marc benchmark revision
+**Mimari temeli:** v1.2 — ANSYS / Hexagon Marc benchmark revizyonu
 
-Version numbers below are development milestones, not release promises.
+Aşağıdaki sürüm numaraları geliştirme kilometre taşlarıdır; yayın taahhüdü değildir.
 
-## V0.1 — Computational Foundation
+## V0.1 — Hesaplama Temeli
 
-Goal: establish a portable, testable Modern Fortran scientific core before FEM implementation.
+Amaç: FEM uygulamasından önce taşınabilir ve test edilebilir bir Modern Fortran bilimsel çekirdeği oluşturmak.
 
-Deliverables:
+Teslimatlar:
 
-- CMake cross-platform project
-- Fortran 2018 baseline
-- gfortran macOS build
-- ifx Windows build
-- gfortran Windows validation build
-- precision / constants / status modules
-- matrix and tensor utilities
-- deformation-gradient utilities
-- invariants
-- material model abstract interfaces
-- material kinematics / response types
-- Neo-Hookean implementation
-- material-point test driver
-- analytical energy/stress tests
-- numerical tangent checker
+- CMake tabanlı cross-platform proje
+- Fortran 2018 temeli
+- macOS üzerinde gfortran build
+- Windows üzerinde ifx build
+- Windows üzerinde gfortran doğrulama build'i
+- precision / constants / status modülleri
+- matris ve tensör yardımcıları
+- deformasyon gradyanı yardımcıları
+- invariant hesapları
+- malzeme modeli soyut arayüzleri
+- malzeme kinematiği / cevap tipleri
+- Neo-Hookean uygulaması
+- material-point test sürücüsü
+- analitik enerji/gerilme testleri
+- sayısal tanjant kontrolü
 
-Exit criterion: Neo-Hookean material response is compiler-independent within defined tolerances and passes constitutive verification.
+Çıkış kriteri: Neo-Hookean malzeme cevabı tanımlı toleranslar içinde derleyiciden bağımsız olmalı ve bünye doğrulamasını geçmelidir.
 
-## V0.2 — Hyperelastic Material Library
+## V0.2 — Hiperelastik Malzeme Kütüphanesi
 
-Deliverables:
+Teslimatlar:
 
 - Mooney-Rivlin
 - Yeoh
@@ -39,121 +39,121 @@ Deliverables:
 - Ogden N3
 - Arruda-Boyce
 - Gent
-- parameter metadata
-- canonical parameter conventions
-- parameter validation
-- constitutive stability/admissibility checks
-- tangent diagnostics for every model
+- parametre metadatası
+- kanonik parametre kuralları
+- parametre doğrulama
+- bünye kararlılığı/fiziksel kabul edilebilirlik kontrolleri
+- her model için tanjant tanıları
 
-Exit criterion: every model passes the Material Core production-eligibility pipeline up to material-point verification.
+Çıkış kriteri: her model, Material Core üretim uygunluk zincirinde material-point doğrulamasına kadar tüm aşamaları geçmelidir.
 
-## V0.3 — Calibration Engine / Material Lab Foundation
+## V0.3 — Kalibrasyon Motoru / Material Lab Temeli
 
-Deliverables:
+Teslimatlar:
 
-- physical material record
-- experimental dataset model
-- raw vs processed test-data traceability
-- uniaxial tension data path
-- engineering stress/strain transformation utilities
-- objective-function API
-- optimizer interface
-- initial optimizer(s)
-- parameter bounds
-- RMSE / R² / residual metrics
-- calibration provenance
-- material parameter-set storage
-- model comparison
-- validation-status model
+- fiziksel malzeme kaydı
+- deneysel veri kümesi modeli
+- ham ve işlenmiş test verisi izlenebilirliği
+- tek eksenli çekme veri yolu
+- mühendislik gerilme/şekil değiştirme dönüşüm yardımcıları
+- amaç fonksiyonu API'si
+- optimizer arayüzü
+- ilk optimizer uygulamaları
+- parametre sınırları
+- RMSE / R² / residual metrikleri
+- kalibrasyon provenance/kaynak takibi
+- malzeme parametre kümesi depolama
+- model karşılaştırma
+- doğrulama durum modeli
 
-Then extend toward:
+Daha sonra şu veri türlerine genişletilecek:
 
-- compression
-- simple shear
-- planar tension
-- biaxial tension
-- volumetric/compressibility data
+- basma
+- basit kayma
+- düzlemsel çekme
+- iki eksenli çekme
+- hacimsel/sıkıştırılabilirlik verisi
 
-Exit criterion: calibration round-trip tests reproduce known synthetic parameter sets within tolerance, with provenance retained.
+Çıkış kriteri: kalibrasyon round-trip testleri bilinen sentetik parametre kümelerini tolerans içinde yeniden üretmeli ve provenance bilgisi korunmalıdır.
 
-## V0.4 — FEM Verification Foundation
+## V0.4 — FEM Doğrulama Temeli
 
-Goal: build the first complete nonlinear FEM chain using a simple verification element.
+Amaç: basit bir doğrulama elemanıyla ilk tam doğrusal olmayan FEM zincirini oluşturmak.
 
-Deliverables:
+Teslimatlar:
 
-- node / element / `InternalMesh` model
-- generalized DOF manager
-- Q4 plane-strain verification element
-- shape functions
-- Gauss integration
-- deformation-gradient calculation
-- element residual
+- düğüm / eleman / `InternalMesh` modeli
+- genelleştirilmiş DOF yöneticisi
+- Q4 düzlem şekil değiştirme doğrulama elemanı
+- shape function'lar
+- Gauss integrasyonu
+- deformasyon gradyanı hesabı
+- eleman residual'ı
 - consistent tangent
 - global assembly
-- displacement boundary conditions
-- basic Newton solver
-- convergence monitoring
-- simple dense/LAPACK linear solver path for small tests
-- first `AnalysisPrecheck` framework
-- first raw integration-point result storage
+- yer değiştirme sınır şartları
+- temel Newton çözücüsü
+- yakınsama izleme
+- küçük testler için basit dense/LAPACK doğrusal çözücü yolu
+- ilk `AnalysisPrecheck` altyapısı
+- ilk ham integrasyon noktası sonuç depolaması
 
-Exit criterion: Neo-Hookean plane-strain benchmarks and mesh-convergence tests pass and invalid basic models are rejected before solve.
+Çıkış kriteri: Neo-Hookean düzlem şekil değiştirme benchmark'ları ve mesh yakınsama testleri geçmeli; geçersiz temel modeller çözümden önce reddedilmelidir.
 
-## V0.5 — Mixed u-p / Incompressibility Foundation
+## V0.5 — Karma u-p / Sıkıştırılamazlık Temeli
 
-Goal: move from verification-only displacement elements to production-oriented nearly-incompressible elastomer technology.
+Amaç: yalnız doğrulama amaçlı yer değiştirme elemanlarından üretim odaklı yaklaşık sıkıştırılamaz elastomer teknolojisine geçmek.
 
-Deliverables:
+Teslimatlar:
 
-- pressure field
-- generalized mixed DOF infrastructure
+- basınç alanı
+- genelleştirilmiş karma DOF altyapısı
 - `IIncompressibilityStrategy`
-- mixed residual/tangent blocks
-- mixed element formulation research/implementation
-- incompressibility verification
-- volumetric-locking comparison against displacement-only formulation
-- material/formulation compatibility checks in `AnalysisPrecheck`
+- karma residual/tanjant blokları
+- karma eleman formulasyonu araştırma/uygulaması
+- sıkıştırılamazlık doğrulaması
+- yalnız yer değiştirme formulasyonuna karşı volumetric locking karşılaştırması
+- `AnalysisPrecheck` içinde malzeme/formulasyon uyumluluk kontrolleri
 
-Exit criterion: benchmark problems demonstrate stable nearly-incompressible behavior without unacceptable locking.
+Çıkış kriteri: benchmark problemleri kabul edilemez locking olmadan kararlı yaklaşık sıkıştırılamaz davranış göstermelidir.
 
-## V0.6 — Axisymmetric Analysis
+## V0.6 — Eksenel Simetrik Analiz
 
-Deliverables:
+Teslimatlar:
 
-- axisymmetric kinematics
-- `ur, uz` formulation
-- mixed `ur, uz, p` formulation
-- `2πR` integration
-- axisymmetric boundary/selection sets
-- axisymmetric geometry checks
-- axisymmetric benchmark suite
+- eksenel simetrik kinematik
+- `ur, uz` formulasyonu
+- karma `ur, uz, p` formulasyonu
+- `2πR` integrasyonu
+- eksenel simetrik sınır/seçim kümeleri
+- eksenel simetrik geometri kontrolleri
+- eksenel simetrik benchmark seti
 
-Exit criterion: analytical/reference axisymmetric benchmarks and mesh convergence pass.
+Çıkış kriteri: analitik/referans eksenel simetrik benchmark'lar ve mesh yakınsama testleri geçmelidir.
 
-## V0.7 — Axisymmetric Torsion
+## V0.7 — Eksenel Simetrik Burulma
 
-This is a core project differentiator.
+Bu özellik projenin temel farklılaştırıcılarından biridir.
 
-Deliverables:
+Teslimatlar:
 
-- generalized twist field `φ`
-- `ur, uz, φ` kinematics
-- mixed `ur, uz, φ, p` formulation
-- prescribed rotation boundary condition
-- reaction torque
-- torque-angle history
-- torsional stiffness calculation
-- torsion-specific convergence quantities where useful
-- torsion benchmark suite
+- genelleştirilmiş burulma alanı `φ`
+- `ur, uz, φ` kinematiği
+- karma `ur, uz, φ, p` formulasyonu
+- tanımlı dönme sınır şartı
+- reaksiyon torku
+- tork–açı geçmişi
+- burulma rijitliği hesabı
+- gerektiğinde burulmaya özgü yakınsama büyüklükleri
+- burulma benchmark seti
 
-Exit criterion: DynaElastomerSolver results agree with independent reference solvers and selected physical torsion tests within defined engineering tolerances.
+Çıkış kriteri: DynaElastomerSolver sonuçları, tanımlı mühendislik toleransları içinde bağımsız referans çözücüler ve seçilmiş fiziksel burulma testleriyle uyuşmalıdır.
 
-## V0.8 — Nonlinear Solution Manager / Robustness
+## V0.8 — NonlinearSolutionManager / Sağlamlık
 
-Goal: evolve the foundation Newton loop into a production-oriented nonlinear solution subsystem.
+Amaç: temel Newton döngüsünü üretim odaklı bir doğrusal olmayan çözüm alt sistemine dönüştürmek.
 
-Deliverables:
+Teslimatlar:
 
 ```text
 NonlinearSolutionManager
@@ -169,192 +169,192 @@ NonlinearSolutionManager
 └── StateCommitManager
 ```
 
-Additional requirements:
+Ek gereksinimler:
 
-- automatic load stepping
-- initial/minimum/maximum increment controls
-- step growth
-- cutback and retry policy
-- multiple convergence criteria
-- residual force monitoring
-- moment/torque monitoring where applicable
-- displacement/rotation correction monitoring
-- negative-J / severe element-distortion detection
-- robust state rollback / commit
-- detailed convergence history
-- Automatic and Advanced solver-control modes
+- otomatik yük adımlama
+- başlangıç/minimum/maksimum increment kontrolleri
+- adım büyütme
+- cutback ve yeniden deneme politikası
+- çoklu yakınsama kriterleri
+- residual kuvvet izleme
+- uygun olduğunda moment/tork izleme
+- yer değiştirme/dönme düzeltmesi izleme
+- negatif `J` / ağır eleman bozulması tespiti
+- sağlam state rollback / commit
+- ayrıntılı yakınsama geçmişi
+- Automatic ve Advanced çözücü kontrol modları
 
-Future research:
+Gelecek araştırmaları:
 
-- arc-length / continuation methods
-- stabilization techniques
-- advanced predictor strategies
+- arc-length / continuation yöntemleri
+- stabilizasyon teknikleri
+- gelişmiş predictor stratejileri
 
-Exit criterion: defined difficult nonlinear benchmarks converge reproducibly with documented step/cutback histories.
+Çıkış kriteri: tanımlı zor doğrusal olmayan benchmark'lar belgelenmiş step/cutback geçmişleriyle tekrarlanabilir biçimde yakınsamalıdır.
 
-## V0.9 — Engineering Pre/Post Processor
+## V0.9 — Mühendislik Pre/Post Processor
 
-### Geometry
+### Geometri
 
-- DXF import adapter
-- project-owned `AnalysisGeometry`
-- line / arc / spline interpretation
-- loop/region construction
-- geometry validation/healing
-- Geometry Check → Repair → Recheck workflow
-- layer metadata
-- axis definition
-- named boundaries
+- DXF import adaptörü
+- projeye ait `AnalysisGeometry`
+- line / arc / spline yorumlama
+- loop/region oluşturma
+- geometri doğrulama/iyileştirme
+- Geometry Check → Repair → Recheck iş akışı
+- katman metadatası
+- eksen tanımı
+- adlandırılmış sınırlar
 - `SelectionSet`
 
-No general-purpose sketch/CAD tools are planned.
+Genel amaçlı eskiz/CAD araçları planlanmamaktadır.
 
 ### Mesh
 
 - `IMeshProvider`
-- Gmsh adapter
-- expanded `InternalMesh`
-- element/boundary/region/material sets
-- element orientation metadata
-- integration-scheme metadata
-- mesh-quality metadata
-- boundary/region mapping
+- Gmsh adaptörü
+- genişletilmiş `InternalMesh`
+- eleman/sınır/bölge/malzeme kümeleri
+- eleman yönelim metadatası
+- integrasyon şeması metadatası
+- mesh kalite metadatası
+- sınır/bölge eşleme
 - `MeshPrecheck`
-- global size
-- edge size / division controls
-- local/region refinement
-- mapped/structured quad request where supported
+- global boyut
+- kenar boyutu / bölme kontrolleri
+- lokal/bölgesel refinement
+- desteklendiğinde mapped/structured quad talebi
 
-### Analysis precheck
+### Analiz ön kontrolü
 
-Integrate validation from:
+Şu alanlardan gelen doğrulamalar birleştirilecek:
 
-- geometry
+- geometri
 - mesh
-- material
-- element/formulation
-- boundary conditions
-- solver configuration
+- malzeme
+- eleman/formulasyon
+- sınır şartları
+- çözücü konfigürasyonu
 
-Fatal errors block solution; nonfatal concerns are shown as warnings.
+Kritik hatalar çözümü engeller; kritik olmayan konular uyarı olarak gösterilir.
 
-### Results
+### Sonuçlar
 
-Implement explicit separation:
+Açık ayrım uygulanacak:
 
 ```text
 ResultDatabase
 ├── RawResults
-│   ├── nodal primary results
-│   └── integration-point results
+│   ├── nodal birincil sonuçlar
+│   └── integrasyon noktası sonuçları
 ├── DisplayResults
-│   └── extrapolated/averaged nodal fields
+│   └── ekstrapole/ortalanmış nodal alanlar
 └── GlobalHistories
 ```
 
-User-facing tools:
+Kullanıcı araçları:
 
-- displacement/stretch/stress/pressure/J/energy contours
-- result scoping
+- yer değiştirme/uzama/gerilme/basınç/J/enerji contour'ları
+- sonuç kapsamlandırma
 - min/max
 - node probe
 - element probe
 - `GaussPointInspector`
 - path
-- charts/history
-- reaction force/torque
-- force-displacement
-- torque-angle
-- tangent/secant stiffness
-- derived results
+- chart/history
+- reaksiyon kuvveti/torku
+- kuvvet–yer değiştirme
+- tork–açı
+- tangent/secant rijitlik
+- türetilmiş sonuçlar
 - CSV export
-- engineering report
+- mühendislik raporu
 
-### Experimental comparison
+### Deneysel karşılaştırma
 
-- import product-test history
-- simulation/test overlay
+- ürün test geçmişi içe aktarma
+- simülasyon/test overlay
 - RMSE
-- maximum/mean/relative error
-- stiffness error
-- comparison validity range
+- maksimum/ortalama/bağıl hata
+- rijitlik hatası
+- karşılaştırma geçerlilik aralığı
 
-Exit criterion: a complete DXF → mesh → solve → inspect → compare-to-test workflow can be performed without external postprocessing software.
+Çıkış kriteri: DXF → mesh → solve → inspect → testle karşılaştır zinciri harici post-processing yazılımı olmadan tamamlanabilmelidir.
 
-## V1.0 — Validated Elastomer Analysis Platform
+## V1.0 — Doğrulanmış Elastomer Analiz Platformu
 
-Target workflow:
+Hedef iş akışı:
 
 ```text
-Physical Material / Experimental Data
+Fiziksel Malzeme / Deneysel Veri
  ↓
-Calibration / Material Validation
+Kalibrasyon / Malzeme Doğrulama
  ↓
 DXF
  ↓
-Analysis Geometry
+AnalysisGeometry
  ↓
 Mesh
  ↓
 AnalysisPrecheck
  ↓
-Finite-Strain Nonlinear FEM
+Sonlu Şekil Değiştirmeli Doğrusal Olmayan FEM
  ↓
-Plane / Axisymmetric / Axisymmetric Torsion
+Düzlem / Eksenel Simetrik / Eksenel Simetrik Burulma
  ↓
-Raw + Engineering Results
+Ham + Mühendislik Sonuçları
  ↓
-Independent Solver Benchmarks
+Bağımsız Çözücü Benchmark'ları
  ↓
-Physical Product Test Comparison
+Fiziksel Ürün Testi Karşılaştırması
  ↓
-Validation
+Doğrulama
 ```
 
-V1.0 is considered an engineering platform only after the required verification matrix is complete.
+V1.0, gerekli doğrulama matrisi tamamlanmadan mühendislik platformu olarak kabul edilmez.
 
-## Future research tracks
+## Gelecek araştırma alanları
 
-Not committed to initial V1.0 scope:
+İlk V1.0 kapsamına bağlı değildir:
 
-- viscoelasticity
-- rate dependence
-- Mullins effect
-- hysteresis
-- material damage
-- cyclic elastomer behavior
-- rubber fatigue/life methods
-- harmonic/dynamic analysis
-- transient dynamics
-- contact
-- rigid-body definitions
-- elastomer-specific automatic mesher
-- deformed-profile DXF export
-- ANSYS material/user-material adapters
-- Marc UMATERIAL adapter
-- CalculiX material adapter
-- alternative sparse solver backends
+- viskoelastisite
+- hız bağımlılığı
+- Mullins etkisi
+- histerezis
+- malzeme hasarı
+- çevrimsel elastomer davranışı
+- kauçuk yorulma/ömür yöntemleri
+- harmonik/dinamik analiz
+- transient dinamik
+- temas
+- rigid-body tanımları
+- elastomere özgü otomatik mesh üreticisi
+- deforme profil DXF export
+- ANSYS material/user-material adaptörleri
+- Marc UMATERIAL adaptörü
+- CalculiX material adaptörü
+- alternatif seyrek çözücü backend'leri
 
-## Development rule
+## Geliştirme kuralı
 
-Every scientific feature follows:
+Her bilimsel özellik şu zinciri izler:
 
 ```text
-Theory
+Teori
  ↓
-Implementation
+Uygulama
  ↓
-Unit / Constitutive Verification
+Unit / Bünye Doğrulaması
  ↓
-Material-Point / Element Benchmark
+Material-Point / Eleman Benchmark
  ↓
-Mesh Convergence
+Mesh Yakınsaması
  ↓
-Independent Solver Comparison
+Bağımsız Çözücü Karşılaştırması
  ↓
-Experimental Validation where applicable
+Uygun Olduğunda Deneysel Doğrulama
 ```
 
-## Product principle
+## Ürün ilkesi
 
-DynaElastomerSolver does not compete with general-purpose CAE systems by breadth. It aims to provide a more direct and transparent engineering chain for elastomer material characterization, nonlinear product analysis and experimental validation.
+DynaElastomerSolver genel amaçlı CAE sistemleriyle kapsam genişliğinde yarışmaz. Amaç; elastomer malzeme karakterizasyonu, doğrusal olmayan ürün analizi ve deneysel doğrulama için daha doğrudan ve şeffaf bir mühendislik zinciri sağlamaktır.
