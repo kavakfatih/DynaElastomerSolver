@@ -42,8 +42,8 @@ jobs:
             os: windows-2025
             compiler: gcc
             compiler_version: '14'
-          - name: Windows / Intel ifx 2025.2
-            os: windows-2025
+          - name: Windows 2022 / Intel ifx 2025.2
+            os: windows-2022
             compiler: intel
             compiler_version: '2025.2'
 
@@ -86,8 +86,9 @@ jobs:
           set +e
 
           if [[ "${{ matrix.compiler }}" == "intel" ]]; then
-            # Windows Intel Fortran için CMake'in resmî Visual Studio toolset yolu kullanılır.
-            # -T fortran=ifx, CMake 3.29+ tarafından doğrudan desteklenir.
+            # GitHub windows-2025 etiketi Haziran 2026'dan itibaren VS2026 imajına
+            # yönlendirildiği için ifx/VS2022 entegrasyonu Windows 2022 runner'da doğrulanır.
+            # CMake'in resmî Intel Fortran Visual Studio toolset seçimi kullanılır.
             cmake -S . -B build \
               -G "Visual Studio 17 2022" \
               -A x64 \
