@@ -1,5 +1,7 @@
 module des_dense_linear
   use des_kinds, only : dp
+  use stdlib_linalg, only : solve
+  use stdlib_linalg_state, only : linalg_state_type
   implicit none
   private
   public :: solve_dense_system
@@ -10,50 +12,29 @@ contains
     real(dp), intent(out) :: x(:)
     logical, intent(out) :: ok
 
-    real(dp), allocatable :: M(:,:), rhs(:), rowtmp(:)
-    real(dp) :: factor, pivot_tol, tmp
-    integer :: n, i, k, pivot, relpivot
+    real(dp), allocatable, target :: Awork(:,:)
+    real(dp), allocatable :: solution(:)
+    type(linalg_state_type) :: state
+    integer :: n
 
     n = size(b)
     ok = .false.
     x = 0.0_dp
 
     if (size(A,1) /= n .or. size(A,2) /= n .or. size(x) /= n) return
+    if (n < 1) return
 
-    allocate(M(n,n), rhs(n), rowtmp(n))
-    M = A
-    rhs = b
-    pivot_tol = 100.0_dp*epsilon(1.0_dp)*max(1.0_dp, maxval(abs(M)))
+    ! Dyna'nın küçük/dense doğrulama yolu artık Fortran stdlib'in kararlı
+    ! solve arayüzünü kullanır. stdlib bu işlemi LAPACK *GESV tabanı ile yapar.
+    ! A'nın kullanıcı girdisini bozmamak için yalnız çalışma kopyası overwrite edilir.
+    allocate(Awork(n,n))
+    Awork = A
 
-    do k = 1,n-1
-      relpivot = maxloc(abs(M(k:n,k)), dim=1)
-      pivot = k + relpivot - 1
-      if (abs(M(pivot,k)) <= pivot_tol) return
+    solution = solve(Awork, b, overwrite_a=.true., err=state)
+    if (.not. state%ok()) return
+    if (size(solution) /= n) return
 
-      if (pivot /= k) then
-        rowtmp = M(k,:)
-        M(k,:) = M(pivot,:)
-        M(pivot,:) = rowtmp
-        tmp = rhs(k)
-        rhs(k) = rhs(pivot)
-        rhs(pivot) = tmp
-      end if
-
-      do i = k+1,n
-        factor = M(i,k)/M(k,k)
-        M(i,k:n) = M(i,k:n) - factor*M(k,k:n)
-        rhs(i) = rhs(i) - factor*rhs(k)
-      end do
-    end do
-
-    if (abs(M(n,n)) <= pivot_tol) return
-
-    x(n) = rhs(n)/M(n,n)
-    do i = n-1,1,-1
-      if (abs(M(i,i)) <= pivot_tol) return
-      x(i) = (rhs(i)-dot_product(M(i,i+1:n),x(i+1:n)))/M(i,i)
-    end do
-
+    x = solution
     ok = .true.
   end subroutine solve_dense_system
 end module des_dense_linear
