@@ -1,32 +1,32 @@
-# DynaElastomerSolver — Project Context
+# DynaElastomerSolver — Proje Bağlamı
 
-**Current architecture baseline:** v1.2 — ANSYS / Hexagon Marc benchmark revision
+**Mevcut mimari temeli:** v1.2 — ANSYS / Hexagon Marc benchmark revizyonu
 
-## Purpose
+## Amaç
 
-DynaElastomerSolver is being developed as a scientific engineering analysis platform specialized in rubber/elastomer materials and the products that use them.
+DynaElastomerSolver; kauçuk/elastomer malzemeler ve bu malzemeleri kullanan ürünler için uzmanlaşmış bilimsel bir mühendislik analiz platformu olarak geliştirilmektedir.
 
-The project deliberately avoids the breadth of a general-purpose CAE package. Instead, engineering effort is concentrated on elastomer constitutive behavior, material calibration, nearly-incompressible finite-element formulations, axisymmetric product analysis, robust nonlinear solution, transparent integration-point results and experimental validation.
+Proje bilinçli olarak genel amaçlı CAE paketlerinin geniş kapsamını hedeflemez. Bunun yerine mühendislik odağı; elastomer bünye davranışı, malzeme kalibrasyonu, yaklaşık sıkıştırılamaz sonlu eleman formulasyonları, eksenel simetrik ürün analizi, sağlam doğrusal olmayan çözüm, şeffaf integrasyon noktası sonuçları ve deneysel doğrulamadır.
 
-## Primary analysis scope
+## Birincil analiz kapsamı
 
-Initial supported physics are planned as:
+Başlangıçta desteklenmesi planlanan fizik alanları:
 
-- 2D plane strain
-- 2D plane stress at a later stage
-- axisymmetric analysis
-- axisymmetric torsion / 2.5D formulation
-- tension
-- compression
-- simple shear
-- torque-angle response
-- force-displacement response
-- finite strain / large deformation
-- nearly incompressible elastomer behavior
+- 2D düzlem şekil değiştirme
+- ilerleyen aşamada 2D düzlem gerilme
+- eksenel simetrik analiz
+- eksenel simetrik burulma / 2.5D formulasyon
+- çekme
+- basma
+- basit kayma
+- tork–açı cevabı
+- kuvvet–yer değiştirme cevabı
+- sonlu şekil değiştirme / büyük deformasyon
+- yaklaşık sıkıştırılamaz elastomer davranışı
 
-## Initial material scope
+## İlk malzeme kapsamı
 
-V1.0 target constitutive library:
+V1.0 hedef bünye kütüphanesi:
 
 - Neo-Hookean
 - Mooney-Rivlin
@@ -37,35 +37,35 @@ V1.0 target constitutive library:
 - Arruda-Boyce
 - Gent
 
-Future material research may add viscoelasticity, rate dependence, Mullins effect, hysteresis, damage and rubber-fatigue/life methods.
+Gelecekte viskoelastisite, hız bağımlılığı, Mullins etkisi, histerezis, hasar ve kauçuk yorulma/ömür yöntemleri araştırma kapsamına eklenebilir.
 
-## Material philosophy
+## Malzeme yaklaşımı
 
-A physical material and its mathematical constitutive fit are different objects.
+Fiziksel bir malzeme ile onun matematiksel bünye uyumu farklı nesnelerdir.
 
 ```text
-Physical Material
-  ├── identity / polymer / compound / supplier / lot
-  ├── experimental datasets
-  ├── calibration records
-  ├── one or more constitutive parameter sets
-  └── validation records
+Fiziksel Malzeme
+  ├── kimlik / polimer / reçete / tedarikçi / lot
+  ├── deneysel veri kümeleri
+  ├── kalibrasyon kayıtları
+  ├── bir veya daha fazla bünye parametre kümesi
+  └── doğrulama kayıtları
 ```
 
-Experimental data, calibrated parameters, model validation and provenance are preserved independently.
+Deneysel veri, kalibre edilmiş parametreler, model doğrulaması ve kaynak/provenance bilgisi birbirinden bağımsız olarak korunur.
 
-The Material Core is solver-independent and is shared by:
+Material Core çözücüden bağımsızdır ve şu sistemler tarafından ortak kullanılır:
 
-- calibration
+- kalibrasyon
 - FEM
-- material-point tests
-- future external solver/material adapters
+- material-point testleri
+- gelecekteki harici çözücü/malzeme adaptörleri
 
-New material models are introduced through a canonical material-model/plugin interface rather than by changing FEM source code.
+Yeni malzeme modelleri FEM kaynak kodu değiştirilerek değil, kanonik material-model/plugin arayüzü üzerinden eklenir.
 
-## Incompressibility philosophy
+## Sıkıştırılamazlık yaklaşımı
 
-Constitutive law and FE incompressibility enforcement are separate concerns.
+Bünye yasası ile FE sıkıştırılamazlık uygulama yöntemi farklı konulardır.
 
 ```text
 Constitutive Law
@@ -77,64 +77,64 @@ IIncompressibilityStrategy
 Element Formulation
 ```
 
-Mixed `u-p` is an early production requirement because rubber/elastomers are nearly incompressible.
+Kauçuk/elastomer malzemeler yaklaşık sıkıştırılamaz olduğu için karma `u-p` yaklaşımı erken üretim gereksinimidir.
 
-## Geometry philosophy
+## Geometri yaklaşımı
 
-DynaElastomerSolver does not contain a general-purpose 2D sketcher or CAD module.
+DynaElastomerSolver genel amaçlı bir 2D eskiz veya CAD modülü içermez.
 
-Geometry is created externally and imported, initially through DXF. The application is responsible only for:
+Geometri harici ortamda oluşturulur ve başlangıçta DXF üzerinden içeri alınır. Uygulamanın sorumlulukları yalnızca şunlardır:
 
-- DXF interpretation
-- topology construction
-- closed-loop and region detection
-- boundary and selection-set identification
-- geometry validation/healing
-- axis definition
-- analysis metadata
-- preparation for meshing
+- DXF yorumlama
+- topoloji oluşturma
+- kapalı döngü ve bölge tespiti
+- sınır ve seçim kümesi tanımlama
+- geometri doğrulama/iyileştirme
+- eksen tanımlama
+- analiz metadatası
+- mesh hazırlığı
 
-The internal geometry representation is owned by DynaElastomerSolver and does not depend on any external DXF library.
+İç geometri temsili DynaElastomerSolver'a aittir ve herhangi bir harici DXF kütüphanesine bağımlı değildir.
 
-## Mesh philosophy
+## Mesh yaklaşımı
 
-Meshing is externalized through `IMeshProvider`.
+Mesh üretimi `IMeshProvider` üzerinden dışsallaştırılır.
 
-Initial implementation:
+İlk uygulama:
 
-- Gmsh adapter
+- Gmsh adaptörü
 
-Possible future implementations:
+Olası gelecek uygulamaları:
 
-- alternative open-source mesher
-- imported mesh adapter
-- purpose-built `ElastomerMeshProvider`
+- alternatif açık kaynak mesh üreticisi
+- içe aktarılmış mesh adaptörü
+- amaca özel `ElastomerMeshProvider`
 
-All providers convert into DynaElastomerSolver's own `InternalMesh` model.
+Tüm sağlayıcılar çıktıyı DynaElastomerSolver'ın kendi `InternalMesh` modeline dönüştürür.
 
-`InternalMesh` includes nodes/elements plus region/boundary/material sets, element orientation, integration metadata and mesh-quality information.
+`InternalMesh`; düğüm/elemanların yanında bölge/sınır/malzeme kümelerini, eleman yönelimini, integrasyon metadatasını ve mesh kalite bilgisini içerir.
 
-## Analysis precheck
+## Analiz ön kontrolü
 
-A first-class `AnalysisPrecheck` stage validates the model before solve.
+Birinci sınıf `AnalysisPrecheck` aşaması çözüm başlamadan önce modeli doğrular.
 
-It combines:
+Kontrol kapsamı:
 
-- geometry diagnostics
-- mesh quality/orientation/connectivity
-- material parameter and validity checks
-- element/formulation compatibility
-- incompressibility strategy compatibility
-- boundary-condition completeness
-- solver setup checks
+- geometri tanıları
+- mesh kalitesi/yönelimi/bağlantısı
+- malzeme parametre ve geçerlilik kontrolleri
+- eleman/formulasyon uyumluluğu
+- sıkıştırılamazlık stratejisi uyumluluğu
+- sınır şartlarının yeterliliği
+- çözücü ayar kontrolleri
 
-Fatal errors block solve; warnings remain visible for engineering review.
+Kritik hatalar çözümü engeller; uyarılar mühendislik incelemesi için görünür kalır.
 
-## Solver philosophy
+## Çözücü yaklaşımı
 
-The nonlinear finite-element solver is part of DynaElastomerSolver and is written in Modern Fortran.
+Doğrusal olmayan sonlu eleman çözücüsü DynaElastomerSolver'ın parçasıdır ve Modern Fortran ile geliştirilir.
 
-Production nonlinear solution is not represented by a single Newton class. The architecture uses:
+Üretim seviyesinde doğrusal olmayan çözüm tek bir Newton sınıfıyla temsil edilmez. Mimari şu yapıyı kullanır:
 
 ```text
 NonlinearSolutionManager
@@ -148,106 +148,106 @@ NonlinearSolutionManager
 └── StateCommitManager
 ```
 
-The only external solver initially planned is the low-level sparse linear equation solver used for systems such as:
+Başlangıçta planlanan tek harici çözücü bileşeni, şu tür sistemleri çözen düşük seviyeli seyrek doğrusal denklem çözücüsüdür:
 
 `K * Δu = -R`
 
-This is hidden behind `ILinearSolver`. Initial candidate: MUMPS.
+Bu bileşen `ILinearSolver` arkasında gizlenir. İlk aday: MUMPS.
 
-## Result philosophy
+## Sonuç yaklaşımı
 
-Constitutive fields calculated at integration points are not silently treated as nodal results.
+Integrasyon noktalarında hesaplanan bünye alanları sessizce nodal sonuç olarak ele alınmaz.
 
 ```text
 ResultDatabase
 ├── RawResults
-│   ├── nodal primary values
-│   └── integration-point values
+│   ├── nodal birincil değerler
+│   └── integrasyon noktası değerleri
 ├── DisplayResults
-│   └── extrapolated / averaged fields
+│   └── ekstrapole / ortalanmış alanlar
 └── GlobalHistories
 ```
 
-V1.0 targets a first-class `GaussPointInspector` in addition to contour, probe, path and history tools.
+V1.0; contour, probe, path ve history araçlarının yanında birinci sınıf `GaussPointInspector` hedefler.
 
-Elastomer-specific priorities include principal stretch, shear quantities, hydrostatic pressure, `J`, strain-energy density, reaction torque/force, torque-angle and stiffness.
+Elastomere özgü öncelikler; asal uzamalar, kayma büyüklükleri, hidrostatik basınç, `J`, şekil değiştirme enerjisi yoğunluğu, reaksiyon torku/kuvveti, tork–açı ve rijitliktir.
 
-## Experimental validation philosophy
+## Deneysel doğrulama yaklaşımı
 
-The platform targets a closed engineering chain:
+Platform kapalı bir mühendislik zinciri hedefler:
 
 ```text
-Experimental Material Data
+Deneysel Malzeme Verisi
         ↓
-Calibration
+Kalibrasyon
         ↓
-Constitutive Model
+Bünye Modeli
         ↓
-Nonlinear FEM
+Doğrusal Olmayan FEM
         ↓
-Physical Product Test
+Fiziksel Ürün Testi
         ↓
-Comparison / Error Metrics
+Karşılaştırma / Hata Metrikleri
         ↓
-Validation Record
+Doğrulama Kaydı
 ```
 
-Simulation/test overlay and error metrics are native product features rather than external spreadsheet-only activities.
+Simülasyon/test üst üste bindirme ve hata metrikleri yalnız harici elektronik tablo işi değil, yerleşik ürün özellikleridir.
 
-## Solver controls philosophy
+## Çözücü kontrolleri yaklaşımı
 
-Two user-facing levels are planned:
+Kullanıcıya iki seviye sunulması planlanır:
 
-- **Automatic:** elastomer-focused defaults selected by the application
-- **Advanced:** explicit Newton, convergence, increment, cutback, line-search and linear-solver controls for expert users
+- **Automatic:** uygulamanın seçtiği elastomer odaklı varsayılanlar
+- **Advanced:** uzman kullanıcılar için açık Newton, yakınsama, increment, cutback, line-search ve doğrusal çözücü kontrolleri
 
-## Language and platform policy
+## Dil ve platform politikası
 
 - Modern Fortran
-- Fortran 2018 baseline
-- Fortran 2023 features only when portable across supported compilers
+- Fortran 2018 temeli
+- yalnız desteklenen derleyiciler arasında taşınabilir olduğunda Fortran 2023 özellikleri
 - macOS / Apple Silicon: GNU gfortran
-- Windows x64: Intel ifx and GNU gfortran validation
-- future Linux: GNU gfortran
-- CMake as the primary build system
-- `ISO_C_BINDING` for the public native API
+- Windows x64: Intel ifx ve GNU gfortran doğrulaması
+- gelecekte Linux: GNU gfortran
+- ana build sistemi olarak CMake
+- public native API için `ISO_C_BINDING`
 
-## Scientific ownership
+## Bilimsel sahiplik
 
-The following are core project scientific assets:
+Aşağıdakiler projenin temel bilimsel varlıklarıdır:
 
-- canonical material model definitions
-- material calibration engine
-- material point framework
-- constitutive stress/tangent implementation
-- Material Plugin API conventions
-- FEM kinematics
-- mixed nearly-incompressible formulation
-- element formulations
-- nonlinear solution management
-- axisymmetric torsion formulation
-- result semantics and extrapolation rules
-- verification framework
-- experimental validation workflow
+- kanonik malzeme modeli tanımları
+- malzeme kalibrasyon motoru
+- material-point altyapısı
+- bünye gerilme/tanjant uygulaması
+- Material Plugin API kuralları
+- FEM kinematiği
+- karma yaklaşık sıkıştırılamaz formulasyon
+- eleman formulasyonları
+- doğrusal olmayan çözüm yönetimi
+- eksenel simetrik burulma formulasyonu
+- sonuç anlamı ve ekstrapolasyon kuralları
+- doğrulama altyapısı
+- deneysel doğrulama iş akışı
 
-External libraries remain replaceable implementation details.
+Harici kütüphaneler değiştirilebilir uygulama ayrıntıları olarak kalır.
 
-## Commercial-solver benchmark policy
+## Ticari çözücü benchmark politikası
 
-ANSYS Mechanical and Hexagon Marc are used as reference systems for mature engineering behavior, solver robustness, result interpretation and verification.
+ANSYS Mechanical ve Hexagon Marc; olgun mühendislik davranışı, çözücü sağlamlığı, sonuç yorumlama ve doğrulama için referans sistemlerdir.
 
-They are not feature-count targets and do not define DynaElastomerSolver's internal architecture.
+Bunlar özellik sayısı hedefi değildir ve DynaElastomerSolver'ın iç mimarisini tanımlamaz.
 
 ## Depo dili politikası
 
-17 Ağustos 2026 itibarıyla DynaElastomerSolver GitHub deposundaki yeni ve güncellenen proje içerikleri Türkçe hazırlanacaktır.
+17 Ağustos 2026 itibarıyla DynaElastomerSolver GitHub deposundaki insan tarafından okunan proje içeriği Türkçe tutulacaktır.
 
 Türkçe kullanılacak alanlar:
 
 - mimari ve tasarım dokümantasyonu
 - ADR karar kayıtları
 - roadmap ve proje bağlamı açıklamaları
-- README açıklamaları güncellendikçe
+- README
 - issue/PR açıklamaları
 - kod içi açıklamalar ve geliştirici notları
 - kullanıcıya dönük metinler
@@ -259,6 +259,6 @@ Teknik uyumluluk ve yazılım ekosistemi nedeniyle aşağıdaki öğeler gerekti
 - `des_*` C ABI isimleri
 - standart mühendislik terimleri ve standartların resmi adları
 - üçüncü taraf kütüphane ve ürün adları
-- dosya/klasör isimleri, değiştirmenin teknik fayda sağlamadığı durumlarda
+- teknik fayda sağlamıyorsa mevcut dosya/klasör isimleri
 
-Temel ilke: **insan tarafından okunan proje açıklamaları Türkçe, makine/ABI/ekosistem uyumluluğu gerektiren teknik tanımlayıcılar gerektiğinde İngilizce** olacaktır.
+Temel ilke: **insan tarafından okunan proje açıklamaları Türkçe; makine/ABI/ekosistem uyumluluğu gerektiren teknik tanımlayıcılar gerektiğinde İngilizce** olacaktır.
