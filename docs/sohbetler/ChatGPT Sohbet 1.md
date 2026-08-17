@@ -137,3 +137,43 @@ Paylaşılan teknik eleştiriler sonucunda:
 - V0.2'de committed/trial state, convergence history, cutback exhaustion ve temel failure-reason açıklaması tamamlandı.
 - Sıradaki V0.2 işleri; ek robustness benchmark'ları, minimal `InternalMesh` veri modeli, ham integration-point result yolu ve macOS/Windows compiler doğrulamalarıdır.
 - `Sistem-ve-Mimari` branch'ine bu geliştirme sırasında hiçbir güncelleme yapılmadı.
+
+## 2026-08-17 — Açık kaynak Fortran kütüphaneleri ve zorunlu stdlib entegrasyonu
+
+**Kullanıcı yönlendirmesi:** Kod geliştirmede yararlanmak üzere açık kaynak Fortran kütüphanelerinin araştırılması, uygun kütüphanelerin incelenmesi, özellikle `https://github.com/kavakfatih/stdlib` deposunun projede gerçekten kullanılması ve kullanılan/aday kütüphanelerin repo bağlantılarıyla tek dosyada listelenmesi istendi.
+
+**Araştırma sonucu:**
+- `kavakfatih/stdlib` aktif ve zorunlu dependency olarak seçildi.
+- Fork'un `0.8.1` sürümü ve `9a15c7772f1a76a6c497b9f3abb793841fc81f74` commit'i bilimsel tekrarlanabilirlik için pinlendi.
+- stdlib'in `linalg`, `sparse`, iterative solver/GMRES, quadrature, stats ve yardımcı veri yapıları Dyna için uygun alanlar olarak belirlendi.
+- Reference LAPACK/BLAS dense numerical backend referansı olarak korundu.
+- MUMPS production sparse direct solver adayı olarak seçildi.
+- modernized MINPACK Material Calibration için Levenberg–Marquardt/nonlinear least-squares adayı olarak seçildi.
+- HDF5 gelecekte büyük `ResultDatabase` / integration-point data / checkpoint için güçlü aday olarak belirlendi.
+- JSON-Fortran metadata/config için aday olarak kaydedildi.
+- NLESolver-Fortran generic nonlinear solver algoritmaları için kod/algoritma referansı olarak kaydedildi; Dyna FEM Newton politikası bu kütüphaneye devredilmeyecek.
+- FrontISTR permissive lisanslı Fortran FEM ve MUMPS entegrasyon kod referansı olarak kaydedildi.
+- test-drive ve fftpack sonraki ihtiyaçlara göre değerlendirilecek adaylar olarak kaydedildi.
+
+**Gerçekleştirilen stdlib entegrasyonu:**
+- `cmake/DESDependencies.cmake` eklendi.
+- Dyna CMake sistemi `kavakfatih/stdlib` deposunu pinlenmiş commit üzerinden `FetchContent` ile alacak şekilde düzenlendi.
+- İsteğe bağlı yerel `DES_STDLIB_SOURCE_DIR` override yolu tanımlandı.
+- stdlib'in kaynak üretimi için gerekli `fypp` configure aşamasında açıkça kontrol edilmeye başlandı.
+- `DynaElastomerCore`, `fortran_stdlib` target'ına bağlandı.
+- Önceki elle yazılmış `des_dense_linear` Gaussian elimination kodu kaldırıldı.
+- `des_dense_linear`, `stdlib_linalg::solve` ve `linalg_state_type` kullanacak şekilde yeniden yazıldı.
+- Normal dense sistemin yanında singular sistemin kontrollü failure olarak dönmesini doğrulayan test yolu eklendi.
+- `docs/references/FORTRAN_LIBRARIES.md` oluşturuldu ve dependency/referans politikası, repo bağlantıları, sürüm/commit ve kullanım amaçları kaydedildi.
+
+**Açık kaynak kullanım politikası:**
+- Dyna'nın constitutive law, FEM formulation, incompressibility strategy, axisymmetric torsion ve nonlinear solver politikası kendi bilimsel çekirdeği olarak kalacak.
+- Öncelik kod kopyalamak değil library API kullanmak olacak.
+- Kaynak koddan algoritmik uyarlama yapılırsa repo, commit ve lisans kaydedilecek.
+- MIT/BSD/Apache gibi permissive kaynaklar tercih edilecek; GPL/AGPL kodu Dyna çekirdeğine doğrudan kopyalanmayacak.
+
+**Doğrulama notu:**
+- stdlib entegrasyonu kaynak/API/build-konfigürasyonu seviyesinde tamamlandı.
+- Mevcut çalışma ortamında `fypp` kurulu olmadığı ve dış ağ erişimi bulunmadığı için stdlib tabanlı yeni build tam CTest/compiler matrisi üzerinde henüz doğrulanmış sayılmıyor.
+- Bu doğrulama V0.2 kapanışının zorunlu maddesi olarak `PROJECT_STATUS` içine eklendi.
+- `Sistem-ve-Mimari` branch'ine güncelleme yapılmadı.
