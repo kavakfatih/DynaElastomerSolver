@@ -7,216 +7,188 @@
 
 **V0.2-dev — Nonlinear FEM Robustness**
 
-Bu sürüm yayınlanmış ürün sürümü değil; aktif geliştirme kilometre taşıdır.
+V0.2 bilimsel/işlevsel kapsamı büyük ölçüde tamamlanmıştır. Sürüm henüz kapatılmamıştır; kalan tek büyük kapanış maddesi Windows Intel ifx toolchain doğrulamasıdır.
 
 ## Çalışan bilimsel çekirdek
 
-- Modern Fortran bilimsel çekirdek
-- CMake build altyapısı
+- Modern Fortran 2018 + CMake
 - finite-strain kinematics
-- sıkıştırılabilir Neo-Hookean material model
+- sıkıştırılabilir Neo-Hookean
 - strain energy
 - First Piola-Kirchhoff stress
 - Cauchy stress
-- analitik consistent material tangent `dP/dF`
-- finite-difference tangent doğrulaması
-- Q4 plane-strain element
+- analitik consistent `dP/dF`
+- material tangent FD doğrulaması
+- Q4 plane-strain
 - 2×2 Gauss integration
-- Total-Lagrangian element residual
-- consistent element tangent
-- çok elemanlı Q4 global assembly
-- incremental Full Newton displacement-control solver
-- adaptive displacement-control solver
+- Total-Lagrangian residual/tangent
+- çok elemanlı assembly
+- fixed-step Full Newton
+- adaptive Newton
 - rollback / cutback / retry
-- reusable `solution_state_t`
-- açık `trial → commit / revert` çözüm state akışı
-- `convergence_history_t`
-- minimum `J` takibi
-- okunabilir solver/material hata açıklamaları
+- `solution_state_t`: trial/commit/revert
+- convergence history
+- minimum `J` ve failure diagnostics
+- `InternalMesh`
+- ham integration-point results
+- backend-bağımsız lineer solver sınırı
+- stdlib/LAPACK dense backend
+- Newton lineer solver diagnostics
 
-## V0.2 veri modeli
+## Aktif Fortran dependency
 
-### Minimal `InternalMesh`
+**`kavakfatih/stdlib`**
 
-`internal_mesh_t` bilimsel çekirdeğin ilk kanonik mesh modelidir. Şimdilik yalnız 2B düğüm koordinatları, Q4 connectivity, node/element sayıları ve connectivity doğrulamasını taşır. Harici mesher/CAD tipleri bu sınıra geçirilmez.
-
-### Ham integration-point sonuçları
-
-`integration_point_result_t` / `integration_point_results_t` ile her Q4 Gauss noktasında `F`, `J`, First Piola-Kirchhoff `P`, Cauchy stress, strain-energy density, element/point kimliği, doğal koordinatlar ve status saklanabilir. V0.2'de nodal extrapolation/averaging yapılmaz.
-
-### InternalMesh solver adapteri
-
-```text
-InternalMesh
-    ↓
-Q4 Newton Solver Adapter
-    ↓
-Full Newton / Adaptive Newton
-    ↓
-Dyna Linear Solver API
-    ↓
-Raw Integration-Point Results
-```
-
-Mevcut `X + connectivity` yolu regression amacıyla korunur.
-
-## Lineer solver altyapısı
-
-Backend-bağımsız Dyna lineer solver sınırı:
-
-```text
-Nonlinear Solver / FEM
-        ↓
-solve_linear_system(...)
-        ↓
-linear_solver_settings_t
-linear_solver_report_t
-        ↓
-Backend
-        └── stdlib/LAPACK dense  ← aktif
-```
-
-`newton_report_t` lineer çözüm katmanını da doğrudan raporlar:
-
-- `linear_solve_count`
-- `max_linear_equation_count`
-- `max_linear_residual_inf_norm`
-- `last_linear_report`
-
-Hem fixed-step hem adaptive Newton doğrudan `solve_linear_system(...)` kullanır. `InternalMesh` solver adapterleri opsiyonel `linear_solver_settings_t` kabul eder. Desteklenmeyen backend gibi terminal konfigürasyon hataları Newton raporunda aynen korunur ve adaptive cutback ile tekrar denenmez.
-
-## Fortran kütüphane altyapısı
-
-### Aktif dependency — Fortran stdlib
-
-- Dyna fork: `https://github.com/kavakfatih/stdlib`
-- upstream: `https://github.com/fortran-lang/stdlib`
-- sürüm: `0.8.1`
+- repo: `https://github.com/kavakfatih/stdlib`
+- stdlib sürümü: `0.8.1`
 - pinlenen commit: `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
-- build gereksinimi: `fypp`
+- build önişlemcisi: `fypp 3.2`
+- ilk gerçek kullanım: `stdlib_linalg::solve` → LAPACK dense solve
 
-Planlanan/araştırılan diğer araçlar: Reference LAPACK, MUMPS, stdlib GMRES, MINPACK, PRIMA, PCHIP, HDF5, JSON-Fortran ve FrontISTR. Ayrıntılı envanter: `docs/references/FORTRAN_LIBRARIES.md`.
+Ayrıntılı envanter: `docs/references/FORTRAN_LIBRARIES.md`
 
-## GitHub Actions compiler matrisi
+## V0.2 ana doğrulama sonuçları
 
-Yeni workflow:
+- material tangent normalize FD hatası ≈ `1.26e-9`
+- Q4 element tangent normalize FD hatası ≈ `1.16e-9`
+- iki elemanlı reaction relative error ≈ `1e-15`
+- solver final free residual ≈ `5.4e-15`
+- nonlinear patch merkez displacement error ≈ `3.9e-17`
+- adaptive cutback final residual ≈ `3.9e-15`
+- 1×1 / 2×2 / 4×4 homojen mesh reaction = `1.605586`
+- InternalMesh ile eski assembly residual/tangent eşdeğerliği doğrulandı
+- affine `F=diag(1.10,0.95,1)` için tüm Gauss noktalarında `J=1.045`
 
-`/.github/workflows/fortran-ci.yml`
-
-Matris:
-
-1. Ubuntu 24.04 — gfortran 14
-2. macOS 26 ARM64 — gfortran 14
-3. Windows 2025 — gfortran 14
-4. Windows 2025 — Intel ifx 2025.2
-
-Workflow ayrıca:
-
-- Python 3.12
-- `fypp 3.2`
-- pinlenmiş `kavakfatih/stdlib`
-- Ninja
-- CMake
-- tüm CTest paketi
-
-kullanır.
-
-Reproducibility için GitHub Actions bağımlılıkları tam commit SHA ile sabitlenmiştir:
-
-- `actions/checkout` v7.0.1 → `3d3c42e5aac5ba805825da76410c181273ba90b1`
-- `actions/setup-python` v6.2.0 → `a309ff8b426b58ec0e2a45f0f869d46889d02405`
-- `fortran-lang/setup-fortran` v1.9.0 → `2a1b9c55897d827a9dfeb114408f3615e53b2b72`
-
-Workflow GitHub üzerinde aktif hale gelmiş ve gerçek matrix run'ları başlamıştır. **Compiler matrisi ancak tüm ilgili job'lar yeşil olduğunda tamamlanmış kabul edilecektir.**
-
-## Kanıtlanmış / tanımlanmış doğrulamalar
-
-Önceden geçen başlıca doğrulamalar:
-
-- Material tangent normalize FD hatası: yaklaşık `1.26e-9`
-- Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
-- iki elemanlı reaksiyon referans hatası: yaklaşık `1.0e-15`
-- solver API final free residual: yaklaşık `5.4e-15`
-- distorsiyonlu nonlinear patch merkez displacement hatası: yaklaşık `3.9e-17`
-- adaptive cutback final residual: yaklaşık `3.9e-15`
-- 1×1 / 2×2 / 4×4 homojen mesh refinement reaksiyonu: `1.605586`
-- InternalMesh ve eski assembly yolu residual/tangent açısından eşdeğer
-- affine `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045`
-- lineer solver interface normal çözüm, residual raporu ve unsupported-backend failure yolunu kapsıyor
-
-### Severe-distortion + kapalı-form continuum benchmark
-
-`test_q4_severe_distortion_solver`:
-
-- 2×2 Q4 mesh
-- merkez düğüm `X5 = (1.45, 0.55)` ile ciddi geometrik skew
-- reference Gauss ağırlığı/Jacobian aralığı yaklaşık `0.07255 ... 0.42745`
-- min/max oranı yaklaşık `0.1697`
-- exact affine finite-strain:
-  - `F11 = 1.35`
-  - `F12 = 0.28`
-  - `F21 = 0.12`
-  - `F22 = 0.78`
-  - `J = 1.0194`
-
-Test artık FEM/material-response yolundan bağımsız kapalı-form Neo-Hookean referansı da hesaplar:
-
-```text
-W = mu/2 (I1 - 3) - mu ln(J) + lambda/2 [ln(J)]²
-P = mu F + [lambda ln(J) - mu] F^{-T}
-```
-
-Referans yaklaşık değerler:
-
-```text
-P11 =  1.94662573
-P12 =  1.01728835
-P21 =  0.93367281
-P22 = -0.83349393
-P33 =  0.48035547
-W   =  0.6597314365
-```
-
-Toplam referans alanı `4.0` olduğundan exact toplam strain energy yaklaşık `2.6389257461`.
-
-Benchmark artık:
-
-- merkez affine displacement
-- global kuvvet dengesi
-- 16 Gauss noktasındaki `F/J`
-- weighted-average `P`
-- toplam referans alanı
-- toplam strain energy
-- minimum `J`
-- Newton/lineer solver diagnostics
-
-kontrollerini birlikte yapar.
-
-Ayrıntılı benchmark kataloğu:
+Detaylı katalog:
 
 `docs/verification/V0.2_REFERENCE_BENCHMARKS.md`
 
-Mevcut CTest tanımı **20 test** içerir.
+## Severe-distortion continuum benchmark
 
-## V0.2 kapanışından önce kalan işler
+2×2 Q4 mesh, merkez node:
 
-1. GitHub Actions compiler matrisini tüm aktif job'larda yeşile getirmek.
-2. 20/20 CTest'i gfortran/ifx matrisinde doğrulamak.
-3. En az bir benchmarkı bağımsız dış FEM solver ile karşılaştırmak ve sürüm/ayarları kaydetmek.
-4. Gerekirse severe-distortion/cutback benchmark setini bir örnek daha genişletmek.
-5. V0.2 çıkış kriterlerini tamamlayıp sürümü kapatmak.
+```text
+X5 = (1.45, 0.55)
+```
 
-### Son tamamlanan V0.2 maddeleri
+Exact affine deformation:
 
-- backend-bağımsız lineer solver sınırı
-- Newton lineer solver diagnostics entegrasyonu
-- InternalMesh üzerinden lineer backend seçimi
-- terminal backend hatalarının adaptive cutback dışında tutulması
-- severe geometrik distorsiyon nonlinear Q4 benchmarkı
-- severe-distortion testine bağımsız kapalı-form `P/W/J` continuum referansı
-- V0.2 benchmark kataloğu
-- Linux/macOS/Windows gfortran + Windows ifx GitHub Actions compiler matrisi tanımı
-- CI tool/action sürümlerinin pinlenmesi
+```text
+F = [1.35  0.28  0]
+    [0.12  0.78  0]
+    [0     0     1]
+
+J = 1.0194
+```
+
+Test FEM/material-response API'sinden bağımsız kapalı-form Neo-Hookean referansı ile `F`, `J`, weighted `P`, toplam reference area ve toplam strain energy'yi karşılaştırır.
+
+## Bağımsız dış FEM doğrulaması — BAŞARILI
+
+Dış referans:
+
+**FEniCSx / DOLFINx `0.11.0.post0`**  
+Container: `dolfinx/dolfinx:v0.11.0`  
+GitHub Actions run: `32075320773`  
+Dyna commit: `3ba4c23e94f94b9d067c45f52d4bb10ee0b0542e`
+
+Problem:
+- 2×1 plane-strain rectangle
+- Q1 quadrilateral 8×4 mesh
+- `mu=2.5`, `lambda=20`
+- `lambda_x=1.25`
+- lateral traction-free
+- Dyna ile aynı Neo-Hookean energy function
+- residual/Jacobian: UFL automatic differentiation
+- nonlinear solver: PETSc SNES
+- linear solver: PETSc LU/MUMPS
+
+FEniCSx:
+
+```text
+lambda_y average    = 0.8314690882666764
+reaction_x          = 1.7423183105139580
+J average           = 1.0393363603333432
+total strain energy = 0.47146216298567123
+SNES iterations     = 4
+```
+
+Dyna hedefi:
+
+```text
+lambda_y   = 0.8314690882666784
+reaction_x = 1.7423183105139586
+```
+
+Mutlak FEniCSx ↔ Dyna farkı:
+
+```text
+lambda_y   ≈ 2.00e-15
+reaction_x ≈ 6.66e-16
+```
+
+FEniCSx ↔ kapalı-form farkı:
+
+```text
+J            ≈ 4.88e-15
+total energy ≈ 5.72e-15
+```
+
+Bağımsız dış FEM kriteri **geçmiştir**.
+
+Kalıcı kayıtlar:
+- `docs/verification/V0.2_EXTERNAL_FEM_VALIDATION.md`
+- `docs/verification/results/FENICSX_V0.2_HOMOGENEOUS_EXTENSION.json`
+- `tools/reference/fenicsx_v02_homogeneous_extension.py`
+- `.github/workflows/fenicsx-reference.yml`
+
+## Compiler matrix
+
+Fortran workflow:
+
+`.github/workflows/fortran-ci.yml`
+
+20 CTest tanımı bulunmaktadır.
+
+Doğrulanmış GitHub-hosted sonuçlar:
+
+- [x] Ubuntu 24.04 / gfortran 14 — configure + build + **20 CTest başarılı**
+- [x] macOS 26 ARM64 / gfortran 14 — configure + build + **20 CTest başarılı**
+- [x] Windows 2025 / gfortran 14 — configure + build + **20 CTest başarılı**
+- [ ] Windows / Intel ifx 2025.2 — toolchain doğrulaması açık
+
+### ifx araştırmasında bulunan nedenler
+
+İlk Ninja yolu:
+
+```text
+ifx --version: başarılı
+CMake compiler identification: unknown
+CMAKE_Fortran_PREPROCESS_SOURCE: missing
+```
+
+Bu durum CMake 4.4 ve ayrıca 4.3.4 ile tekrarlandı; kaynak/test hatası değildir.
+
+İkinci denemede Visual Studio 17 2022 generator kullanıldığında `windows-2025` runner'ın Haziran 2026 itibarıyla VS2026 imajına yönlendirildiği ve VS2022 instance bulunmadığı doğrulandı.
+
+Bu nedenle Intel job artık:
+
+```text
+windows-2022
+Visual Studio 17 2022
+-T fortran=ifx
+Intel ifx 2025.2
+```
+
+kombinasyonunda doğrulanmaktadır.
+
+## V0.2 kapanışından önce kalanlar
+
+1. Windows 2022 / Intel ifx 2025.2 configure + build + 20 CTest'i başarıyla tamamlamak.
+2. Son compiler-matrix sonucunu kalıcı doğrulama kaydına geçirmek.
+3. V0.2 exit criteria'yı son kez kontrol edip kilometre taşını kapatmak.
+
+Bağımsız dış FEM solver karşılaştırması artık kalan işler arasında değildir; tamamlanmıştır.
 
 ---
 
@@ -232,10 +204,22 @@ Mixed u-p
 F-bar / eşdeğer locking azaltıcı formulation
 ```
 
-Karar; locking, pressure stability, mesh convergence, Newton convergence, distortion sensitivity, conditioning ve axisymmetric/torsion genişletilebilirliği üzerinden verilecektir.
+Karar ölçütleri:
+- volumetric locking
+- pressure stability / oscillation
+- mesh convergence
+- nonlinear Newton convergence
+- distortion sensitivity
+- minimum `J`
+- DOF ve assembly maliyeti
+- linear-system conditioning
+- axisymmetric genişletilebilirlik
+- axisymmetric torsion / 2.5D genişletilebilirliği
+
+Production formulation benchmark kanıtıyla seçilecek ve ADR ile sabitlenecektir.
 
 ## Branch güncelleme kuralı
 
-Bu dosya ve diğer sürekli proje kayıtları varsayılan olarak yalnız `main` branch'inde güncellenir.
+Sürekli proje kayıtları varsayılan olarak yalnız `main` branch'inde güncellenir.
 
 `Sistem-ve-Mimari` branch'i kullanıcı ayrıca istemedikçe güncellenmez.
