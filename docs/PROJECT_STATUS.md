@@ -42,19 +42,7 @@ Bu sürüm yayınlanmış ürün sürümü değil; aktif geliştirme kilometre t
 
 ### Ham integration-point sonuçları
 
-`integration_point_result_t` / `integration_point_results_t` ile her Q4 Gauss noktasında:
-
-- `element_id`, `point_id`
-- `xi / eta`
-- reference integration weight
-- `F`
-- `J`
-- First Piola-Kirchhoff `P`
-- Cauchy stress
-- strain-energy density
-- status / valid
-
-saklanabilir. V0.2'de nodal extrapolation/averaging yapılmaz.
+`integration_point_result_t` / `integration_point_results_t` ile her Q4 Gauss noktasında `F`, `J`, First Piola-Kirchhoff `P`, Cauchy stress, strain-energy density, element/point kimliği, doğal koordinatlar ve status saklanabilir. V0.2'de nodal extrapolation/averaging yapılmaz.
 
 ### InternalMesh solver adapteri
 
@@ -88,37 +76,14 @@ Backend
         └── stdlib/LAPACK dense  ← aktif
 ```
 
-`des_linear_solver` şu bilgileri raporlar:
-
-- backend kimliği
-- denklem sayısı
-- lineer residual infinity normu
-- status
-- converged bilgisi
-
-İlk backend `DES_LINEAR_BACKEND_STDLIB_DENSE` olup `stdlib_linalg::solve` üzerinden LAPACK `*GESV` ailesini kullanır.
-
-`des_dense_linear` yalnız geriye dönük uyumluluk wrapper'ıdır. İleride MUMPS ve iterative/GMRES çözücüleri aynı Dyna sınırının arkasına eklenecektir.
-
-### Newton → lineer solver diagnostics entegrasyonu
-
 `newton_report_t` artık lineer çözüm katmanını da doğrudan raporlar:
 
 - `linear_solve_count`
 - `max_linear_equation_count`
 - `max_linear_residual_inf_norm`
 - `last_linear_report`
-  - backend
-  - equation count
-  - residual infinity norm
-  - status
-  - converged
 
-Hem fixed-step hem adaptive Newton yolu artık eski `solve_dense_system` wrapper'ını çağırmak yerine doğrudan `solve_linear_system(...)` kullanır.
-
-`InternalMesh` solver adapterleri opsiyonel `linear_solver_settings_t` kabul eder; böylece ileride aynı FEM problemi farklı backend'lerle benchmark edilebilir.
-
-Desteklenmeyen backend gibi konfigürasyon hataları genel `linear solve failed` koduna ezilmez. `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` Newton raporunda ve `last_failure_status` içinde aynen korunur. Adaptive solver bu tür terminal konfigürasyon hatalarında cutback/retry yapmaz.
+Hem fixed-step hem adaptive Newton doğrudan `solve_linear_system(...)` kullanır. `InternalMesh` solver adapterleri opsiyonel `linear_solver_settings_t` kabul eder. Desteklenmeyen backend gibi terminal konfigürasyon hataları Newton raporunda aynen korunur ve adaptive cutback ile tekrar denenmez.
 
 ## Fortran kütüphane altyapısı
 
@@ -128,40 +93,13 @@ Desteklenmeyen backend gibi konfigürasyon hataları genel `linear solve failed`
 - upstream: `https://github.com/fortran-lang/stdlib`
 - sürüm: `0.8.1`
 - pinlenen commit: `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
-- lisans: MIT; BLAS/LAPACK backend bölümlerinde ilgili modified-BSD koşulları
 - build gereksinimi: `fypp`
 
-### Planlanan/araştırılan kütüphaneler
+Planlanan/araştırılan diğer araçlar: Reference LAPACK, MUMPS, stdlib GMRES, MINPACK, PRIMA, PCHIP, HDF5, JSON-Fortran ve FrontISTR. Ayrıntılı envanter: `docs/references/FORTRAN_LIBRARIES.md`.
 
-- Reference-LAPACK/lapack — dense lineer cebir backend/referansı
-- MUMPS — production sparse direct solver adayı
-- stdlib GMRES — iterative solver benchmark/adayı
-- fortran-lang/minpack — nonlinear least-squares / Levenberg-Marquardt
-- libprima/prima — BOBYQA/COBYLA bounded/constrained optimization
-- jacobwilliams/PCHIP — deneysel eğri interpolation/resampling
-- HDF5 — büyük ResultDatabase/checkpoint
-- JSON-Fortran — metadata/config
-- FrontISTR — Fortran FEM/MUMPS entegrasyon referansı
+## Kanıtlanmış / tanımlanmış doğrulamalar
 
-Ayrıntılı envanter: `docs/references/FORTRAN_LIBRARIES.md`
-
-## V0.7 calibration planı
-
-```text
-Raw Experimental Data
-        ↓
-PCHIP
-        ↓
-Objective + physical admissibility
-        ↓
-PRIMA BOBYQA / COBYLA
-        ↓
-MINPACK Levenberg–Marquardt
-        ↓
-Material validation
-```
-
-## Kanıtlanmış doğrulamalar
+Önceden geçen başlıca doğrulamalar:
 
 - Material tangent normalize FD hatası: yaklaşık `1.26e-9`
 - Q4 element tangent normalize FD hatası: yaklaşık `1.16e-9`
@@ -170,27 +108,40 @@ Material validation
 - distorsiyonlu nonlinear patch merkez displacement hatası: yaklaşık `3.9e-17`
 - adaptive cutback final residual: yaklaşık `3.9e-15`
 - 1×1 / 2×2 / 4×4 homojen mesh refinement reaksiyonu: `1.605586`
-- adaptive failure benchmark: `2 commit / 1 revert`
-- cutback exhaustion sonrası committed state korunuyor
 - InternalMesh ve eski assembly yolu residual/tangent açısından eşdeğer
 - affine `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045`
-- geçersiz duplicate-node Q4 mesh oluşturma aşamasında reddediliyor
 - lineer solver interface normal çözüm, residual raporu ve unsupported-backend failure yolunu kapsıyor
-- InternalMesh Newton regression testi lineer solve count/backend/equation count/residual diagnostics alanlarını ve unsupported-backend propagation davranışını kapsayacak şekilde genişletildi
 
-Mevcut CTest tanımı **19 test** içerir.
+### Yeni severe-distortion benchmark
+
+Yeni `test_q4_severe_distortion_solver` şu senaryoyu tanımlar:
+
+- 2×2 Q4 mesh
+- merkez düğüm `X5 = (1.45, 0.55)` ile ciddi geometrik skew
+- reference Gauss ağırlığı/Jacobian aralığı yaklaşık `0.07255 ... 0.42745`
+- min/max oranı yaklaşık `0.1697`
+- büyük affine finite-strain alanı:
+  - `F11 = 1.35`
+  - `F12 = 0.28`
+  - `F21 = 0.12`
+  - `F22 = 0.78`
+  - beklenen `J = 1.0194`
+
+Benchmark; merkez displacement'in affine referansı yeniden üretmesini, global kuvvet dengesini, 16 Gauss noktasındaki `F/J` değerlerini, `min J` davranışını ve Newton lineer residual diagnostics bilgisini kontrol eder.
+
+Aynı denklemler bağımsız sayısal ön kontrolde 6 increment ve toplam 24 Newton düzeltmesiyle çözüldü; merkez displacement hatası yaklaşık `1.9e-14`, global kuvvet toplamları yaklaşık `1e-16` mertebesinde çıktı. Bu ön kontrol Dyna CTest'in yerine geçmez; yalnız benchmark tanımının matematiksel tutarlılığını kontrol eder.
+
+Mevcut CTest tanımı artık **20 test** içerir.
 
 ## Önemli doğrulama notu
 
-`kavakfatih/stdlib` tabanlı tam dependency build ortamı bu çalışma ortamında henüz tam hazır olmadığı için 19/19 CTest toplu compiler-matrix doğrulaması V0.2 kapanış maddesi olarak korunmaktadır.
-
-Bu nedenle yeni Newton-lineer diagnostics entegrasyonu kaynak/API ve regression-test tanımı seviyesinde uygulanmıştır; full stdlib build üzerinde doğrulanması kapanış kriteridir.
+`kavakfatih/stdlib` tabanlı tam dependency build ortamı bu çalışma ortamında henüz tam hazır olmadığı için 20/20 CTest toplu compiler-matrix doğrulaması V0.2 kapanış maddesi olarak korunmaktadır.
 
 ## V0.2 kapanışından önce kalan işler
 
-1. stdlib tabanlı tam build'i GNU Fortran üzerinde 19/19 CTest ile doğrulamak.
-2. Ek nonlinear distortion / robustness benchmark'ları.
-3. Bağımsız solver/reference karşılaştırmasını genişletmek.
+1. stdlib tabanlı tam build'i GNU Fortran üzerinde 20/20 CTest ile doğrulamak.
+2. Bağımsız solver/reference karşılaştırmasını genişletmek.
+3. Gerekirse severe-distortion/cutback benchmark setini bir örnek daha genişletmek.
 4. macOS Apple Silicon + gfortran build/test.
 5. Windows x64 + Intel ifx build/test.
 6. Windows x64 + gfortran build/test.
@@ -199,16 +150,11 @@ Bu nedenle yeni Newton-lineer diagnostics entegrasyonu kaynak/API ve regression-
 
 ### Son tamamlanan V0.2 maddeleri
 
-- backend-bağımsız `des_linear_solver`
-- `linear_solver_settings_t` / `linear_solver_report_t`
-- aktif stdlib/LAPACK dense backend
-- lineer residual raporlama
-- unsupported-backend status/failure yolu
-- `newton_report_t` içine lineer solver diagnostics entegrasyonu
-- Newton içinde doğrudan Dyna lineer solver API kullanımı
+- backend-bağımsız lineer solver sınırı
+- Newton lineer solver diagnostics entegrasyonu
 - InternalMesh üzerinden lineer backend seçimi
-- adaptive solverda terminal backend hatasının cutback dışında tutulması
-- mevcut InternalMesh regression testinin lineer diagnostics ile genişletilmesi
+- terminal backend hatalarının adaptive cutback dışında tutulması
+- severe geometrik distorsiyon için yeni nonlinear Q4 benchmark tanımı
 
 ---
 
