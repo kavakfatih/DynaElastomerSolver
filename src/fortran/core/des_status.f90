@@ -14,4 +14,42 @@ module des_status
   integer, parameter, public :: DES_ERROR_LINEAR_SOLVE = -301
   integer, parameter, public :: DES_ERROR_NEWTON_DID_NOT_CONVERGE = -302
   integer, parameter, public :: DES_ERROR_CUTBACK_EXHAUSTED = -303
+
+  public :: des_status_message
+contains
+
+  pure function des_status_message(status) result(message)
+    integer, intent(in) :: status
+    character(len=80) :: message
+
+    select case (status)
+    case (DES_STATUS_OK)
+      message = 'Başarılı'
+    case (DES_STATUS_NOT_EVALUATED)
+      message = 'Henüz değerlendirilmedi'
+    case (DES_ERROR_INVALID_PARAMETERS)
+      message = 'Geçersiz malzeme parametreleri'
+    case (DES_ERROR_SINGULAR_F)
+      message = 'Tekil deformasyon gradyanı F'
+    case (DES_ERROR_NONPOSITIVE_J)
+      message = 'Geçersiz deformasyon: J sıfır veya negatif'
+    case (DES_ERROR_INVALID_ELEMENT_JACOBIAN)
+      message = 'Geçersiz eleman geometrik Jacobianı'
+    case (DES_ERROR_MATERIAL_POINT)
+      message = 'Material-point değerlendirmesi başarısız'
+    case (DES_ERROR_INVALID_CONNECTIVITY)
+      message = 'Geçersiz mesh bağlantısı'
+    case (DES_ERROR_INVALID_CONSTRAINT)
+      message = 'Geçersiz sınır şartı veya solver girdisi'
+    case (DES_ERROR_LINEAR_SOLVE)
+      message = 'Doğrusal denklem sistemi çözülemedi'
+    case (DES_ERROR_NEWTON_DID_NOT_CONVERGE)
+      message = 'Newton iterasyonları yakınsamadı'
+    case (DES_ERROR_CUTBACK_EXHAUSTED)
+      message = 'Cutback/retry sınırı tükendi'
+    case default
+      message = 'Bilinmeyen DES durum kodu'
+    end select
+  end function des_status_message
+
 end module des_status
