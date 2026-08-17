@@ -109,3 +109,31 @@ Paylaşılan teknik eleştiriler sonucunda:
 - `docs/sohbetler/ChatGPT Sohbet 1.md`, `docs/PROJECT_STATUS.md`, `docs/PROJECT_RULES.md`, `docs/ROADMAP.md` ve diğer proje dokümanları varsayılan olarak `main` üzerinde güncellenecek.
 - `Sistem-ve-Mimari` branch'i otomatik güncellenmeyecek.
 - Kullanıcı ayrıca `Sistem-ve-Mimari` branch'ine yükleme istediğinde özel olarak güncellenecek.
+
+## 2026-08-17 — V0.2 reusable state, convergence history ve failure diagnostics
+
+**Kullanıcı yönlendirmesi:** Sıradaki geliştirmeye geçilmesi istendi.
+
+**Gerçekleştirilenler:**
+- Adaptive solver içindeki geçici `committed_u` yaklaşımı yerine reusable `solution_state_t` eklendi.
+- Çözüm state akışı açık olarak `trial → commit / revert` haline getirildi.
+- `commit_count` ve `revert_count` ile state geçişleri raporlanabilir hale geldi.
+- `convergence_history_t` ve `convergence_record_t` eklendi.
+- Her Newton değerlendirmesi için attempt, iteration, load factor, increment size, residual norm, minimum `J`, status ve accepted bilgileri kaydedilmeye başlandı.
+- `newton_report_t` state sayaçları ve convergence history ile genişletildi.
+- `max_cutbacks=0` senaryosunda `DES_ERROR_CUTBACK_EXHAUSTED` doğrulandı.
+- Cutback exhaustion sonrasında başarısız trial state'in dışarı sızmadığı, başlangıç committed state'ine geri dönüldüğü test edildi.
+- Alt failure nedeni `DES_ERROR_NONPOSITIVE_J` olarak korundu.
+- `des_status_message()` eklendi; sayısal status kodları okunabilir Türkçe mühendislik açıklamalarına eşlendi.
+- Yeni `test_solver_state_history` ve `test_status_message` CTest kapsamına eklendi.
+
+**Yerel doğrulama:**
+- GNU Fortran 14.2.0 ile state/history/cutback exhaustion testi geçti.
+- Adaptive rollback/cutback referans testi yeni solver yapısıyla tekrar geçti.
+- Status message testi geçti.
+- Adaptive senaryoda 2 commit / 1 revert ve 16 convergence-history kaydı oluştu.
+
+**Plan etkisi:**
+- V0.2'de committed/trial state, convergence history, cutback exhaustion ve temel failure-reason açıklaması tamamlandı.
+- Sıradaki V0.2 işleri; ek robustness benchmark'ları, minimal `InternalMesh` veri modeli, ham integration-point result yolu ve macOS/Windows compiler doğrulamalarıdır.
+- `Sistem-ve-Mimari` branch'ine bu geliştirme sırasında hiçbir güncelleme yapılmadı.
