@@ -102,3 +102,13 @@ jobs:
       - name: CTest
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
+
+      # actions/upload-artifact v7.0.1
+      - name: Configure logunu sakla
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: configure-${{ matrix.compiler }}-${{ matrix.compiler_version }}-${{ runner.os }}
+          path: cmake-configure.log
+          if-no-files-found: warn
+          retention-days: 7
