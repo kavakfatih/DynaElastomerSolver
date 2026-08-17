@@ -1,26 +1,26 @@
-# DynaElastomerSolver Architecture v1.2
+# DynaElastomerSolver Mimarisi v1.2
 
-**Revision:** ANSYS / Hexagon Marc benchmark revision  
-**Status:** Accepted architecture baseline
+**Revizyon:** ANSYS / Hexagon Marc benchmark revizyonu  
+**Durum:** Kabul edilmiş mimari temel
 
-## 1. Architectural goal
+## 1. Mimari amaç
 
-DynaElastomerSolver is a specialized nonlinear FEM and material-engineering platform for rubber and elastomer products. It is not intended to reproduce the breadth of general-purpose CAE systems. Its depth is concentrated on constitutive material science, experimental calibration, nearly-incompressible finite-strain FEM, axisymmetric analysis, axisymmetric torsion, robust nonlinear solution and experimental validation.
+DynaElastomerSolver; kauçuk ve elastomer ürünler için uzmanlaşmış doğrusal olmayan FEM ve malzeme mühendisliği platformudur. Genel amaçlı CAE sistemlerinin kapsam genişliğini kopyalamak hedeflenmez. Derinlik; bünye malzeme bilimi, deneysel kalibrasyon, yaklaşık sıkıştırılamaz sonlu şekil değiştirme FEM'i, eksenel simetrik analiz, eksenel simetrik burulma, sağlam doğrusal olmayan çözüm ve deneysel doğrulama üzerinde yoğunlaşır.
 
-The architecture is deliberately modular:
+Mimari bilinçli olarak modülerdir:
 
 ```text
-Material Lab / Experimental Data
+Material Lab / Deneysel Veri
              ↓
         Material Core
              │
              ├──────────────┐
              │              │
-External CAD / DXF      Calibration
+Harici CAD / DXF        Kalibrasyon
        ↓
 AnalysisGeometry
        ↓
-Geometry Validation
+Geometri Doğrulama
        ↓
 IMeshProvider
        ↓
@@ -36,29 +36,29 @@ ILinearSolver
        ↓
 ResultDatabase
        ↓
-Postprocessor / Experimental Comparison
+Postprocessor / Deneysel Karşılaştırma
 ```
 
-## 2. Non-negotiable separation rules
+## 2. Değiştirilemez ayrım kuralları
 
 ```text
-Physics ≠ Geometry ≠ Meshing ≠ Linear Solver ≠ UI
+Fizik ≠ Geometri ≠ Mesh Üretimi ≠ Doğrusal Solver ≠ UI
 ```
 
-Additional v1.2 rules:
+v1.2 ek kuralları:
 
-1. Constitutive law and incompressibility enforcement are separate concerns.
-2. Newton iteration and nonlinear solution management are separate concerns.
-3. Raw integration-point results and display/extrapolated results are stored separately.
-4. Material knowledge is solver-independent and may be used by FEM, calibration, point testing and future external adapters.
-5. Analysis validity is checked before solve through a first-class `AnalysisPrecheck` stage.
-6. External libraries never become the canonical internal data model.
-7. FEM never consumes Gmsh-native objects or DXF-native entities.
-8. Calibration and FEM use the same constitutive implementation.
-9. Sparse linear solvers are accessed only through `ILinearSolver`.
-10. Mesh generators are accessed only through `IMeshProvider`.
+1. Bünye yasası ile sıkıştırılamazlığın uygulanması ayrı konulardır.
+2. Newton iterasyonu ile doğrusal olmayan çözüm yönetimi ayrı konulardır.
+3. Ham integrasyon noktası sonuçları ile görüntüleme/ekstrapolasyon sonuçları ayrı saklanır.
+4. Malzeme bilgisi solver'dan bağımsızdır; FEM, kalibrasyon, point-test ve gelecekteki harici adaptörler tarafından kullanılabilir.
+5. Analiz geçerliliği çözümden önce birinci sınıf `AnalysisPrecheck` aşamasında kontrol edilir.
+6. Harici kütüphaneler kanonik iç veri modeli haline gelemez.
+7. FEM, Gmsh native nesnelerini veya DXF native entity'lerini doğrudan tüketmez.
+8. Kalibrasyon ve FEM aynı bünye uygulamasını kullanır.
+9. Seyrek doğrusal çözücülere yalnız `ILinearSolver` üzerinden erişilir.
+10. Mesh üreticilerine yalnız `IMeshProvider` üzerinden erişilir.
 
-## 3. Principal interfaces
+## 3. Ana arayüzler
 
 ```text
 IDxfImporter
@@ -74,14 +74,14 @@ IBoundaryCondition
 IResultExtrapolator
 ```
 
-These interfaces protect the scientific core from external implementation details.
+Bu arayüzler bilimsel çekirdeği harici uygulama ayrıntılarından korur.
 
-## 4. Geometry subsystem
+## 4. Geometri alt sistemi
 
-DynaElastomerSolver is not a CAD/sketch application.
+DynaElastomerSolver bir CAD/eskiz uygulaması değildir.
 
 ```text
-External CAD
+Harici CAD
    ↓
 DXF
    ↓
@@ -94,7 +94,7 @@ GeometryValidator
 Topology / Regions / Boundaries / SelectionSets
 ```
 
-Canonical model:
+Kanonik model:
 
 ```text
 AnalysisGeometry
@@ -111,20 +111,20 @@ AnalysisGeometry
 └── AxisDefinition
 ```
 
-Required geometry checks:
+Zorunlu geometri kontrolleri:
 
-- open contours
-- duplicate edges
-- tiny edges
-- gaps
-- intersections / self-intersections
-- loop orientation
-- hole detection
-- zero-area regions
-- axisymmetric validity
-- region connectivity
+- açık contour'lar
+- yinelenen kenarlar
+- çok küçük kenarlar
+- boşluklar
+- kesişimler / self-intersection
+- loop yönü
+- delik tespiti
+- sıfır alanlı bölgeler
+- eksenel simetri geçerliliği
+- bölge bağlantısı
 
-Geometry tooling is limited to analysis preparation:
+Geometri araçları yalnız analiz hazırlığı ile sınırlıdır:
 
 ```text
 Geometry Check
@@ -134,13 +134,13 @@ Geometry Check
 └── Recheck
 ```
 
-General-purpose drawing, trimming, filleting, parametric modeling and CAD editing are out of scope.
+Genel amaçlı çizim, trim, fillet, parametrik modelleme ve CAD düzenleme kapsam dışıdır.
 
-## 5. Selection and scoping
+## 5. Seçim ve kapsamlandırma
 
-Engineering meaning is attached to geometry-level selections rather than mesh node numbers.
+Mühendislik anlamı mesh düğüm numaralarına değil geometri seviyesindeki seçimlere bağlanır.
 
-Typical sets:
+Tipik kümeler:
 
 ```text
 INNER_BOND
@@ -150,25 +150,25 @@ AXIS
 ELASTOMER_REGION
 ```
 
-Selection sets survive remeshing and are used for:
+Selection set'ler remesh sonrasında korunur ve şu amaçlarla kullanılır:
 
-- material assignment
-- boundary conditions
-- loads
-- result scoping
-- validation comparison regions
+- malzeme atama
+- sınır şartları
+- yükler
+- sonuç kapsamlandırma
+- doğrulama karşılaştırma bölgeleri
 
-## 6. Mesh subsystem
+## 6. Mesh alt sistemi
 
 ```text
 IMeshProvider
 ├── GmshMeshProvider
 ├── ImportedMeshProvider
 ├── AlternativeMeshProvider
-└── ElastomerMeshProvider   [future]
+└── ElastomerMeshProvider   [gelecek]
 ```
 
-All providers produce the project-owned model:
+Tüm sağlayıcılar projeye ait modeli üretir:
 
 ```text
 InternalMesh
@@ -184,36 +184,36 @@ InternalMesh
 └── Metadata
 ```
 
-Initial mesh provider: Gmsh adapter.
+İlk mesh sağlayıcısı: Gmsh adaptörü.
 
-Minimum user-facing mesh controls targeted for the engineering preprocessor:
+Mühendislik preprocessor'ü için hedeflenen asgari kullanıcı kontrolleri:
 
-- global element size
-- edge size
-- number of edge divisions
-- region sizing
-- local refinement
-- mapped/structured quadrilateral request where topology permits
-- quad-dominant mode where appropriate
-- mesh-quality report
+- global eleman boyutu
+- kenar boyutu
+- kenar bölme sayısı
+- bölgesel sizing
+- lokal refinement
+- topoloji uygunsa mapped/structured quadrilateral talebi
+- uygun yerde quad-dominant mod
+- mesh kalite raporu
 
-The long-term project may add an elastomer-specific mesher for thin bonded rubber layers, high-shear regions, axisymmetric quads and mixed `u-p` requirements.
+Uzun vadede ince bağlı kauçuk katmanları, yüksek kayma bölgeleri, eksenel simetrik quad'lar ve karma `u-p` gereksinimleri için elastomere özgü mesh üreticisi eklenebilir.
 
-## 7. Mesh validation
+## 7. Mesh doğrulama
 
-`MeshPrecheck` contributes to `AnalysisPrecheck` and checks at minimum:
+`MeshPrecheck`, `AnalysisPrecheck` sistemine katkı sağlar ve en az şunları kontrol eder:
 
-- Jacobian sign/quality
+- Jacobian işareti/kalitesi
 - connectivity
 - node ordering
-- element orientation
+- eleman yönelimi
 - degeneracy
 - aspect ratio / distortion
-- boundary and region mapping
-- integration scheme compatibility
-- material/element compatibility
+- sınır ve bölge eşleme
+- integrasyon şeması uyumluluğu
+- malzeme/eleman uyumluluğu
 
-## 8. Modern Fortran computational core
+## 8. Modern Fortran hesaplama çekirdeği
 
 ```text
 src/fortran
@@ -227,22 +227,22 @@ src/fortran
 └── api
 ```
 
-Language/build policy:
+Dil/build politikası:
 
-- Fortran 2018 baseline
-- portable Fortran 2023 features only when supported by target compilers
-- `iso_fortran_env` for kinds
-- `iso_c_binding` for public ABI
-- CMake build system
+- Fortran 2018 temeli
+- yalnız hedef derleyicilerde taşınabilir olan Fortran 2023 özellikleri
+- kind tanımları için `iso_fortran_env`
+- public ABI için `iso_c_binding`
+- CMake build sistemi
 - macOS/Apple Silicon: GNU gfortran
-- Windows: Intel ifx + GNU gfortran validation
-- Linux later: GNU gfortran
+- Windows: Intel ifx + GNU gfortran doğrulaması
+- ileride Linux: GNU gfortran
 
-## 9. Material subsystem
+## 9. Malzeme alt sistemi
 
-Hyperelastic materials are energy-based and solver-independent.
+Hiperelastik malzemeler enerji tabanlı ve solver'dan bağımsızdır.
 
-Initial/target V1.0 model family:
+V1.0 başlangıç/hedef model ailesi:
 
 ```text
 Hyperelastic
@@ -254,28 +254,28 @@ Hyperelastic
 └── Gent
 ```
 
-Future physics:
+Gelecek fiziği:
 
-- viscoelasticity
-- rate dependence
-- Mullins effect
-- hysteresis
-- damage
-- fatigue-related material measures
+- viskoelastisite
+- hız bağımlılığı
+- Mullins etkisi
+- histerezis
+- hasar
+- yorulma ile ilişkili malzeme büyüklükleri
 
-A material response may include:
+Bir malzeme cevabı şunları içerebilir:
 
 - strain energy
 - first Piola-Kirchhoff stress
 - Cauchy stress
 - consistent tangent
 - Jacobian `J`
-- pressure-related constitutive quantities where applicable
-- state/status information
+- uygun olduğunda basınçla ilişkili bünye büyüklükleri
+- state/status bilgisi
 
-## 10. Material plugin API
+## 10. Material Plugin API
 
-Inspired by the extensibility of mature nonlinear solvers, DynaElastomerSolver provides a native material-plugin concept.
+Olgun doğrusal olmayan solver'ların genişletilebilirliğinden esinlenerek DynaElastomerSolver native bir material-plugin yaklaşımı sağlar.
 
 ```text
 Material Core
@@ -284,7 +284,7 @@ Material Core
 └── External Material Adapter
 ```
 
-Canonical contract:
+Kanonik sözleşme:
 
 ```text
 evaluate(kinematics, state, parameters)
@@ -297,11 +297,11 @@ MaterialResponse
 └── status
 ```
 
-FEM does not change when a new material model is added.
+Yeni malzeme modeli eklendiğinde FEM değişmez.
 
 ## 11. Material-point state
 
-Every integration point has explicit state infrastructure:
+Her integrasyon noktasının açık state altyapısı vardır:
 
 ```text
 MaterialPointState
@@ -310,11 +310,11 @@ MaterialPointState
 └── history variables
 ```
 
-On converged increments, trial state is committed. On failed/cut-back increments, trial state is discarded/reverted.
+Yakınsayan increment'lerde trial state commit edilir. Başarısız/cutback increment'lerde trial state discard/revert edilir.
 
-## 12. Constitutive law vs incompressibility strategy
+## 12. Bünye yasası ve sıkıştırılamazlık stratejisi
 
-This separation is explicit in v1.2.
+Bu ayrım v1.2'de açık ve zorunludur.
 
 ```text
 Constitutive Law
@@ -324,9 +324,9 @@ IIncompressibilityStrategy
 Element Formulation
 ```
 
-The constitutive model must not know whether the FE system uses a mixed `u-p`, penalty, or another constraint-enforcement method.
+Bünye modeli FE sisteminin karma `u-p`, penalty veya başka bir kısıt uygulama yöntemi kullanıp kullanmadığını bilmemelidir.
 
-Conceptually:
+Kavramsal yapı:
 
 ```text
 IsochoricConstitutiveModel
@@ -343,20 +343,20 @@ IIncompressibilityStrategy
 └── MixedUP
 ```
 
-This preserves material-model reuse across different FE formulations.
+Bu ayrım aynı malzeme modelinin farklı FE formulasyonlarında yeniden kullanılmasını sağlar.
 
-## 13. Calibration and material provenance
+## 13. Kalibrasyon ve malzeme provenance bilgisi
 
-Calibration is part of the Modern Fortran scientific core and uses the exact same constitutive implementation as FEM.
+Kalibrasyon Modern Fortran bilimsel çekirdeğinin parçasıdır ve FEM ile birebir aynı bünye uygulamasını kullanır.
 
 ```text
-Experimental Dataset
+Deneysel Veri Kümesi
        ↓
 Test Kinematics Driver
        ↓
 Material Core
        ↓
-Predicted Response
+Tahmin Edilen Cevap
        ↓
 Objective Function
        ↓
@@ -365,28 +365,28 @@ IOptimizer
 Parameter Set + Metrics + Provenance
 ```
 
-Target datasets:
+Hedef veri kümeleri:
 
-- uniaxial tension
-- compression
-- simple shear
-- planar tension
-- biaxial tension
-- volumetric data
+- tek eksenli çekme
+- basma
+- basit kayma
+- düzlemsel çekme
+- iki eksenli çekme
+- hacimsel veri
 
-A physical compound may own multiple constitutive fits. Parameter sets record dataset IDs, optimizer, objective function, calibration version, valid ranges and validation state.
+Bir fiziksel compound birden fazla bünye uyumuna sahip olabilir. Parametre kümeleri dataset ID'lerini, optimizer'ı, objective function'ı, kalibrasyon sürümünü, geçerlilik aralıklarını ve doğrulama durumunu kaydeder.
 
-## 14. Kinematics and generalized fields
+## 14. Kinematik ve genelleştirilmiş alanlar
 
 ```text
 IKinematicsFormulation
 ├── PlaneStrain
-├── PlaneStress        [later]
+├── PlaneStress        [sonra]
 ├── Axisymmetric
 └── AxisymmetricTorsion
 ```
 
-Fields are generalized rather than hard-coded in individual elements:
+Alanlar tek tek elemanların içine hard-code edilmez:
 
 ```text
 Field
@@ -395,29 +395,29 @@ Field
 └── Pressure p
 ```
 
-Target DOFs:
+Hedef DOF'lar:
 
-- plane strain: `ux, uy` or mixed `ux, uy, p`
-- axisymmetric: `ur, uz` or mixed `ur, uz, p`
-- axisymmetric torsion: `ur, uz, φ` or mixed `ur, uz, φ, p`
+- plane strain: `ux, uy` veya karma `ux, uy, p`
+- axisymmetric: `ur, uz` veya karma `ur, uz, p`
+- axisymmetric torsion: `ur, uz, φ` veya karma `ur, uz, φ, p`
 
-Axisymmetric torsion remains a core product differentiator because it can predict torque-angle behavior using a meridional mesh instead of full 3D discretization for rotationally symmetric products.
+Eksenel simetrik burulma temel ürün farklılaştırıcısıdır; dönel simetrik ürünlerde tam 3D ayrıklaştırma yerine meridyen mesh'iyle tork–açı davranışını tahmin edebilir.
 
-## 15. Element strategy
+## 15. Eleman stratejisi
 
-Foundation/verification elements:
+Temel/doğrulama elemanları:
 
 - Q4 plane strain
 - Q4 axisymmetric
 - Q4 axisymmetric torsion
 
-Displacement-only Q4 technology is not considered the final production elastomer formulation.
+Yalnız yer değiştirme tabanlı Q4 teknoloji nihai üretim elastomer formulasyonu değildir.
 
-Production development prioritizes mixed displacement-pressure technology for nearly-incompressible behavior. Future candidates may include higher-order/mixed families such as Q8/Q9-derived formulations after verification.
+Üretim geliştirmesi yaklaşık sıkıştırılamaz davranış için karma displacement-pressure teknolojisini önceliklendirir. Doğrulama sonrasında Q8/Q9 türevi daha yüksek dereceli/karma aileler araştırılabilir.
 
 ## 16. AnalysisPrecheck
 
-The solve pipeline must not begin with an unvalidated model.
+Çözüm zinciri doğrulanmamış modelle başlamamalıdır.
 
 ```text
 AnalysisModel
@@ -429,40 +429,40 @@ Validated SolverInput
 Solve
 ```
 
-Checks aggregate reports from:
+Kontroller şu alanlardan gelen raporları birleştirir:
 
-### Geometry
-- valid closed regions
-- valid axis definition
-- no unresolved critical topology errors
+### Geometri
+- geçerli kapalı bölgeler
+- geçerli eksen tanımı
+- çözülmemiş kritik topoloji hatası olmaması
 
 ### Mesh
-- quality/Jacobian/orientation
-- mapping and integration compatibility
+- kalite/Jacobian/yönelim
+- eşleme ve integrasyon uyumluluğu
 
-### Material
-- parameter validity
-- required parameters present
-- calibration/validation status
-- known validity range
-- formulation compatibility
+### Malzeme
+- parametre geçerliliği
+- gerekli parametrelerin mevcut olması
+- kalibrasyon/doğrulama durumu
+- bilinen geçerlilik aralığı
+- formulasyon uyumluluğu
 
-### Boundary conditions
-- sufficient constraints
-- rigid-body modes
-- load/rotation definitions
-- selection-set validity
+### Sınır şartları
+- yeterli kısıt
+- rigid-body mode kontrolü
+- yük/dönme tanımları
+- selection-set geçerliliği
 
-### Formulation
-- material/element compatibility
-- incompressibility strategy compatibility
-- required pressure field availability
+### Formulasyon
+- malzeme/eleman uyumluluğu
+- sıkıştırılamazlık stratejisi uyumluluğu
+- gerekli pressure field mevcutluğu
 
-Warnings and errors are distinguished; fatal errors block solution.
+Uyarı ve hata ayrılır; kritik hatalar çözümü engeller.
 
-## 17. Nonlinear solution architecture
+## 17. Doğrusal olmayan çözüm mimarisi
 
-The nonlinear solution system is project-owned. v1.2 separates orchestration from Newton iteration.
+Doğrusal olmayan çözüm sistemi projeye aittir. v1.2, orkestrasyon ile Newton iterasyonunu ayırır.
 
 ```text
 NonlinearSolutionManager
@@ -478,98 +478,98 @@ NonlinearSolutionManager
 └── StateCommitManager
 ```
 
-Equilibrium:
+Denge:
 
 `R(u) = 0`
 
-Newton increment:
+Newton artımı:
 
 `K_T Δu = -R`
 
-The manager controls increment acceptance, retries and state commit/revert behavior.
+Manager; increment kabulü, yeniden deneme ve state commit/revert davranışını yönetir.
 
-## 18. Convergence criteria
+## 18. Yakınsama kriterleri
 
-The architecture allows multiple convergence channels:
+Mimari birden fazla yakınsama kanalına izin verir:
 
 - residual force
-- residual moment/torque where relevant
+- ilgili yerlerde residual moment/tork
 - displacement correction
 - rotation/twist correction
-- pressure-field convergence where applicable
-- energy/residual diagnostics for research and debugging
+- uygun olduğunda pressure-field convergence
+- araştırma/debug için enerji/residual tanıları
 
-Production defaults may use a subset; all criteria are stored in the convergence history.
+Üretim varsayılanları bunların bir alt kümesini kullanabilir; tüm kriterler yakınsama geçmişinde saklanır.
 
-## 19. Increment and cutback control
+## 19. Increment ve cutback kontrolü
 
-Large deformation is solved incrementally.
+Büyük deformasyon artımlı çözülür.
 
 ```text
-Initial increment
+Başlangıç increment'i
       ↓
-Newton iterations
+Newton iterasyonları
   ┌───┴────────────┐
-converged        failed
+yakınsadı       başarısız
    │                │
-accept          cutback
+kabul           cutback
    │                │
-step growth      retry
+adım büyüt       yeniden dene
 ```
 
-Target controls:
+Hedef kontroller:
 
-- initial increment
+- başlangıç increment'i
 - minimum increment
-- maximum increment
+- maksimum increment
 - growth factor
 - cutback factor
-- maximum retries
-- automatic increment control
+- maksimum retry
+- otomatik increment kontrolü
 
-## 20. Solver controls — Automatic and Advanced
+## 20. Solver kontrolleri — Automatic ve Advanced
 
-User-facing controls are intentionally simpler than general-purpose CAE systems.
+Kullanıcıya sunulan kontroller genel amaçlı CAE sistemlerinden bilinçli olarak daha sade olacaktır.
 
 ### Automatic
 
-The application chooses:
+Uygulama şunları seçer:
 
-- Newton strategy
-- initial increment
-- growth/cutback behavior
-- convergence tolerances
+- Newton stratejisi
+- başlangıç increment'i
+- growth/cutback davranışı
+- yakınsama toleransları
 - linear-solver backend
-- line-search activation when appropriate
+- uygun olduğunda line-search aktivasyonu
 
 ### Advanced
 
-Expert users may control:
+Uzman kullanıcılar şunları kontrol edebilir:
 
-- Full vs Modified Newton
-- tangent update strategy
-- maximum iterations
-- convergence tolerances
-- increment limits
-- cutback settings
+- Full / Modified Newton
+- tangent update stratejisi
+- maksimum iterasyon
+- yakınsama toleransları
+- increment sınırları
+- cutback ayarları
 - line search
-- predictor options
-- linear solver selection
+- predictor seçenekleri
+- linear solver seçimi
 
-## 21. Linear solver abstraction
+## 21. Doğrusal solver soyutlaması
 
 ```text
 ILinearSolver
-├── Dense/LAPACK        [small tests]
-├── MumpsSolver         [initial production candidate]
-├── PardisoSolver       [future]
-├── PetscSolver         [future]
-└── InternalSolver      [future]
+├── Dense/LAPACK        [küçük testler]
+├── MumpsSolver         [ilk üretim adayı]
+├── PardisoSolver       [gelecek]
+├── PetscSolver         [gelecek]
+└── InternalSolver      [gelecek]
 ```
 
-External sparse algebra does not own the FEM formulation or nonlinear algorithm. It only solves the assembled algebraic system.
+Harici seyrek cebir FEM formulasyonunun veya doğrusal olmayan algoritmanın sahibi değildir; yalnız kurulmuş cebirsel sistemi çözer.
 
-## 22. Boundary conditions
+## 22. Sınır şartları
 
 ```text
 IBoundaryCondition
@@ -581,11 +581,11 @@ IBoundaryCondition
 └── Constraint
 ```
 
-BCs are scoped through geometry/mesh sets rather than raw node IDs.
+BC'ler ham node ID'leri yerine geometri/mesh kümeleri üzerinden kapsamlandırılır.
 
 ## 23. Result database
 
-v1.2 explicitly separates physics results from visualization projections.
+v1.2 fizik sonuçlarını görselleştirme projeksiyonlarından açıkça ayırır.
 
 ```text
 ResultDatabase
@@ -599,24 +599,24 @@ ResultDatabase
 └── GlobalHistories
 ```
 
-### Raw integration-point results
+### Ham integrasyon noktası sonuçları
 
-Target fields include:
+Hedef alanlar:
 
-- deformation gradient `F`
+- deformasyon gradyanı `F`
 - Jacobian `J`
-- principal stretches
+- asal uzamalar
 - Cauchy stress
-- pressure
+- basınç
 - strain-energy density
 - shear stress
-- material state variables
+- malzeme state variables
 
-### Nodal/primary results
+### Nodal/birincil sonuçlar
 
 - displacement
 - twist
-- pressure DOF where applicable
+- uygun olduğunda pressure DOF
 - reactions
 
 ### Global histories
@@ -628,9 +628,9 @@ Target fields include:
 - external work
 - convergence history
 
-## 24. Result extrapolation and display
+## 24. Sonuç ekstrapolasyonu ve görüntüleme
 
-Gauss-point data is never silently treated as nodal data.
+Gauss-point verisi sessizce nodal veri kabul edilmez.
 
 ```text
 IntegrationPoint Result
@@ -642,17 +642,17 @@ Display/Nodal Result
 Contour
 ```
 
-The application records the extrapolation/averaging method used for every displayed derived field.
+Uygulama her görüntülenen türetilmiş alan için kullanılan ekstrapolasyon/ortalama yöntemini kaydeder.
 
-Candidate display methods:
+Aday yöntemler:
 
 - extrapolated
 - averaged
 - nearest/integration-point inspection
 
-## 25. Result inspection tools
+## 25. Sonuç inceleme araçları
 
-V1.0 postprocessing target:
+V1.0 post-processing hedefi:
 
 ```text
 Result Tools
@@ -671,92 +671,78 @@ Result Tools
 └── Report
 ```
 
-`GaussPointInspector` is a first-class engineering tool, not a debug-only function.
+`GaussPointInspector` debug aracı değil, birinci sınıf mühendislik aracıdır.
 
-Example inspection:
+## 26. Elastomere özgü mühendislik sonuçları
 
-```text
-Element 1042 / Gauss Point 1
-λ1
-λ2
-λ3
-J
-σ12
-W
-p
-state variables
-```
-
-## 26. Elastomer-specific engineering results
-
-Beyond generic stress contours, the platform emphasizes quantities useful for elastomer products:
+Genel stress contour'larının ötesinde şu büyüklükler önceliklidir:
 
 - principal stretches
 - shear measures
 - hydrostatic pressure
 - `J`
 - strain-energy density
-- reaction force/torque
-- torque-angle curve
-- force-displacement curve
+- reaksiyon kuvveti/torku
+- tork–açı eğrisi
+- kuvvet–yer değiştirme eğrisi
 - tangent stiffness
 - secant stiffness
 
-Von Mises stress may be available as a derived display quantity but is not treated as the primary elastomer design metric.
+Von Mises stress türetilmiş görüntüleme büyüklüğü olarak bulunabilir ancak ana elastomer tasarım metriği değildir.
 
-## 27. Experimental comparison and product validation
+## 27. Deneysel karşılaştırma ve ürün doğrulama
 
-Experimental comparison is native to the result system.
+Deneysel karşılaştırma result sisteminin native parçasıdır.
 
 ```text
 FEA History
     +
-Physical Test History
+Fiziksel Test History
         ↓
 Overlay / Alignment
         ↓
 Error Metrics
 ```
 
-Target metrics:
+Hedef metrikler:
 
 - RMSE
-- maximum absolute error
-- mean error
-- relative error
-- stiffness error
-- valid comparison range
+- maksimum mutlak hata
+- ortalama hata
+- bağıl hata
+- rijitlik hatası
+- geçerli karşılaştırma aralığı
 
-This closes the central product workflow:
+Merkezi ürün zinciri böyle kapanır:
 
 ```text
-Experimental Material Data
-→ Calibration
-→ Material Model
+Deneysel Malzeme Verisi
+→ Kalibrasyon
+→ Malzeme Modeli
 → FEM
-→ Physical Product Test
-→ Validation
+→ Fiziksel Ürün Testi
+→ Doğrulama
 ```
 
-## 28. Derived results
+## 28. Türetilmiş sonuçlar
 
-The result architecture supports built-in and future user-defined derived quantities, for example:
+Result mimarisi yerleşik ve gelecekte kullanıcı tanımlı türetilmiş büyüklükleri destekler:
 
 - `Kt = dT/dθ`
 - `Ksec = T/θ`
-- maximum principal stretch
-- normalized torque error
-- energy density measures
+- maksimum asal uzama
+- normalize tork hatası
+- enerji yoğunluğu büyüklükleri
 
-Derived results must record their source fields and expression/version for traceability.
+Türetilmiş sonuçlar kaynak alanlarını ve expression/version bilgisini izlenebilirlik için kaydetmelidir.
 
 ## 29. Public API
 
-Internal Fortran OOP structures are not exposed directly.
+İç Fortran OOP yapıları doğrudan dışarı açılmaz.
 
 C ABI prefix: `des_`.
 
-Examples:
+Örnekler:
 
 ```text
 des_solver_create
@@ -770,57 +756,57 @@ des_calibration_run
 des_calibration_get_result
 ```
 
-Native libraries:
+Native kütüphaneler:
 
 - Windows: `DynaElastomerCore.dll`
 - macOS: `libDynaElastomerCore.dylib`
 - Linux: `libDynaElastomerCore.so`
 
-## 30. Verification philosophy
+## 30. Doğrulama yaklaşımı
 
-A feature is incomplete until verified at the appropriate levels:
+Bir özellik uygun seviyelerde doğrulanmadan tamamlanmış sayılmaz:
 
-1. mathematical unit tests
-2. constitutive benchmarks
-3. numerical tangent diagnostics
-4. material-point tests
-5. single-element tests
-6. mixed-formulation / locking benchmarks
-7. mesh convergence
-8. independent solver comparison
-9. experimental validation
+1. matematiksel unit testler
+2. bünye benchmark'ları
+3. sayısal tanjant tanıları
+4. material-point testleri
+5. tek eleman testleri
+6. karma formulasyon / locking benchmark'ları
+7. mesh yakınsaması
+8. bağımsız solver karşılaştırması
+9. deneysel doğrulama
 
-Reference environments may include FEBio, FEniCSx, CalculiX and commercial ANSYS/Marc benchmarks where available.
+Referans ortamları; uygun olduğunda FEBio, FEniCSx, CalculiX ve ticari ANSYS/Marc benchmark'larını içerebilir.
 
-## 31. External dependency policy
+## 31. Harici bağımlılık politikası
 
 ```text
-External Component
+Harici Bileşen
        ↓
 Interface / Adapter
        ↓
 DynaElastomerSolver Internal Model
 ```
 
-Open-source and commercial systems may inform implementation and validation, but they do not define the canonical scientific model.
+Açık kaynak ve ticari sistemler uygulama ve doğrulamaya referans olabilir; ancak kanonik bilimsel modeli tanımlamaz.
 
-## 32. Product boundaries
+## 32. Ürün sınırları
 
-Intentionally excluded from the initial product:
+İlk üründen bilinçli olarak hariç tutulanlar:
 
-- general-purpose 2D/3D CAD
-- broad metal plasticity library
+- genel amaçlı 2D/3D CAD
+- geniş metal plastisite kütüphanesi
 - CFD
-- electromagnetics
-- general multiphysics
-- large beam/shell/general element catalogs
+- elektromanyetik
+- genel multiphysics
+- geniş beam/shell/genel eleman katalogları
 - topology optimization
 
-These exclusions protect the elastomer specialization.
+Bu sınırlar elastomer uzmanlığını korur.
 
-## 33. Scientific identity
+## 33. Bilimsel kimlik
 
-DynaElastomerSolver is defined by:
+DynaElastomerSolver şu bileşenlerle tanımlanır:
 
 ```text
 Elastomer Constitutive Science
@@ -840,6 +826,6 @@ Transparent Integration-Point Results
 Experimental Product Validation
 ```
 
-The central rule remains:
+Merkezi kural:
 
-> DynaElastomerSolver owns the elastomer science, canonical engineering models and nonlinear FEM logic; geometry parsers, meshers and low-level sparse solvers remain replaceable infrastructure.
+> DynaElastomerSolver elastomer biliminin, kanonik mühendislik modellerinin ve doğrusal olmayan FEM mantığının sahibidir; geometri parser'ları, mesh üreticileri ve düşük seviyeli seyrek çözücüler değiştirilebilir altyapı olarak kalır.
