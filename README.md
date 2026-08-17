@@ -2,7 +2,8 @@
 
 DynaElastomerSolver is a scientific engineering platform focused on nonlinear finite-element analysis, material characterization and validation of rubber/elastomer materials and elastomer-based products.
 
-**Current architecture baseline:** `v1.2 — ANSYS / Hexagon Marc benchmark revision`
+**Current architecture baseline:** `v1.2 — ANSYS / Hexagon Marc benchmark revision`  
+**UI architecture baseline:** `v1.0 — owned UI architecture`
 
 ## Project focus
 
@@ -98,6 +99,30 @@ The low-level sparse solver only solves the assembled algebraic system; nonlinea
 
 DynaElastomerSolver is **not a CAD/sketch application**. Geometry is prepared in an external CAD system and imported primarily through DXF. The application interprets, validates and converts that geometry into analysis regions, boundaries and selection sets.
 
+## UI philosophy
+
+DynaElastomerSolver owns its complete engineering user experience. It does not embed another CAE application's user interface.
+
+The information architecture is ANSYS-inspired but simplified for elastomer engineering:
+
+```text
+Context Toolbar
+      ↓
+Navigator | Workspace | Inspector
+      ↓
+Utility / Solver / Convergence Panel
+```
+
+Top-level workspaces:
+
+```text
+Project → Geometry → Material Lab → Mesh → Analysis → Solve → Results → Validation
+```
+
+The visual language is intentionally distinct from traditional CAE software: minimal, technical and Apple-inspired. External UI frameworks may provide low-level windowing/input/render infrastructure, but navigation, selection, commands, inspector behavior, result interaction and the project design system remain Dyna-owned.
+
+Initial cross-platform UI framework candidate: **Avalonia/.NET**. Qt 6 remains an alternative subject to an implementation spike before production UI work.
+
 ## Result philosophy
 
 Raw integration-point physics is kept separate from extrapolated/averaged display results.
@@ -119,12 +144,14 @@ The platform also targets native simulation-to-test comparison for force-displac
 - `docs/PROJECT_CONTEXT.md`
 - `docs/architecture/ARCHITECTURE.md`
 - `docs/architecture/MATERIAL_CORE_ARCHITECTURE.md`
+- `docs/architecture/UI_ARCHITECTURE.md`
 - `docs/decisions/ADR-0001-FOUNDATION.md`
 - `docs/decisions/ADR-0002-ANSYS-MARC-BENCHMARK-REVISION.md`
+- `docs/decisions/ADR-0003-OWNED-UI-ARCHITECTURE.md`
 - `docs/benchmarks/ANSYS_MARC_COMPARISON.md`
 - `docs/references/OPEN_SOURCE_REFERENCES.md`
 - `docs/ROADMAP.md`
 
 ## Current status
 
-Architecture and scientific foundations are being defined before implementation. The first implementation milestone builds the constitutive material engine and verification infrastructure before introducing the full FEM solver.
+Architecture and scientific foundations are being defined before implementation. The first implementation milestone builds the constitutive material engine and verification infrastructure before introducing the full FEM solver. UI production work will begin after a small framework/viewport/native-ABI architecture spike confirms the selected desktop stack.
