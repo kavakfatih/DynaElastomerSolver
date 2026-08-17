@@ -31,12 +31,25 @@ jobs:
         run: docker pull dolfinx/dolfinx:v0.11.0
 
       - name: Bağımsız FEM referansını çalıştır
+        shell: bash
         run: |
+          mkdir -p reference-results
+          set +e
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work \
             dolfinx/dolfinx:v0.11.0 \
-            python3 tools/reference/fenicsx_v02_homogeneous_extension.py
+            python3 tools/reference/fenicsx_v02_homogeneous_extension.py \
+            > reference-results/fenicsx-run.log 2>&1
+          status=$?
+          set -e
+
+          cat reference-results/fenicsx-run.log
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 50 reference-results/fenicsx-run.log | tr '\n' ' ' | cut -c1-4000)
+            echo "::error file=tools/reference/fenicsx_v02_homogeneous_extension.py::FEniCSx referans koşusu başarısız: ${message}"
+            exit "$status"
+          fi
 
       - name: Referans sonucunu göster
         run: cat reference-results/fenicsx_v02_homogeneous_extension.json
