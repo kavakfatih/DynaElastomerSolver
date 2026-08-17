@@ -177,3 +177,45 @@ Paylaşılan teknik eleştiriler sonucunda:
 - Mevcut çalışma ortamında `fypp` kurulu olmadığı ve dış ağ erişimi bulunmadığı için stdlib tabanlı yeni build tam CTest/compiler matrisi üzerinde henüz doğrulanmış sayılmıyor.
 - Bu doğrulama V0.2 kapanışının zorunlu maddesi olarak `PROJECT_STATUS` içine eklendi.
 - `Sistem-ve-Mimari` branch'ine güncelleme yapılmadı.
+
+## 2026-08-18 — LAPACK, MINPACK, PRIMA ve PCHIP değerlendirmesi
+
+**Kullanıcı yönlendirmesi:** Aşağıdaki repoların projede faydalı olabileceği belirtildi:
+- `Reference-LAPACK/lapack`
+- `fortran-lang/minpack`
+- `libprima/prima`
+- `jacobwilliams/PCHIP`
+
+**Değerlendirme:**
+- Reference LAPACK, Dyna'nın `stdlib_linalg` arkasında kullandığı dense lineer cebir backend/referansı olarak teyit edildi. Doğrudan legacy API yerine mümkün olduğunda stdlib katmanı kullanılmaya devam edilecek.
+- MINPACK; nonlinear least-squares ve Levenberg–Marquardt için V0.7 Material Calibration'ın ana local refinement adaylarından biri olarak teyit edildi.
+- PRIMA; modern Fortran tabanlı Powell derivative-free yöntemleri (`UOBYQA`, `NEWUOA`, `BOBYQA`, `LINCOA`, `COBYLA`) nedeniyle bounded/constrained calibration için güçlü aday olarak eklendi. BSD-3-Clause lisanslı olduğu doğrulandı.
+- PRIMA global optimizer olarak sınıflandırılmayacak; bounded/constrained derivative-free local search aracı olarak kullanılacak.
+- PCHIP; shape-preserving/monotone cubic Hermite interpolation özelliği nedeniyle deneysel elastomer stress–strain eğrilerini ortak strain grid'ine resample etmek, interpolation overshoot riskini azaltmak ve deney/FEA eğrilerini karşılaştırmak için güçlü aday olarak eklendi.
+- PCHIP lisansı BSD-3-Clause koşullarına karşılık gelen permissive metin ile SLATEC public-domain bildirimini birlikte içerir.
+
+**V0.7 için netleşen önerilen araç zinciri:**
+
+```text
+Raw Experimental Data
+        ↓
+PCHIP
+shape-preserving interpolation / resampling
+        ↓
+Objective + physical admissibility
+        ↓
+PRIMA BOBYQA / COBYLA
+bounded / constrained derivative-free fit
+        ↓
+MINPACK Levenberg–Marquardt
+local least-squares refinement
+        ↓
+Material validation
+```
+
+**Repo güncellemeleri:**
+- `docs/references/FORTRAN_LIBRARIES.md` PRIMA ve PCHIP ile genişletildi; LAPACK ve MINPACK kullanım rolleri netleştirildi.
+- `docs/ROADMAP.md` V0.7 Material Calibration aşamasına PCHIP + PRIMA + MINPACK araç planı eklendi.
+- `docs/PROJECT_STATUS.md` gelecekteki calibration dependency planını gösterecek şekilde güncellendi.
+- Bu aşamada PRIMA, MINPACK ve PCHIP henüz build dependency yapılmadı; gereksiz erken dependency büyümesini önlemek için V0.7'ye kadar aday olarak tutulacak.
+- `Sistem-ve-Mimari` branch'ine güncelleme yapılmadı.
