@@ -137,31 +137,29 @@ Dyna Linear Solver API
         └── GMRES / iterative     [gelecek]
 ```
 
-**Doğrulama notu:** stdlib tabanlı tam dependency build / 19 CTest compiler-matrix doğrulaması bu çalışma ortamında henüz tamamlanmış sayılmıyor ve V0.2 kapanış kriteri olarak korunuyor.
-
 ## 2026-08-18 — Newton lineer solver diagnostics entegrasyonu
 
-**Kullanıcı yönlendirmesi:** Geliştirmeye devam edilmesi istendi.
+- Fixed-step ve adaptive Q4 Newton solver doğrudan `solve_linear_system(...)` çağıracak şekilde güncellendi.
+- Opsiyonel `linear_solver_settings_t` ile backend seçimi Newton API'ye taşındı.
+- `newton_report_t` içine `linear_solve_count`, `max_linear_equation_count`, `max_linear_residual_inf_norm` ve `last_linear_report` eklendi.
+- `InternalMesh` solver adapterleri de lineer backend ayarı kabul ediyor.
+- Backend failure nedeni Newton `status` ve `last_failure_status` içinde korunuyor.
+- `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` adaptive solver için terminal konfigürasyon hatası; cutback yapılmıyor.
+- `test_q4_internal_mesh_solver` başarılı diagnostics ve unsupported-backend propagation davranışını kontrol edecek şekilde genişletildi.
 
-**Gerçekleştirilenler:**
-- Fixed-step ve adaptive Q4 Newton solver artık `des_dense_linear` wrapper'ı yerine doğrudan `solve_linear_system(...)` çağırıyor.
-- Her Newton çözümü için seçilebilir `linear_solver_settings_t` opsiyonel girdi olarak eklendi.
-- `newton_report_t` şu lineer teşhislerle genişletildi:
-  - `linear_solve_count`
-  - `max_linear_equation_count`
-  - `max_linear_residual_inf_norm`
-  - `last_linear_report`
-- Son lineer raporda backend, equation count, residual, status ve converged bilgisi korunuyor.
-- `InternalMesh` solver adapterleri de opsiyonel lineer backend ayarı kabul edecek şekilde güncellendi.
-- Lineer backend failure nedeni genel solver hatasına çevrilmeden Newton `status` ve `last_failure_status` alanlarında korunuyor.
-- `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` adaptive solver için terminal konfigürasyon hatası olarak sınıflandırıldı; bu durumda cutback yapılmıyor.
-- Mevcut `test_q4_internal_mesh_solver` regression testi; başarılı lineer diagnostics ve unsupported-backend propagation davranışını kontrol edecek şekilde genişletildi.
-- CTest tanımı 19 olarak kaldı; yeni ayrı test eklenmedi.
+## 2026-08-18 — Severe-distortion nonlinear Q4 benchmark
 
-**Doğrulama durumu:**
-- Kaynak/API ve regression-test tanımı tamamlandı.
-- stdlib/fypp tam dependency build ortamı bu çalışma ortamında tamamlanmadığı için 19/19 toplu test doğrulaması V0.2 kapanış kriteri olarak devam ediyor.
+- Yeni `test_q4_severe_distortion_solver` eklendi.
+- 2×2 Q4 mesh'te merkez düğüm `(1.45, 0.55)` konumuna kaydırılarak belirgin geometrik skew oluşturuldu.
+- Reference Gauss Jacobian/ağırlık aralığı yaklaşık `0.07255 ... 0.42745`; min/max oranı yaklaşık `0.1697`.
+- Büyük affine finite-strain alanı tanımlandı: `F=[[1.35,0.28],[0.12,0.78]]`, beklenen `J=1.0194`.
+- Test; merkez displacement, global force balance, 16 Gauss noktasındaki `F/J`, `min J` ve Newton lineer diagnostics alanlarını birlikte kontrol ediyor.
+- Aynı denklemler bağımsız sayısal ön kontrolde 6 increment ve toplam 24 Newton düzeltmesi ile çözüldü; merkez displacement hatası yaklaşık `1.9e-14`, global force sums yaklaşık `1e-16` mertebesinde bulundu.
+- Bu ön kontrol Fortran CTest'in yerine geçmez; yalnız benchmark tanımının matematiksel tutarlılığını doğrular.
+- CTest tanımı **20 teste** çıktı.
 
-**Sıradaki adım:** ek nonlinear distortion/robustness benchmark'ları ve bağımsız referans çözüm karşılaştırmasını genişletmek; ardından macOS/Windows compiler matrisi.
+**Doğrulama notu:** stdlib/fypp tam dependency build ortamı bu çalışma ortamında tamamlanmadığı için 20/20 toplu CTest ve compiler-matrix doğrulaması V0.2 kapanış kriteri olarak devam ediyor.
+
+**Sıradaki adım:** bağımsız solver/reference karşılaştırmasını genişletmek; ardından macOS/Windows compiler matrisi ve V0.2 kapanışı.
 
 `Sistem-ve-Mimari` branch'ine bu geliştirme sırasında güncelleme yapılmadı.
