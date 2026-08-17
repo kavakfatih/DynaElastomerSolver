@@ -54,11 +54,12 @@ contains
       end do
 
       call evaluate_q4_plane_strain_element(Xe, ue, parameters, re, Ke, element_status, element_min_j)
+      ! Başarısız material-point durumunda da teşhis için görülen en küçük J korunur.
+      min_j = min(min_j, element_min_j)
       if (element_status /= DES_STATUS_OK) then
         status = element_status
         return
       end if
-      min_j = min(min_j, element_min_j)
 
       do a = 1,4
         node_a = connectivity(e,a)

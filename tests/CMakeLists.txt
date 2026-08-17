@@ -84,3 +84,15 @@ des_add_fortran_test(
   fem.q4.plane_strain.nonlinear_patch
   test_q4_nonlinear_patch.f90
 )
+
+des_add_fortran_test(
+  test_q4_mesh_refinement
+  fem.q4.plane_strain.mesh_refinement
+  test_q4_mesh_refinement.f90
+)
+
+des_add_fortran_test(
+  test_q4_adaptive_cutback
+  solver.q4.plane_strain.adaptive_cutback
+  test_q4_adaptive_cutback.f90
+)

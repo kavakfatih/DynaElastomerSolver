@@ -13,4 +13,5 @@ module des_status
   integer, parameter, public :: DES_ERROR_INVALID_CONSTRAINT = -300
   integer, parameter, public :: DES_ERROR_LINEAR_SOLVE = -301
   integer, parameter, public :: DES_ERROR_NEWTON_DID_NOT_CONVERGE = -302
+  integer, parameter, public :: DES_ERROR_CUTBACK_EXHAUSTED = -303
 end module des_status
