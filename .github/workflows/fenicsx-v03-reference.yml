@@ -21,6 +21,11 @@ permissions:
   contents: read
   statuses: write
 
+env:
+  # Docker Hub v0.11.0 linux/amd64 immutable image digest.
+  # Tag + digest birlikte tutulur: sürüm okunabilirliği + supply-chain bütünlüğü.
+  FENICSX_IMAGE: dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
+
 jobs:
   cook-q2-reference:
     name: DOLFINx v0.11.0 / Cook Q2 external reference
@@ -33,7 +38,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: FEniCSx referans imajını al
-        run: docker pull dolfinx/dolfinx:v0.11.0
+        run: docker pull "$FENICSX_IMAGE"
 
       - name: Bağımsız V0.3 Cook Q2 referansını çalıştır
         id: reference
@@ -44,7 +49,7 @@ jobs:
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work \
-            dolfinx/dolfinx:v0.11.0 \
+            "$FENICSX_IMAGE" \
             python3 tools/reference/fenicsx_v03_cook_q2_reference.py \
             > reference-results/fenicsx-v03-cook-q2.log 2>&1
           status=$?
