@@ -385,3 +385,83 @@ Sıradaki adım:
 7. Production formulation ADR kararını ver.
 
 `Sistem-ve-Mimari` branch'ine dokunulmadı.
+
+---
+
+## 16. 2026-08-18 durum teyidi — V0.3
+
+Repo ve PR yeniden kontrol edildi.
+
+```text
+main head          = 9a93a3491cfa6bf29c8712c92b25bc513b3b35b8
+develop/v0.3 head = ae4bc42e4d3f72e751747b68e642302ffb41a58a
+Draft PR #1        = open / draft / mergeable
+```
+
+`develop/v0.3`, kontrol anında `main`e göre 102 commit ilerideydi. `tests/CMakeLists.txt` içinde **35 ayrı CTest tanımı** doğrudan teyit edildi.
+
+### CI hata ayrımı
+
+Aktif V0.3 head commit'i için iki workflow failure durumda:
+
+- `Fortran CI` run #132
+- `FEniCSx V0.3 Cook Q2 Reference` run #39
+
+Fortran CI içindeki dört job da failure:
+
+- Windows / gfortran 14
+- Linux / gfortran 14
+- Windows 2022 / Intel ifx 2025.2
+- macOS ARM64 / gfortran 14
+
+FEniCSx job'u da failure.
+
+Ancak incelenen job'larda **step listesi boş**. Yani checkout, configure, build, CMake veya CTest aşamasına girilmemiş. Job log blob'u da mevcut değil. Bu nedenle bu failure'lar şu anda doğrulanmış bir Fortran/CMake/CTest kod hatası olarak sınıflandırılamaz; öncelikli şüphe GitHub-hosted runner provisioning / Actions account-repository usage katmanıdır.
+
+### Yeni bağımsız Q2 convergence bulgusu
+
+Dyna Fortran kodundan bağımsız Q2 / SciPy precheck sonucu:
+
+```text
+Q2 2x2   tip = 0.01413789
+Q2 4x4   tip = 0.01807531
+Q2 8x8   tip = 0.01954568
+Q2 16x16 tip = 0.02002643
+```
+
+Refinement değişimi:
+
+```text
+2 -> 4   ≈ 21.78%
+4 -> 8   ≈  7.52%
+8 -> 16  ≈  2.40%
+```
+
+V0.3 external-reference convergence kriteri son iki Q2 mesh arasında `%1` veya daha az değişimdir. Bu nedenle **16x16 Q2 henüz converged reference değildir**. FEniCSx dış referans planı **32x32** seviyesine genişletildi.
+
+Aynı-mesh bağımsız Q2 precheck'i F-bar'ın Q2 çözümüne mixed Q4/P0'dan daha hızlı yaklaştığına dair olumlu sinyal veriyor; ancak production formulation seçimi için henüz yeterli değildir.
+
+### Mevcut hata / açık risk değerlendirmesi
+
+Doğrulanmış solver regresyonu: **yok**.
+
+Doğrulanmış açık altyapı problemi: **GitHub Actions job'ları step başlamadan failure oluyor**.
+
+Henüz tamamlanmamış doğrulamalar:
+
+1. 35-test matrix'in Windows/ifx, Windows/gfortran ve macOS ARM64 üzerinde gerçek çalışması.
+2. Platformlar arası bake-off JSON numerical reproducibility karşılaştırması.
+3. FEniCSx Q2 32x32 dahil converged dış referans.
+4. Mixed pressure alanının dış continuum pressure referansıyla karşılaştırılması.
+5. Accuracy / locking / robustness / maliyet ortak karar tablosu.
+6. Production formulation ADR kararı.
+
+Dolayısıyla mevcut durum **"kodda hata bulundu" değil, "CI engeli nedeniyle production doğrulaması tamamlanamadı"** olarak kabul edilir.
+
+### Sıradaki teknik adım
+
+1. Actions pre-step failure'ın repository/account/runner nedenini çöz.
+2. 35 CTest'i birincil üç platformda çalıştır.
+3. FEniCSx Q2 reference'ı 32x32 seviyesine kadar çalıştır ve convergence kriterini uygula.
+4. Mixed ve F-bar'ı converged dış referansa göre karşılaştır.
+5. Ortak karar tablosunu oluştur ve production formulation ADR'sini sabitle.
