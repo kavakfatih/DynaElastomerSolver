@@ -527,7 +527,7 @@ Sıradaki adımlar:
 
 ## 21. Public repository — lisans, fikrî mülkiyet ve güvenlik politikası
 
-2026-08-18 tarihinde repository'nin ileride public yapılması kararı için proprietary/source-available hak koruma katmanı oluşturuldu.
+2026-08-18 tarihinde repository'nin public yapılması planı için proprietary/source-available hak koruma katmanı oluşturuldu.
 
 Karar:
 
@@ -562,33 +562,76 @@ Güvenlik/publish gate:
 - full Git history secret scan zorunlu
 - Actions logs/artifacts review zorunlu
 - leaked credentials revoke/rotate
-- Private Vulnerability Reporting public öncesi aktif
+- Private Vulnerability Reporting
 - secret scanning / push protection / Dependabot / uygun code scanning
 - visibility sonrası branch rulesets yeniden doğrulanacak
-- GitHub Archive Program opt-out kararı verilecek
-- patent ve ticari sır review tamamlanmadan visibility public yapılmayacak
-
-Patent kararı:
-
-Public source disclosure patent novelty/trade-secret stratejisini etkileyebileceğinden `PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md` içinde zorunlu NO-GO gate tanımlandı.
+- GitHub Archive Program kararı
+- patent ve ticari sır review
 
 CI security review:
 
 - GitHub Actions SHA-pinned actions ✅
 - workflow permissions `contents: read` + gerekli `statuses: write` ✅
-- FEniCSx Docker `dolfinx/dolfinx:v0.11.0` tag-only; public/release öncesi digest pinleme follow-up.
+- FEniCSx Docker `dolfinx/dolfinx:v0.11.0` tag-only; digest pinleme follow-up.
 
-Repository visibility:
+`Sistem-ve-Mimari` branch'ine dokunulmadı.
 
-**Hâlâ private.** Patent/secret-history/security GO/NO-GO açık maddeleri kapanmadan public yapılmayacak.
+---
 
-Sıradaki public hazırlık adımları:
+## 22. Repository PUBLIC oldu — post-public remediation
 
-1. full-history secret/credential audit.
-2. historical Actions logs/artifacts audit.
-3. patent/ticari sır review.
-4. GitHub Private Vulnerability Reporting ve security features activation.
-5. FEniCSx Docker digest pinleme.
-6. tüm GO/NO-GO maddeleri kapandıktan sonra visibility public değerlendirmesi.
+2026-08-18 tarihinde GitHub repository durumu yeniden okundu ve repository'nin **PUBLIC** olduğu doğrulandı.
+
+```text
+visibility = public
+license detected by GitHub = Other / NOASSERTION
+fork count at inspection = 0
+main protected = false
+required status checks = off
+```
+
+Buna göre güvenlik politikası ve `docs/legal/PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md` public-sonrası remediation durumuna güncellendi.
+
+Hukuki/platform sınırı:
+
+- Dyna özgün kodunun copyright ve diğer sahip olunan IP hakları proprietary lisansla saklıdır.
+- GitHub Terms of Service'in public repository için doğrudan verdiği görüntüleme/fork hakları özel LICENSE ile geri alınamaz.
+- Güncel GitHub Terms, GitHub ve Affiliates için public içerik üzerinde AI/ML geliştirme/eğitim lisansı da içerdiğinden, LICENSE içindeki AI kısıtı GitHub'ın kendi sözleşmesel haklarını dışarıda bırakır.
+- Public açıklamanın patent yeniliği ve ticari sır stratejisine etkisi ayrıca hukuki değerlendirme gerektirir.
+
+Current-tree hızlı secret anahtar kelime taramasında aşağıdaki sınıflarda belirgin eşleşme bulunmadı:
+
+```text
+BEGIN PRIVATE KEY
+ghp_
+github_pat_
+AKIA
+password / token / secret / api_key
+```
+
+Bu sonuç **full-history secret audit değildir**.
+
+Public sonrası açılan takip:
+
+`Issue #2 — Security: Public repository hardening`
+
+Açık acil maddeler:
+
+1. `main` branch protection/ruleset.
+2. required CI + owner/CODEOWNERS review.
+3. force-push / branch-deletion koruması.
+4. Private Vulnerability Reporting.
+5. Secret scanning + push protection + Dependabot + dependency graph + uygun code scanning doğrulaması.
+6. Full Git history secret/credential audit.
+7. Historical Actions logs/artifacts audit.
+8. Patent/public-disclosure ve ticari sır/provenance incelemesi.
+9. FEniCSx container image digest pinleme.
+10. GitHub Archive Program kararı.
+
+Repository public kalacaksa güvenlik durumu bu maddeler kapanana kadar:
+
+```text
+PUBLIC / REMEDIATION REQUIRED
+```
 
 `Sistem-ve-Mimari` branch'ine dokunulmadı.
