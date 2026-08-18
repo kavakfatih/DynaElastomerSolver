@@ -9,11 +9,15 @@
 
 ## 1. Ürün ve mimari yön
 
-DynaElastomerSolver genel amaçlı CAE değil; nonlineer elastomer problemlerinde dar, güçlü ve bağımsız doğrulanabilir solver olarak geliştiriliyor.
+DynaElastomerSolver genel amaçlı CAE değil; nonlineer elastomer problemlerinde dar, güçlü ve bağımsız doğrulanabilir bir solver olarak geliştiriliyor.
 
 ```text
-finite strain → hyperelasticity → nearly incompressibility
-→ robust Newton → plane strain → axisymmetric
+finite strain
+→ hyperelasticity
+→ nearly incompressibility
+→ robust Newton
+→ plane strain
+→ axisymmetric
 → axisymmetric torsion / 2.5D
 ```
 
@@ -27,7 +31,11 @@ main
 └── develop/v0.3
 ```
 
-PR #1 `develop/v0.3 → main` draft kalır; kullanıcı açıkça istemeden merge/tag/release yapılmaz. `Sistem-ve-Mimari` kullanıcı ayrıca istemedikçe değiştirilmez.
+- `main`: doğrulanmış ana hat + sürekli proje kaydı
+- `release/v0.2`: kararlı V0.2.0
+- `develop/v0.3`: V0.3 geliştirme/release hazırlık hattı
+- PR #1: `develop/v0.3 → main`, **open / draft**, kullanıcı açıkça istemeden merge/tag/release yapılmaz
+- `Sistem-ve-Mimari`: kullanıcı ayrıca istemedikçe değiştirilmez
 
 ---
 
@@ -42,17 +50,17 @@ V0.1:
 
 V0.2:
 
-- Q4 plane strain / 2x2 Gauss
+- Q4 plane strain / 2×2 Gauss
 - Total-Lagrangian residual/tangent
 - global assembly
 - Full Newton
 - adaptive increment / rollback / cutback
-- state/history/InternalMesh/raw IP results
+- state/history/InternalMesh/raw integration-point results
 - stdlib/LAPACK dense backend
 - severe-distortion benchmark
 - bağımsız FEniCSx doğrulaması
 
-Ana kanıtlar:
+Ana doğrulamalar:
 
 ```text
 element tangent FD        ≈ 1.16e-9
@@ -61,11 +69,11 @@ solver free residual      ≈ 5.4e-15
 nonlinear patch error     ≈ 3.9e-17
 ```
 
-V0.2 compiler matrix Linux/macOS/Windows gfortran + Windows Intel ifx: PASS.
+V0.2 compiler matrix Linux/macOS/Windows gfortran + Windows Intel ifx: **PASS**.
 
 ---
 
-## 3. V0.3 nearly-incompressible kararı
+## 3. V0.3 nearly-incompressible formulation kararı
 
 Karşılaştırıldı:
 
@@ -73,7 +81,7 @@ Karşılaştırıldı:
 2. mixed Q4/P0 u-p
 3. F-bar Q4
 
-Locking sweep `lambda/mu=10 → 1000` tip kaybı:
+Locking sweep `lambda/mu = 10 → 1000` tip displacement kaybı:
 
 ```text
 Displacement Q4 = 55.08%
@@ -103,13 +111,13 @@ Mixed Q4/P0 = experimental/verification
 FEniCSx Q2 Cook:
 
 ```text
-Q2 8x8   = 0.0195456636855
-Q2 16x16 = 0.0200264312978
-Q2 32x32 = 0.0201973648361
+Q2 8×8   = 0.0195456636855
+Q2 16×16 = 0.0200264312978
+Q2 32×32 = 0.0201973648361
 16→32    = 0.846316%
 ```
 
-Dyna 8x8 hata:
+Dyna 8×8 bağıl hata:
 
 ```text
 Displacement Q4 = 67.50%
@@ -131,14 +139,14 @@ Results pressure contract gerçek Gauss `F,J` ile constitutive `F,J` durumunu ay
 Linux/gfortran14 Debug performance baseline:
 
 ```text
-4x4   40 eq   0.090 s
-8x8  144 eq   0.375 s
-12x12 312 eq  1.129 s
-16x16 544 eq  3.242 s
+4×4    40 eq   0.090 s
+8×8   144 eq   0.375 s
+12×12 312 eq   1.129 s
+16×16 544 eq   3.242 s
 peak RSS ≈ 11.48 MiB
 ```
 
-V0.3 correctness: **38/38 CTest, 4 platform PASS**, FEniCSx PASS, performance PASS.
+V0.3 correctness paketi: **38 CTest**.
 
 ---
 
@@ -152,7 +160,7 @@ Tam hukuki hak sahibi / Licensor:
 Muhammet Fatih Kavak
 ```
 
-Model:
+Hak modeli:
 
 ```text
 Proprietary / source-available
@@ -161,9 +169,11 @@ All Rights Reserved
 Open-source license = YOK
 ```
 
-`LICENSE` sürümü **v1.1**.
+Aktif ana lisans:
 
-Aktif hak/notice dosyaları:
+`DynaElastomerSolver Proprietary Source-Available License v1.1 — 18 August 2026`
+
+Hak/notice dosyaları:
 
 - `LICENSE`
 - `COPYRIGHT.md`
@@ -171,11 +181,11 @@ Aktif hak/notice dosyaları:
 - `CONTRIBUTING.md`
 - `THIRD_PARTY_NOTICES.md`
 - `SECURITY.md`
-- README source-available banner
+- README source-available / not-open-source banner
 
-Lisans; hukuken sahip olunan özgün Dyna materyalleri için genel kullanım, commercial/internal production use, modification, derivative work, redistribution, sublicensing, patent ve marka lisansı vermiyor. GitHub Terms of Service'den doğrudan kaynaklanan platform hakları ve emredici hukuk saklıdır.
+Lisans, hukuken sahip olunan özgün Dyna materyalleri için genel kullanım, commercial/internal production use, modification, derivative work, redistribution, sublicensing, patent ve marka lisansı vermez. GitHub Terms of Service'den doğrudan kaynaklanan platform hakları ve emredici hukuk saklıdır.
 
-Üçüncü taraf bileşenler kendi lisanslarında kalır. `stdlib @ 9a15c7772f1a76a6c497b9f3abb793841fc81f74` MIT lisanslıdır.
+Üçüncü taraf bileşenler kendi hak sahipleri/lisanslarında kalır. `stdlib @ 9a15c7772f1a76a6c497b9f3abb793841fc81f74` MIT lisanslıdır.
 
 Ana hak sahipliği commitleri:
 
@@ -186,20 +196,20 @@ develop d4c3b08029e1e869be31dbf071eaf0a4b22916be
 
 ---
 
-## 6. Public repository güvenlik hardening
+## 6. Public repository güvenlik ve supply-chain hardening
 
-Tamamlananlar:
+Tamamlanan repository-dosya katmanı:
 
 - `SECURITY.md`
-- public IP/security policy
-- GitHub security baseline
 - `CODEOWNERS`
-- Dependabot GitHub Actions update config
+- `.github/dependabot.yml`
 - PR IP/security checklist
+- public-safe bug ve feature issue formları
+- blank public issue kapalı
 - `.gitignore` secret/build baseline
-- SHA-pinned GitHub Actions
-- FEniCSx immutable container digest
-- current-tree hızlı secret keyword kontrolü
+- GitHub Actions third-party actions immutable SHA ile pinli
+- FEniCSx image immutable digest ile pinli
+- current-tree hızlı secret keyword guard
 
 Pinned FEniCSx image:
 
@@ -207,18 +217,20 @@ Pinned FEniCSx image:
 dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
 ```
 
-Public hardening tracker: **Issue #2 — Security: Public repository hardening**.
+Public hardening tracker:
+
+`Issue #2 — Security: Public repository hardening`
 
 ---
 
-## 7. Pre-Disclosure IP Gate — yeni zorunlu kural
+## 7. Pre-Disclosure IP Gate
 
 Eklendi:
 
 - `docs/legal/PRE_DISCLOSURE_IP_GATE.md`
 - `docs/legal/IP_PROVENANCE_REGISTER.md`
 
-Yeni önemli teknik çalışmalar dört sınıftan biriyle değerlendirilir:
+Yeni önemli teknik çalışma sınıfları:
 
 ```text
 PUBLIC-SAFE
@@ -235,24 +247,7 @@ Public'e taşımadan önce hak sahipliği, third-party license, patent, NDA/trad
 
 ---
 
-## 8. IP / Provenance Register
-
-Provenance sicili:
-
-- Dyna özgün proje alanlarını,
-- stdlib gibi third-party dependency'leri,
-- FEniCSx/external tooling'i,
-- dış contributor agreement durumunu,
-- AI-assisted development provenance notlarını,
-- public-disclosure commit/tarih kayıtlarını
-
-release bazında izler.
-
-Yalnız Muhammet Fatih Kavak'ın hukuken sahip olduğu haklar ileri sürülür; third-party veya hukuken korunamayan materyal üzerinde hak iddiası oluşturulmaz.
-
----
-
-## 9. Legal / Public IP Guard — otomatik CI
+## 8. Legal / Public IP Guard
 
 Workflow:
 
@@ -262,10 +257,10 @@ Kontrol eder:
 
 - LICENSE v1.1
 - `Muhammet Fatih Kavak` hak sahibi kaydı
-- `COPYRIGHT.md` / NOTICE / SECURITY / CONTRIBUTING / third-party / IP gate dosyaları
+- `COPYRIGHT.md`, NOTICE, SECURITY, CONTRIBUTING, third-party ve IP gate dosyaları
 - stdlib provenance pin'i
-- `.env`, credentials/secrets JSON, private-key/certificate benzeri yasaklı tracked dosyalar
-- temel GitHub token / AWS key / private key pattern sınıfları
+- `.env`, credential/private-key/certificate benzeri yasaklı tracked dosyalar
+- temel GitHub token / AWS key / private-key pattern sınıfları
 
 Secret eşleşmesi olursa değer CI loguna yazılmaz; yalnız dosya ve risk sınıfı raporlanır.
 
@@ -279,34 +274,67 @@ eklenir.
 
 ---
 
-## 10. Public issue güvenliği
+## 9. Main / develop senkronizasyonu ve final integration head
 
-Default `main` üzerinde:
+Legal/security değişiklikleri `main` ve `develop/v0.3` üzerinde paralel ilerlediği için branch'ler diverge olmuş ve PR #1 geçici olarak mergeable=false olmuştu.
 
-- blank public issue kapalı
-- bug issue formu: security/secret/NDA/müşteri verisi uyarısı
-- feature request formu: patent/ticari sır/public-disclosure uyarısı
-- security vulnerability için `SECURITY.md` / Private Vulnerability Reporting yönlendirmesi
+Kontrollü merge yapıldı:
 
-uygulandı.
+```text
+merge head = 93fab4a7362b6593dc1d20fd2bb109d082c34c0a
+parents    = develop/v0.3 + main
+```
+
+Senkronizasyonda V0.3 source/README develop tarafından korundu; main'den public-security kayıtları, issue formları, V0.2 FEniCSx digest workflow'u ve sürekli proje kaydı alındı.
+
+PR #1 sonrasında yeniden **mergeable=true** oldu; fakat **draft / open / merged=false** tutuldu.
+
+---
+
+## 10. Birleşik head üzerinde final CI — PASS
+
+Birleşik head:
+
+`93fab4a7362b6593dc1d20fd2bb109d082c34c0a`
+
+Resmi GitHub Actions sonuçları:
+
+```text
+Fortran CI #193                    = SUCCESS
+FEniCSx V0.3 Cook Q2 Reference #77 = SUCCESS
+Legal and Public IP Guard #10      = SUCCESS
+```
+
+Fortran matrix:
+
+- Linux / gfortran 14 — build + 38/38 CTest + performance ✅
+- macOS ARM64 / gfortran 14 — build + 38/38 CTest ✅
+- Windows 2022 / Intel ifx 2025.2 — build + 38/38 CTest ✅
+- Windows / gfortran 14 — build + 38/38 CTest ✅
+
+Sonuç:
+
+> Legal/IP/security entegrasyonu scientific V0.3 baseline'ını bozmadı. V0.3 teknik doğrulama ve repository-dosya seviyesindeki lisans/IP guard birlikte yeşildir.
+
+PR #1 açıklaması bu birleşik doğrulama durumu ile güncellendi.
 
 ---
 
 ## 11. Açık kalan dış ayar / uzman incelemesi maddeleri
 
-Kod ve repository dosyası tarafındaki lisans/IP hardening tamamlandı. Açık kalanlar:
+Kod ve repository dosyası tarafındaki lisans/IP/security hardening tamamlandı. Açık kalanlar:
 
-1. `main` branch protection/ruleset.
+1. GitHub `main` branch protection/ruleset.
 2. Required scientific CI + `Legal / Public IP Guard`.
-3. Force push/deletion yasağı.
+3. Force push ve branch deletion yasağı.
 4. Private Vulnerability Reporting.
-5. Secret scanning / Secret Protection teyidi.
+5. Secret scanning / Secret Protection durumu teyidi.
 6. Repository-level Push Protection.
-7. Dependabot alerts ve uygun code scanning.
+7. Dependabot alerts ve uygun code scanning ayarı.
 8. Full Git history secret/credential audit.
 9. Historical Actions logs/artifacts audit.
-10. Patent/public-disclosure uzman review.
-11. Ticari sır/NDA/provenance uzman review.
+10. Patent/public-disclosure uzman incelemesi.
+11. Ticari sır/NDA/provenance uzman incelemesi.
 12. GitHub Archive Program tercihi.
 
 Hedef required checks:
@@ -330,14 +358,15 @@ License                    = Proprietary Source-Available v1.1
 Repository                 = public
 V0.3 production            = F-bar Q4 plane strain
 V0.3 validation            = 38/38, 4 platform + FEniCSx PASS
-PR #1                      = open / draft / merge edilmedi
+Legal/Public IP Guard      = PASS
+Final integration head     = 93fab4a7362b6593dc1d20fd2bb109d082c34c0a
+PR #1                      = open / draft / merge edilmedi / mergeable
 main branch protection     = kapalı — açık hardening maddesi
 Security tracker           = Issue #2
-Pre-disclosure IP gate     = aktif politika
+Pre-disclosure IP gate     = aktif
 IP provenance register     = aktif
-Legal/Public IP CI guard   = repository workflow olarak eklendi
 ```
 
-Sıradaki adım: GitHub Settings üzerindeki branch/security kontrollerini açmak; ardından full-history/Actions audit ve patent-ticari sır uzman incelemesini tamamlamak. Bu güvenlik kapıları kapandıktan sonra V0.3 final release entegrasyonuna dönülecek.
+Sıradaki aşama: GitHub Settings üzerindeki branch/security kontrollerini kapatmak ve full-history/Actions + patent/ticari sır uzman incelemesini tamamlamak. Bunlar kapandıktan sonra V0.3 final release entegrasyonuna dönülecek.
 
 `Sistem-ve-Mimari` branch'ine dokunulmadı.
