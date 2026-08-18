@@ -39,22 +39,15 @@ Tamamlananlar:
 - [x] rollback / cutback / retry
 - [x] trial / commit / revert
 - [x] convergence history
-- [x] status/failure diagnostics
-- [x] nonlinear patch
-- [x] mesh refinement
-- [x] pinlenmiş `kavakfatih/stdlib`
-- [x] stdlib/LAPACK dense solve
+- [x] nonlinear patch + mesh refinement
 - [x] `InternalMesh`
-- [x] connectivity validation
 - [x] raw integration-point results
-- [x] `F / J / P / Cauchy / W` Gauss outputs
-- [x] InternalMesh Newton adapter
+- [x] `kavakfatih/stdlib` / LAPACK dense solve
 - [x] backend-independent linear solver API
 - [x] Newton linear-solver diagnostics
-- [x] severe-distortion benchmark
-- [x] independent closed-form `J / P / W` reference
+- [x] severe-distortion + closed-form `J/P/W`
 - [x] FEniCSx/DOLFINx bağımsız dış FEM doğrulaması
-- [x] 20-test compiler matrix
+- [x] 20-test dört-compiler matrix
 
 Compiler matrix:
 
@@ -87,28 +80,48 @@ Karşılaştırılacak adaylar:
 2. mixed displacement-pressure (`u-p`)
 3. F-bar veya eşdeğer locking-reduction formulation
 
-### Tamamlanan ilk altyapı
+### Tamamlanan altyapı
 
-- [x] Q4 reference-edge traction integrasyonu
-- [x] eğik edge / kuvvet korunumu / invalid-edge testleri
+- [x] Q4 reference-edge traction integration
+- [x] skew edge / force conservation / invalid-edge tests
 - [x] InternalMesh global edge-load assembly
-- [x] fixed-increment force-control Full Newton benchmark driverı
-- [x] analitik homojen traction referans testi
-- [x] Cook-benzeri displacement-Q4 locking baseline benchmarkı
-- [x] V0.3 branch için dört-compiler status-context CI altyapısı
+- [x] fixed-increment force-control Full Newton benchmark driver
+- [x] analitik homojen traction reference test
+- [x] Cook-benzeri displacement-Q4 locking baseline
+- [x] V0.3 dört-compiler status-context CI
+- [x] CI concurrency — yalnız en güncel develop commit'i test edilir
 
-V0.3 CTest tanımı: **24 test**.
+### Mixed Q4/P0 — ilk prototip
+
+- [x] common V0.2 material law'u koruyan mixed potential
+- [x] Q4 displacement + element-wise P0 pressure DOF
+- [x] `Kuu / Kup / Kpu / Kpp` element block tangent
+- [x] 9×9 consistent tangent FD validation
+- [x] yerel tangent FD error ≈ `1.74e-9`
+- [x] homojen `p=lambda ln(J)` residual equivalence testi
+- [x] global `u + element-pressure` assembly
+- [x] global tangent symmetry testi
+- [x] mixed force-control Full Newton solver
+- [x] analitik homogeneous mixed traction benchmark
+- [x] mixed Cook 2×2 / 4×4 / 8×8 benchmark
+- [x] pressure min/max/std ölçümü
+- [x] V0.3 formulation/benchmark tanım dokümanı
+
+V0.3 CTest tanımı: **28 test**.
+
+Q4/P0 henüz production candidate olarak kabul edilmiş değildir. Pressure stability / oscillation ve bağımsız referans davranışı ölçülmeden formulation kararı verilmeyecektir.
 
 ### Sıradaki işler
 
-- [ ] 24-test V0.3 compiler matrix sonucunu sabitle
-- [ ] Cook baseline değerlerini kalıcı benchmark kaydına yaz
-- [ ] minimum mixed `u-p` prototipini oluştur
-- [ ] pressure DOF / block residual-tangent
-- [ ] pressure stability ve checkerboard diagnostics
-- [ ] aynı Cook benchmarkında mixed `u-p` sonucu
-- [ ] F-bar Q4 prototipi
-- [ ] displacement / mixed `u-p` / F-bar ortak karşılaştırma tablosu
+- [ ] 28-test dört-compiler V0.3 matrix sonucunu sabitle
+- [ ] displacement-only ve mixed Cook gerçek CI değerlerini kalıcı result dosyasına yaz
+- [ ] pressure stability / oscillation metriğini tanımla
+- [ ] Q4/P0 pressure davranışını bağımsız FEM referansıyla değerlendir
+- [ ] F-bar finite-strain formulation türevini ortak material law üzerinde oluştur
+- [ ] F-bar consistent tangent + FD test
+- [ ] F-bar Cook benchmark
+- [ ] displacement / mixed / F-bar ortak karşılaştırma tablosu
+- [ ] seçilen formulation için bağımsız solver karşılaştırması
 - [ ] production formulation ADR kararı
 
 Karar ölçütleri:
