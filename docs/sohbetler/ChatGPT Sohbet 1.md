@@ -77,8 +77,7 @@ V0.2 compiler matrix:
 - Windows/gfortran14 ✅
 - Windows/Intel ifx 2025.2 ✅
 
-**V0.2.0 tamamlandı.**
-
+**V0.2.0 tamamlandı.**  
 Branch: `release/v0.2`.
 
 ---
@@ -91,7 +90,7 @@ main
 └── develop/v0.3
 ```
 
-- `main`: doğrulanmış ana hat + sürekli kayıtlar
+- `main`: doğrulanmış ana hat + sürekli sohbet/çalışma kaydı
 - `release/vX.Y`: geri dönülebilir sürüm
 - `develop/vX.Y`: aktif geliştirme
 - `Sistem-ve-Mimari`: kullanıcı açıkça istemedikçe güncellenmez
@@ -114,7 +113,7 @@ Production formulation henüz seçilmedi.
 
 ## 6. Ortak V0.3 benchmark altyapısı
 
-Eklendi:
+Tamamlanan altyapı:
 
 - Q4 reference-edge traction
 - skew-edge / total-force conservation
@@ -124,6 +123,13 @@ Eklendi:
 - normalize Cook 2x2 / 4x4 / 8x8
 - final-state minimum `J`
 - Newton iteration / lineer solve / equation-count diagnostics
+- birleşik üçlü Cook benchmark executable'ı
+- doğrudan `V0.3_COOK_BAKEOFF_RESULTS.json` üretimi
+- 4x4 incompressibility sweep
+- platform numerical-result karşılaştırıcısı
+- FEniCSx/DOLFINx Q2 dış referans workflow'u
+
+V0.3 CTest tanımı: **35 test**.
 
 ---
 
@@ -171,6 +177,14 @@ J                       = 1.031600
 p = lambda ln(J)        = 0.5911089
 max pressure residual   ≈ 1.11e-16
 graph roughness         = 0
+```
+
+Cook pressure graph roughness mesh refinement trendi:
+
+```text
+2x2  = 2.874
+4x4  = 0.976
+8x8  = 0.321
 ```
 
 ---
@@ -221,29 +235,27 @@ Linux / FEniCSx                 external reference
 
 ---
 
-## 10. GitHub Actions engeli
+## 10. GitHub Actions bütçe engeli — tarihsel kayıt
 
-Draft PR conflict'i çözüldü. Ancak Windows, macOS, Linux ve FEniCSx GitHub-hosted job'ları runner step'leri başlamadan failure oluyor.
+İlk V0.3 doğrulamalarında Windows, macOS, Linux ve FEniCSx GitHub-hosted job'ları runner step'leri başlamadan failure oluyordu. Checkout/configure/build/CTest aşamasına girilmediği için bu durum solver kod hatası olarak sınıflandırılmadı.
 
-Tek Linux rerun'ı da aynı pre-step failure davranışını gösterdi.
+2026-08-18 tarihinde GitHub Actions bütçesi açıldıktan sonra aynı workflow'lar runner üzerinde normal çalışmaya başladı. Böylece önceki pre-step failure'ın hesap/bütçe/provisioning katmanından kaynaklandığı doğrulandı.
 
-Bu nedenle açık hata build/CMake/CTest seviyesine ulaşmış kod hatası olarak kabul edilmiyor.
+Bütçe engeli: **ÇÖZÜLDÜ ✅**
 
 ---
 
 ## 11. Birleşik üçlü Cook benchmarkı
 
-Yeni test:
+Test:
 
 `tests/test_v03_cook_bakeoff_compare.f90`
 
-Üç formulation artık aynı executable içinde aynı mesh, material, traction, boundary condition ve ölçüm sözleşmesi ile çözülüyor.
+Üç formulation aynı executable içinde aynı mesh, material, traction, boundary condition ve ölçüm sözleşmesi ile çözülüyor.
 
-Test doğrudan:
+Çıktı:
 
 `V0.3_COOK_BAKEOFF_RESULTS.json`
-
-üretiyor.
 
 JSON schema v3:
 
@@ -255,39 +267,83 @@ JSON schema v3:
 - mixed pressure diagnostics
 - F-bar `J_bar` range
 
-`LastTest.log` parser ana sonuç üretim yolu olmaktan çıkarıldı.
+`LastTest.log` parser ana sonuç üretim yolu değildir.
+
+Resmi Fortran/CTest 8x8 sonuçları:
+
+```text
+Formulation        Tip             Eq.   Newton/Linear
+Displacement Q4    0.00656452664   144   10 / 10
+Mixed Q4/P0        0.01915555105   208   10 / 10
+F-bar Q4           0.01940548609   144   15 / 15
+```
+
+8x8 final minimum `J`:
+
+```text
+Displacement Q4  = 0.9997835739
+Mixed Q4/P0      = 0.9937133451
+F-bar Q4         = 0.9933028744
+```
 
 ---
 
 ## 12. Platform numerical reproducibility
 
-Her compiler job'u kendi bake-off JSON artifactini saklayacak:
-
-- Windows / ifx
-- Windows / gfortran
-- macOS ARM64 / gfortran
-- Linux / gfortran
-
-Yeni araç:
+Araç:
 
 `tools/verification/compare_v03_platform_results.py`
 
+Varsayılan eşikler:
+
+```text
+rtol = 1e-8
+atol = 1e-11
+```
+
 Kontroller:
 
-- tip/final `J`/pressure/`J_bar` numerical equality
+- tip / final `J` / pressure / `J_bar` numerical equality
 - equation-count exact equality
-- iteration farkları bilgi olarak raporlanır
+- iteration ve lineer solve farkları bilgi olarak raporlanır
+
+2026-08-18 resmi compiler matrix sonucu:
+
+- Windows 2022 / Intel ifx 2025.2 ✅
+- Windows / gfortran 14 ✅
+- macOS ARM64 / gfortran 14 ✅
+- Linux / gfortran 14 ✅
+
+Her platformda:
+
+- CMake configure ✅
+- build ✅
+- **35 CTest ✅**
+- V0.3 Cook JSON artifact ✅
+- incompressibility sweep artifact ✅
+
+Cook bake-off platform karşılaştırması:
+
+```text
+macOS referansına karşı maksimum bağıl fark ≈ 3.65e-14
+failures                                = 0
+equation-count mismatch                 = 0
+iteration/linear-solve mismatch         = 0
+```
+
+Incompressibility sweep platform karşılaştırması:
+
+```text
+maksimum bağıl fark ≈ 1.39e-13
+```
+
+Sonuç: **V0.3 platform numerical reproducibility kriteri geçti. ✅**
 
 ---
 
-## 13. Bağımsız Cook precheck
+## 13. Cook bağımsız precheck — tarihsel kayıt
 
-Kayıtlar:
-
-- `docs/verification/results/V0.3_COOK_INDEPENDENT_PRECHECK.json`
-- `docs/verification/V0.3_COOK_PRECHECK_ANALYSIS.md`
-
-Tip displacement:
+Bağımsız precheck tip displacement:
 
 ```text
                2x2         4x4         8x8
@@ -302,19 +358,17 @@ Sinyaller:
 - mixed–F-bar farkı `9.09% -> 3.75% -> 1.29%`
 - mixed graph roughness `2.874 -> 0.976 -> 0.321`
 
-Bu sonuç resmi Dyna Fortran/CTest sonucu değildir.
+Bu sonuç ilk aşamada resmi Dyna Fortran/CTest sonucu değildi. 2026-08-18 compiler matrix artifactleri aynı değerleri resmi CTest hattında doğruladı.
 
 Bilimsel karar:
 
-> Coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 displacement Q4 de locked olabilir.
-
-Asıl doğruluk converged dış Q2/FEniCSx referansına göre ölçülecek.
+> Coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 displacement Q4 de locked olabilir. Doğruluk dış Q2/FEniCSx referansına göre ölçülür.
 
 ---
 
 ## 14. Incompressibility sweep
 
-Yeni test:
+Test:
 
 `tests/test_v03_incompressibility_sweep.f90`
 
@@ -324,206 +378,259 @@ Sabit 4x4 Cook mesh:
 lambda/mu = 10 -> 100 -> 1000
 ```
 
-Bağımsız precheck:
+Resmi Fortran/CTest sonuçları:
 
 ```text
 lambda/mu      10          100         1000
-Displacement   0.0132610   0.00744673  0.00595658
-Mixed          0.0184132   0.01702588  0.01685744
-F-bar          0.0191167   0.01768588  0.01751507
+Displacement   0.01326101  0.00744673  0.00595658
+Mixed          0.01841319  0.01702588  0.01685744
+F-bar          0.01911670  0.01768588  0.01751507
 ```
 
 Tip displacement kaybı `lambda/mu=10 -> 1000`:
 
 ```text
-Displacement Q4 ≈ 55.08%
-Mixed Q4/P0     ≈ 8.45%
-F-bar Q4        ≈ 8.38%
+Displacement Q4 = 55.08198%
+Mixed Q4/P0     =  8.44907%
+F-bar Q4        =  8.37816%
 ```
 
-`lambda/mu=1000` mixed–F-bar relative farkı ≈ `3.75%`.
-
-Ham kayıt:
-
-`docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_INDEPENDENT_PRECHECK.json`
-
-Bu sweep, displacement-only Q4'ün nearly-incompressible limite giderken yapay rijitleşmesini net ayırıyor.
-
----
-
-## 15. FEniCSx Q2 dış referans
-
-Hazır:
-
-`tools/reference/fenicsx_v03_cook_q2_reference.py`
-
-Plan:
+`lambda/mu=1000` mixed–F-bar relative farkı:
 
 ```text
-Q2 Cook 2x2 / 4x4 / 8x8 / 16x16
-→ converged tip displacement
-→ continuum p=lambda ln(J)
-→ Dyna üç formulation karşılaştırması
+3.75463%
 ```
 
-Actions engeli nedeniyle gerçek artifact henüz alınmadı.
+Sonuç:
+
+- displacement-only Q4 nearly-incompressible limite giderken belirgin yapay rijitleşme gösteriyor,
+- mixed ve F-bar bu davranışı büyük ölçüde gideriyor.
 
 ---
 
-## Güncel durum
+## 15. Q2 bağımsız convergence precheck — tarihsel kayıt
 
-V0.3 CTest tanımı: **35 test**.
-
-Sıradaki adım:
-
-1. GitHub-hosted Actions pre-step engelini çöz.
-2. Windows/ifx + Windows/gfortran + macOS ARM64 35-test matrix'ini çalıştır.
-3. Üç platform bake-off JSON'larını numerical reproducibility açısından karşılaştır.
-4. FEniCSx Q2 dış referansını çalıştır.
-5. Üç formulation'ı dış referansa göre relative error ile değerlendir.
-6. Pressure stability + convergence + maliyet tablosunu tamamla.
-7. Production formulation ADR kararını ver.
-
-`Sistem-ve-Mimari` branch'ine dokunulmadı.
-
----
-
-## 16. 2026-08-18 durum teyidi — V0.3
-
-Repo ve PR yeniden kontrol edildi.
-
-```text
-main head          = 9a93a3491cfa6bf29c8712c92b25bc513b3b35b8
-develop/v0.3 head = ae4bc42e4d3f72e751747b68e642302ffb41a58a
-Draft PR #1        = open / draft / mergeable
-```
-
-`develop/v0.3`, kontrol anında `main`e göre 102 commit ilerideydi. `tests/CMakeLists.txt` içinde **35 ayrı CTest tanımı** doğrudan teyit edildi.
-
-### CI hata ayrımı
-
-Aktif V0.3 head commit'i için iki workflow failure durumda:
-
-- `Fortran CI` run #132
-- `FEniCSx V0.3 Cook Q2 Reference` run #39
-
-Fortran CI içindeki dört job da failure:
-
-- Windows / gfortran 14
-- Linux / gfortran 14
-- Windows 2022 / Intel ifx 2025.2
-- macOS ARM64 / gfortran 14
-
-FEniCSx job'u da failure.
-
-Ancak incelenen job'larda **step listesi boş**. Yani checkout, configure, build, CMake veya CTest aşamasına girilmemiş. Job log blob'u da mevcut değil. Bu nedenle bu failure'lar şu anda doğrulanmış bir Fortran/CMake/CTest kod hatası olarak sınıflandırılamaz; öncelikli şüphe GitHub-hosted runner provisioning / Actions account-repository usage katmanıdır.
-
-### Yeni bağımsız Q2 convergence bulgusu
-
-Dyna Fortran kodundan bağımsız Q2 / SciPy precheck sonucu:
+Dyna Fortran kodundan bağımsız Q2/SciPy precheck:
 
 ```text
 Q2 2x2   tip = 0.01413789
 Q2 4x4   tip = 0.01807531
 Q2 8x8   tip = 0.01954568
 Q2 16x16 tip = 0.02002643
-```
-
-Refinement değişimi:
-
-```text
-2 -> 4   ≈ 21.78%
-4 -> 8   ≈  7.52%
-8 -> 16  ≈  2.40%
-```
-
-V0.3 external-reference convergence kriteri son iki Q2 mesh arasında `%1` veya daha az değişimdir. Bu nedenle **16x16 Q2 henüz converged reference değildir**. FEniCSx dış referans planı **32x32** seviyesine genişletildi.
-
-Aynı-mesh bağımsız Q2 precheck'i F-bar'ın Q2 çözümüne mixed Q4/P0'dan daha hızlı yaklaştığına dair olumlu sinyal veriyor; ancak production formulation seçimi için henüz yeterli değildir.
-
-### Mevcut hata / açık risk değerlendirmesi
-
-Doğrulanmış solver regresyonu: **yok**.
-
-Doğrulanmış açık altyapı problemi: **GitHub Actions job'ları step başlamadan failure oluyor**.
-
-Henüz tamamlanmamış doğrulamalar:
-
-1. 35-test matrix'in Windows/ifx, Windows/gfortran ve macOS ARM64 üzerinde gerçek çalışması.
-2. Platformlar arası bake-off JSON numerical reproducibility karşılaştırması.
-3. FEniCSx Q2 32x32 dahil converged dış referans.
-4. Mixed pressure alanının dış continuum pressure referansıyla karşılaştırılması.
-5. Accuracy / locking / robustness / maliyet ortak karar tablosu.
-6. Production formulation ADR kararı.
-
-Dolayısıyla mevcut durum **"kodda hata bulundu" değil, "CI engeli nedeniyle production doğrulaması tamamlanamadı"** olarak kabul edilir.
-
-### Sıradaki teknik adım
-
-1. Actions pre-step failure'ın repository/account/runner nedenini çöz.
-2. 35 CTest'i birincil üç platformda çalıştır.
-3. FEniCSx Q2 reference'ı 32x32 seviyesine kadar çalıştır ve convergence kriterini uygula.
-4. Mixed ve F-bar'ı converged dış referansa göre karşılaştır.
-5. Ortak karar tablosunu oluştur ve production formulation ADR'sini sabitle.
-
----
-
-## 17. 2026-08-18 Q2 32x32 / 64x64 ek convergence kontrolü
-
-GitHub Actions engeli sürerken Q2 denklemleri ChatGPT çalışma ortamında repo precheck'indeki aynı fizik ve aynı matematiksel sözleşmeyle yeniden kuruldu. Bu hesap **resmi repo artifacti, Dyna CTest veya FEniCSx sonucu değildir**.
-
-Önce 16x16 çözüm yeniden hesaplandı ve mevcut repo kaydıyla sayısal olarak eşleşti:
-
-```text
-repo kayıtlı 16x16 tip = 0.0200264326066
-yeniden hesaplanan     = 0.0200264326066
-```
-
-Ardından:
-
-```text
-Q2 32x32 tip = 0.0201973654566
-Q2 64x64 tip = 0.0202716452366
+Q2 32x32 tip = 0.02019736546
+Q2 64x64 tip = 0.02027164524
 ```
 
 Refinement:
 
 ```text
+8  -> 16 ≈ 2.40%
 16 -> 32 ≈ 0.8463%
 32 -> 64 ≈ 0.3664%
 ```
 
-V0.3 precheck convergence kriteri `%1` olduğundan **32x32 bağımsız Q2 precheck seviyesinde converged-adaydır**. 64x64 kontrolü bu sonucu desteklemektedir.
+`%1` convergence-aday kriterine göre 32x32 bağımsız precheck seviyesinde converged-adaydı. Bu sonuç daha sonra gerçek FEniCSx/DOLFINx workflow'u ile doğrulandı.
 
-8x8 Q4 formulation sonuçlarının daha ince Q2 referanslara göre relative tip hatası:
+---
+
+## 16. Bütçe sonrası gerçek CI hataları ve düzeltmeleri
+
+GitHub Actions bütçesi açıldıktan sonra workflow'lar ilk kez gerçek build/solve aşamasına ulaştı ve üç dar CI/uyumluluk problemi ayrıştırıldı.
+
+### 16.1 Mixed u-p testinde Fortran `J/j` isim çakışması
+
+Dosya:
+
+`tests/test_q4_mixed_up_element.f90`
+
+Fortran büyük/küçük harf duyarsız olduğu için fiziksel real `J` değişkeni ile integer FD döngü değişkeni `j` aynı isim olarak değerlendiriliyordu.
+
+Düzeltme:
 
 ```text
-Q2 32x32 referansı:
-Displacement Q4 ≈ 67.50%
-Mixed Q4/P0     ≈  5.16%
-F-bar Q4        ≈  3.92%
+j -> col
+```
 
-Q2 64x64 referansı:
-Displacement Q4 ≈ 67.62%
-Mixed Q4/P0     ≈  5.51%
-F-bar Q4        ≈  4.27%
+Fiziksel `J` ve solver formulationı değiştirilmedi.
+
+Commit:
+
+`ac91574ba8e87700051e98c9babcdfa46e84b103`
+
+### 16.2 FEniCSx Cook Q2 nonlinear continuation
+
+Dosya:
+
+`tools/reference/fenicsx_v03_cook_q2_reference.py`
+
+Tam traction'ı tek Newton çözümünde vermek yerine aynı problem **5 eşit yük artımı** ile çözülecek şekilde continuation eklendi. Her adım önceki yakınsamış çözümden başlıyor.
+
+Commit:
+
+`d64e9044a6d6d91e64218ce1688be46ebdd6d5f9`
+
+### 16.3 DOLFINx v0.11 tek-nokta vector eval şekli
+
+Continuation sonrasında nonlinear solve yakınsadı; post-processing sırasında `uh.eval` tek nokta için 1D vector döndürdüğü halde kod `(1,2)` bekliyordu.
+
+Uyumlu okuma:
+
+```text
+np.asarray(uh.eval(...)).reshape(-1)
+uy = value[1]
+```
+
+Commit:
+
+`3ac2a5c642b46468fdcc86ac65c34be091f007f2`
+
+Bu üç değişiklik solver fiziğini değiştirmez; test/reference çözüm yolu ve API uyumluluğunu düzeltir.
+
+---
+
+## 17. Resmi FEniCSx / DOLFINx Q2 dış referans
+
+Workflow:
+
+`FEniCSx V0.3 Cook Q2 Reference`
+
+DOLFINx:
+
+```text
+0.11.0.post0
+```
+
+Material/load:
+
+```text
+mu        = 1.0
+lambda    = 1000.0
+tractionY = 0.01
+load step = 5
+```
+
+Resmi Q2 tip displacement sonuçları:
+
+```text
+Q2 2x2   = 0.0141286478615
+Q2 4x4   = 0.0180747284976
+Q2 8x8   = 0.0195456636855
+Q2 16x16 = 0.0200264312978
+Q2 32x32 = 0.0201973648361
+```
+
+Refinement:
+
+```text
+8  -> 16 = 2.400665%
+16 -> 32 = 0.846316%
+```
+
+Configured convergence threshold:
+
+```text
+1.0%
+```
+
+Sonuç:
+
+```text
+candidate_converged = true ✅
+```
+
+32x32 FEniCSx sonucu ile önceki bağımsız Q2/SciPy 32x32 precheck arasındaki bağıl fark:
+
+```text
+≈ 3.09e-8
+```
+
+Bu yakın eşleşme bağımsız dış referansın fizik/matematik sözleşmesini güçlü biçimde doğruluyor.
+
+FEniCSx 32x32 continuum pressure diagnostics:
+
+```text
+mean = 0.00229114304
+std  = 0.01204722640
+RMS  = 0.01226315621
+Javg = 1.00000229122
+```
+
+---
+
+## 18. Resmi dış referansa göre formulation doğruluğu
+
+Referans:
+
+```text
+FEniCSx Q2 32x32 tip = 0.0201973648361
+```
+
+Dyna 8x8 sonuçları ve relative tip hatası:
+
+```text
+Formulation        Tip             Relative error
+Displacement Q4    0.00656452664   67.50%
+Mixed Q4/P0        0.01915555105    5.16%
+F-bar Q4           0.01940548609    3.92%
+```
+
+Mixed–F-bar 8x8 tip farkı:
+
+```text
+≈ 1.288%
 ```
 
 Bilimsel okuma:
 
-- displacement-only Q4 locking nedeniyle production adayı olmaktan uzaklaşıyor,
-- mixed Q4/P0 güçlü aday olmaya devam ediyor,
-- F-bar Q4 mevcut displacement doğruluk göstergelerinde en güçlü aday.
+- **Displacement-only Q4:** nearly-incompressible problem için locking nedeniyle production adayı olmaktan güçlü biçimde uzaklaşıyor.
+- **Mixed Q4/P0:** doğruluk ve incompressibility davranışı güçlü; pressure DOF nedeniyle 8x8 sistem 208 equation.
+- **F-bar Q4:** mevcut tip-displacement doğruluk ölçütünde en iyi sonuç; 8x8 sistem 144 equation ile mixed'den daha küçük, fakat bu benchmarkta 15 Newton/linear solve ile mixed'in 10 solve değerinden daha fazla iterasyon gerektiriyor.
 
-Ancak **production formulation hâlâ seçilmedi**. FEniCSx/DOLFINx dış referansı ve birincil compiler matrix tamamlanmadan ADR kararı verilmeyecek.
+8x8 equation maliyeti:
 
-CI tarafında ayrıca runner label'ları güncel GitHub-hosted runner listesine göre doğrulandı; `ubuntu-24.04`, `windows-2022`, `windows-2025` ve `macos-26` geçerlidir. Tüm platform job'larının step başlamadan aynı anda düşmesi nedeniyle öncelikli engel Actions account/budget/usage veya runner provisioning katmanı olarak kalmaktadır.
+```text
+Displacement Q4 = 144
+Mixed Q4/P0     = 208   (+44.4% equation / F-bar'a göre)
+F-bar Q4        = 144
+```
 
-### Güncel sıradaki adım
+Mevcut kanıtlar **F-bar lehine güçlü aday sinyali** veriyor, fakat production formulation henüz seçilmedi.
 
-1. GitHub Actions billing/usage/budget engelini hesap ayarlarından kaldır.
-2. Fortran CI 35-test matrix'ini yeniden çalıştır.
-3. FEniCSx Q2 32x32 minimum, mümkünse 64x64 kontrolünü çalıştır.
-4. Resmi FEniCSx sonucu ile Mixed ve F-bar accuracy/pressure karşılaştırmasını tamamla.
-5. Robustness + maliyet + genişletilebilirlik tablosunu tamamla.
-6. Production formulation ADR kararını ver.
+Mixed pressure ile FEniCSx continuum pressure alanları farklı approximation space'lerde olduğu için yalnız mean/std/RMS sayılarını doğrudan birebir hata metriği olarak kullanmak doğru değildir. Pressure stability kararı; mesh trendi, stationarity, roughness ve dış continuum referansı birlikte değerlendirilerek verilecek.
+
+---
+
+## 19. 2026-08-18 güncel durum
+
+Aktif geliştirme:
+
+```text
+develop/v0.3 head = 3ac2a5c642b46468fdcc86ac65c34be091f007f2
+Draft PR #1       = open / draft / mergeable
+```
+
+PR #1 V0.3 exit criteria tamamlanmadan `main`e merge edilmeyecek.
+
+Tamamlanan kritik V0.3 doğrulamaları:
+
+- GitHub Actions budget/provisioning engeli ✅
+- Windows/Intel ifx 35 CTest ✅
+- Windows/gfortran 35 CTest ✅
+- macOS ARM64/gfortran 35 CTest ✅
+- Linux/gfortran 35 CTest ✅
+- Cook platform numerical reproducibility ✅
+- incompressibility sweep platform reproducibility ✅
+- FEniCSx Q2 2x2/4x4/8x8/16x16/32x32 dış referans ✅
+- FEniCSx 16x16 -> 32x32 `%1` convergence-aday kriteri ✅
+- üç formulation için resmi dış-reference tip error hesabı ✅
+
+Henüz tamamlanması gerekenler:
+
+1. Mixed pressure stability değerlendirmesini dış continuum pressure ile metodolojik olarak tamamla.
+2. Accuracy / locking / robustness / maliyet / genişletilebilirlik ortak karar tablosunu tamamla.
+3. F-bar ve mixed için production kullanım risklerini ve gelecekteki axisymmetric / 2.5D genişletme etkisini karşılaştır.
+4. Seçilecek formulation için bağımsız doğrulama kapsamını son kez kontrol et.
+5. Production formulation ADR kararını ver.
+6. V0.3 exit criteria tamamlandıktan sonra release hazırlığına geç.
+
+`Sistem-ve-Mimari` branch'ine dokunulmadı.
