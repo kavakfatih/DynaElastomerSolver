@@ -3,15 +3,16 @@
 **Proje:** DynaElastomerSolver  
 **Sürekli kayıt branch'i:** `main`  
 **Başlangıç:** 2026-08-17  
+**Son güncelleme:** 2026-08-18  
 **Kural:** Her anlamlı proje adımından sonra teknik karar, gerçekleştirilen iş, doğrulama, güncel sürüm ve sıradaki plan bu dosyada güncellenir.
 
 ---
 
 ## 1. Ürün yönü
 
-DynaElastomerSolver genel amaçlı CAE olmayacak; nonlineer elastomer problemlerinde dar fakat güçlü bir solver olacak.
+DynaElastomerSolver genel amaçlı CAE olmayacak; nonlineer elastomer problemlerinde dar fakat güçlü ve doğrulanabilir bir solver olacak.
 
-Ana yön:
+Ana teknik yön:
 
 ```text
 finite strain
@@ -23,18 +24,34 @@ finite strain
 → axisymmetric torsion / 2.5D
 ```
 
-ADR-0006: **implementation-first validation**.
+Temel geliştirme ilkesi ADR-0006 ile **implementation-first validation** olarak sabitlendi.
 
 ---
 
-## 2. V0.1 — Material Core
+## 2. Branch ve kayıt kuralı
+
+```text
+main
+├── release/v0.2
+└── develop/v0.3
+```
+
+- `main`: doğrulanmış ana hat + sürekli sohbet/çalışma kaydı
+- `release/v0.2`: geri dönülebilir V0.2.0
+- `develop/v0.3`: aktif V0.3.0 geliştirme
+- Draft PR #1: V0.3 tamamlanmadan `main`e merge edilmeyecek
+- `Sistem-ve-Mimari`: kullanıcı açıkça istemedikçe güncellenmez
+
+---
+
+## 3. V0.1 — Material Core
 
 Tamamlandı:
 
 - Modern Fortran 2018 + CMake
 - Neo-Hookean `W / P / Cauchy`
 - analitik consistent material tangent
-- material-point FD doğrulaması
+- material-point finite-difference doğrulaması
 
 ```text
 material tangent normalized FD error ≈ 1.26e-9
@@ -42,7 +59,7 @@ material tangent normalized FD error ≈ 1.26e-9
 
 ---
 
-## 3. V0.2 — Nonlinear FEM ve robustness
+## 4. V0.2 — Nonlinear FEM ve robustness
 
 Tamamlandı:
 
@@ -77,43 +94,36 @@ V0.2 compiler matrix:
 - Windows/gfortran14 ✅
 - Windows/Intel ifx 2025.2 ✅
 
-**V0.2.0 tamamlandı.**  
-Branch: `release/v0.2`.
-
----
-
-## 4. Branch kuralı
-
-```text
-main
-├── release/v0.2
-└── develop/v0.3
-```
-
-- `main`: doğrulanmış ana hat + sürekli sohbet/çalışma kaydı
-- `release/vX.Y`: geri dönülebilir sürüm
-- `develop/vX.Y`: aktif geliştirme
-- `Sistem-ve-Mimari`: kullanıcı açıkça istemedikçe güncellenmez
-
-Draft PR #1, V0.3 tamamlanmadan `main`e merge edilmeyecek.
+**V0.2.0 tamamlandı.**
 
 ---
 
 ## 5. V0.3 — Nearly-Incompressible Formulation Bake-off
 
-Karşılaştırılan formulationlar:
+ADR-0006 gereği production formulation peşinen seçilmedi.
+
+Karşılaştırılan adaylar:
 
 1. displacement-only Q4
 2. mixed Q4/P0 `u-p`
 3. F-bar Q4
 
-Production formulation henüz seçilmedi.
+Karar ölçütleri:
+
+- volumetric locking
+- dış referansa göre displacement doğruluğu
+- pressure stability
+- mesh convergence
+- nonlinear convergence
+- equation/solver maliyeti
+- platform numerical reproducibility
+- axisymmetric ve torsion genişletme riski
 
 ---
 
-## 6. Ortak V0.3 benchmark altyapısı
+## 6. V0.3 ortak benchmark altyapısı
 
-Tamamlanan altyapı:
+Tamamlandı:
 
 - Q4 reference-edge traction
 - skew-edge / total-force conservation
@@ -128,8 +138,9 @@ Tamamlanan altyapı:
 - 4x4 incompressibility sweep
 - platform numerical-result karşılaştırıcısı
 - FEniCSx/DOLFINx Q2 dış referans workflow'u
+- mixed Q4/P0 checkerboard pressure-space risk testi
 
-V0.3 CTest tanımı: **35 test**.
+V0.3 güncel CTest tanımı: **36 test**.
 
 ---
 
@@ -155,7 +166,7 @@ Tamamlandı:
 - 9x9 consistent tangent
 - global mixed assembly
 - mixed Full Newton
-- Cook benchmark
+- pressure diagnostics
 
 Tangent doğrulaması:
 
@@ -163,14 +174,7 @@ Tangent doğrulaması:
 local normalized FD error ≈ 1.74e-9
 ```
 
-Pressure diagnostics:
-
-- mean/std/RMS
-- neighbor jump
-- `neighbor_jump_to_std`
-- `graph_roughness`
-
-Manufactured homojen exact pressure benchmarkı:
+Homojen pressure benchmarkı:
 
 ```text
 J                       = 1.031600
@@ -179,13 +183,15 @@ max pressure residual   ≈ 1.11e-16
 graph roughness         = 0
 ```
 
-Cook pressure graph roughness mesh refinement trendi:
+Cook graph roughness trendi:
 
 ```text
-2x2  = 2.874
-4x4  = 0.976
-8x8  = 0.321
+2x2 = 2.874
+4x4 = 0.976
+8x8 = 0.321
 ```
+
+Bu smooth benchmark trendi tek başına mixed pressure stability kanıtı kabul edilmedi; daha sonra özel checkerboard testi eklendi.
 
 ---
 
@@ -203,7 +209,7 @@ Element enerjisi:
 E(u) = sum_g W(F_bar_g(u)) w_g
 ```
 
-Residual enerjinin ilk varyasyonundan, tangent analitik ikinci varyasyonundan hesaplanıyor.
+Residual enerjinin ilk varyasyonundan, tangent aynı enerjinin analitik ikinci varyasyonundan hesaplanıyor.
 
 ```text
 H_q = dF_bar/dq
@@ -219,57 +225,70 @@ GNU Fortran FD   ≈ 1.20e-9
 GNU symmetry     ≈ 2.45e-16
 ```
 
-F-bar artık numerical-tangent prototipi değildir.
+F-bar numerical-tangent prototipi değildir; analytic consistent tangent production adayı olarak doğrulandı.
 
 ---
 
-## 9. Platform önceliği
+## 9. GitHub Actions bütçe engeli ve çözümü
+
+İlk V0.3 workflow denemelerinde Windows, macOS, Linux ve FEniCSx GitHub-hosted job'ları runner step'leri başlamadan failure oluyordu. Configure/build/CTest aşamasına girilmediği için solver kod hatası olarak sınıflandırılmadı.
+
+2026-08-18 tarihinde GitHub Actions bütçesi açıldıktan sonra runner'lar normal çalıştı ve önceki engelin budget/provisioning katmanından kaynaklandığı doğrulandı.
+
+**Bütçe engeli çözüldü. ✅**
+
+---
+
+## 10. Bütçe sonrası gerçek CI hataları
+
+Runner'lar ilk kez gerçek kod seviyesine ulaştığında üç dar hata ayrıştırıldı.
+
+### 10.1 Mixed testte Fortran `J/j` isim çakışması
+
+Dosya:
+
+`tests/test_q4_mixed_up_element.f90`
+
+Fortran büyük/küçük harf duyarsız olduğundan real `J` ile integer loop değişkeni `j` çakışıyordu.
+
+Düzeltme:
 
 ```text
-Windows x64 / Intel ifx         PRIMARY
-Windows x64 / gfortran          PRIMARY portability
-macOS Apple Silicon / gfortran  PRIMARY
-Linux / gfortran                SECONDARY scientific CI
-Linux / FEniCSx                 external reference
+j -> col
 ```
 
+Solver fiziği değiştirilmedi.
+
+Commit:
+
+`ac91574ba8e87700051e98c9babcdfa46e84b103`
+
+### 10.2 FEniCSx Cook Q2 load continuation
+
+Tek tam-yük Newton çözümü yerine 5 eşit traction increment eklendi; her adım önceki converged state'ten devam ediyor.
+
+Commit:
+
+`d64e9044a6d6d91e64218ce1688be46ebdd6d5f9`
+
+### 10.3 DOLFINx v0.11 tek-nokta vector eval uyumluluğu
+
+`uh.eval` tek nokta için 1D vector döndürdüğü için tip displacement okuması shape-independent hale getirildi:
+
+```text
+np.asarray(uh.eval(...)).reshape(-1)
+uy = value[1]
+```
+
+Commit:
+
+`3ac2a5c642b46468fdcc86ac65c34be091f007f2`
+
 ---
 
-## 10. GitHub Actions bütçe engeli — tarihsel kayıt
+## 11. Birleşik Cook resmi sonuçları
 
-İlk V0.3 doğrulamalarında Windows, macOS, Linux ve FEniCSx GitHub-hosted job'ları runner step'leri başlamadan failure oluyordu. Checkout/configure/build/CTest aşamasına girilmediği için bu durum solver kod hatası olarak sınıflandırılmadı.
-
-2026-08-18 tarihinde GitHub Actions bütçesi açıldıktan sonra aynı workflow'lar runner üzerinde normal çalışmaya başladı. Böylece önceki pre-step failure'ın hesap/bütçe/provisioning katmanından kaynaklandığı doğrulandı.
-
-Bütçe engeli: **ÇÖZÜLDÜ ✅**
-
----
-
-## 11. Birleşik üçlü Cook benchmarkı
-
-Test:
-
-`tests/test_v03_cook_bakeoff_compare.f90`
-
-Üç formulation aynı executable içinde aynı mesh, material, traction, boundary condition ve ölçüm sözleşmesi ile çözülüyor.
-
-Çıktı:
-
-`V0.3_COOK_BAKEOFF_RESULTS.json`
-
-JSON schema v3:
-
-- tip displacement
-- final minimum `J`
-- iterations
-- linear solves
-- equations
-- mixed pressure diagnostics
-- F-bar `J_bar` range
-
-`LastTest.log` parser ana sonuç üretim yolu değildir.
-
-Resmi Fortran/CTest 8x8 sonuçları:
+8x8:
 
 ```text
 Formulation        Tip             Eq.   Newton/Linear
@@ -278,99 +297,17 @@ Mixed Q4/P0        0.01915555105   208   10 / 10
 F-bar Q4           0.01940548609   144   15 / 15
 ```
 
-8x8 final minimum `J`:
+Final minimum `J`:
 
 ```text
-Displacement Q4  = 0.9997835739
-Mixed Q4/P0      = 0.9937133451
-F-bar Q4         = 0.9933028744
+Displacement Q4 = 0.9997835739
+Mixed Q4/P0     = 0.9937133451
+F-bar Q4        = 0.9933028744
 ```
 
 ---
 
-## 12. Platform numerical reproducibility
-
-Araç:
-
-`tools/verification/compare_v03_platform_results.py`
-
-Varsayılan eşikler:
-
-```text
-rtol = 1e-8
-atol = 1e-11
-```
-
-Kontroller:
-
-- tip / final `J` / pressure / `J_bar` numerical equality
-- equation-count exact equality
-- iteration ve lineer solve farkları bilgi olarak raporlanır
-
-2026-08-18 resmi compiler matrix sonucu:
-
-- Windows 2022 / Intel ifx 2025.2 ✅
-- Windows / gfortran 14 ✅
-- macOS ARM64 / gfortran 14 ✅
-- Linux / gfortran 14 ✅
-
-Her platformda:
-
-- CMake configure ✅
-- build ✅
-- **35 CTest ✅**
-- V0.3 Cook JSON artifact ✅
-- incompressibility sweep artifact ✅
-
-Cook bake-off platform karşılaştırması:
-
-```text
-macOS referansına karşı maksimum bağıl fark ≈ 3.65e-14
-failures                                = 0
-equation-count mismatch                 = 0
-iteration/linear-solve mismatch         = 0
-```
-
-Incompressibility sweep platform karşılaştırması:
-
-```text
-maksimum bağıl fark ≈ 1.39e-13
-```
-
-Sonuç: **V0.3 platform numerical reproducibility kriteri geçti. ✅**
-
----
-
-## 13. Cook bağımsız precheck — tarihsel kayıt
-
-Bağımsız precheck tip displacement:
-
-```text
-               2x2         4x4         8x8
-Displacement   0.00569117  0.00595658  0.00656453
-Mixed          0.01224824  0.01685744  0.01915555
-F-bar          0.01347320  0.01751507  0.01940549
-```
-
-Sinyaller:
-
-- 8x8 displacement/F-bar oranı ≈ `%33.8`
-- mixed–F-bar farkı `9.09% -> 3.75% -> 1.29%`
-- mixed graph roughness `2.874 -> 0.976 -> 0.321`
-
-Bu sonuç ilk aşamada resmi Dyna Fortran/CTest sonucu değildi. 2026-08-18 compiler matrix artifactleri aynı değerleri resmi CTest hattında doğruladı.
-
-Bilimsel karar:
-
-> Coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 displacement Q4 de locked olabilir. Doğruluk dış Q2/FEniCSx referansına göre ölçülür.
-
----
-
-## 14. Incompressibility sweep
-
-Test:
-
-`tests/test_v03_incompressibility_sweep.f90`
+## 12. Incompressibility sweep
 
 Sabit 4x4 Cook mesh:
 
@@ -387,7 +324,7 @@ Mixed          0.01841319  0.01702588  0.01685744
 F-bar          0.01911670  0.01768588  0.01751507
 ```
 
-Tip displacement kaybı `lambda/mu=10 -> 1000`:
+Tip displacement kaybı:
 
 ```text
 Displacement Q4 = 55.08198%
@@ -395,121 +332,28 @@ Mixed Q4/P0     =  8.44907%
 F-bar Q4        =  8.37816%
 ```
 
-`lambda/mu=1000` mixed–F-bar relative farkı:
-
-```text
-3.75463%
-```
-
 Sonuç:
 
 - displacement-only Q4 nearly-incompressible limite giderken belirgin yapay rijitleşme gösteriyor,
-- mixed ve F-bar bu davranışı büyük ölçüde gideriyor.
+- mixed ve F-bar locking davranışını büyük ölçüde gideriyor.
 
 ---
 
-## 15. Q2 bağımsız convergence precheck — tarihsel kayıt
-
-Dyna Fortran kodundan bağımsız Q2/SciPy precheck:
-
-```text
-Q2 2x2   tip = 0.01413789
-Q2 4x4   tip = 0.01807531
-Q2 8x8   tip = 0.01954568
-Q2 16x16 tip = 0.02002643
-Q2 32x32 tip = 0.02019736546
-Q2 64x64 tip = 0.02027164524
-```
-
-Refinement:
-
-```text
-8  -> 16 ≈ 2.40%
-16 -> 32 ≈ 0.8463%
-32 -> 64 ≈ 0.3664%
-```
-
-`%1` convergence-aday kriterine göre 32x32 bağımsız precheck seviyesinde converged-adaydı. Bu sonuç daha sonra gerçek FEniCSx/DOLFINx workflow'u ile doğrulandı.
-
----
-
-## 16. Bütçe sonrası gerçek CI hataları ve düzeltmeleri
-
-GitHub Actions bütçesi açıldıktan sonra workflow'lar ilk kez gerçek build/solve aşamasına ulaştı ve üç dar CI/uyumluluk problemi ayrıştırıldı.
-
-### 16.1 Mixed u-p testinde Fortran `J/j` isim çakışması
-
-Dosya:
-
-`tests/test_q4_mixed_up_element.f90`
-
-Fortran büyük/küçük harf duyarsız olduğu için fiziksel real `J` değişkeni ile integer FD döngü değişkeni `j` aynı isim olarak değerlendiriliyordu.
-
-Düzeltme:
-
-```text
-j -> col
-```
-
-Fiziksel `J` ve solver formulationı değiştirilmedi.
-
-Commit:
-
-`ac91574ba8e87700051e98c9babcdfa46e84b103`
-
-### 16.2 FEniCSx Cook Q2 nonlinear continuation
-
-Dosya:
-
-`tools/reference/fenicsx_v03_cook_q2_reference.py`
-
-Tam traction'ı tek Newton çözümünde vermek yerine aynı problem **5 eşit yük artımı** ile çözülecek şekilde continuation eklendi. Her adım önceki yakınsamış çözümden başlıyor.
-
-Commit:
-
-`d64e9044a6d6d91e64218ce1688be46ebdd6d5f9`
-
-### 16.3 DOLFINx v0.11 tek-nokta vector eval şekli
-
-Continuation sonrasında nonlinear solve yakınsadı; post-processing sırasında `uh.eval` tek nokta için 1D vector döndürdüğü halde kod `(1,2)` bekliyordu.
-
-Uyumlu okuma:
-
-```text
-np.asarray(uh.eval(...)).reshape(-1)
-uy = value[1]
-```
-
-Commit:
-
-`3ac2a5c642b46468fdcc86ac65c34be091f007f2`
-
-Bu üç değişiklik solver fiziğini değiştirmez; test/reference çözüm yolu ve API uyumluluğunu düzeltir.
-
----
-
-## 17. Resmi FEniCSx / DOLFINx Q2 dış referans
+## 13. Resmi FEniCSx / DOLFINx Q2 dış referans
 
 Workflow:
 
 `FEniCSx V0.3 Cook Q2 Reference`
 
-DOLFINx:
-
 ```text
-0.11.0.post0
-```
-
-Material/load:
-
-```text
+DOLFINx   = 0.11.0.post0
 mu        = 1.0
 lambda    = 1000.0
 tractionY = 0.01
 load step = 5
 ```
 
-Resmi Q2 tip displacement sonuçları:
+Tip displacement:
 
 ```text
 Q2 2x2   = 0.0141286478615
@@ -538,26 +382,17 @@ Sonuç:
 candidate_converged = true ✅
 ```
 
-32x32 FEniCSx sonucu ile önceki bağımsız Q2/SciPy 32x32 precheck arasındaki bağıl fark:
+FEniCSx 32x32 ile bağımsız Q2/SciPy 32x32 precheck bağıl farkı:
 
 ```text
 ≈ 3.09e-8
 ```
 
-Bu yakın eşleşme bağımsız dış referansın fizik/matematik sözleşmesini güçlü biçimde doğruluyor.
-
-FEniCSx 32x32 continuum pressure diagnostics:
-
-```text
-mean = 0.00229114304
-std  = 0.01204722640
-RMS  = 0.01226315621
-Javg = 1.00000229122
-```
+Bu yakın eşleşme bağımsız referans zincirini güçlü biçimde doğruladı.
 
 ---
 
-## 18. Resmi dış referansa göre formulation doğruluğu
+## 14. Dış referansa göre formulation doğruluğu
 
 Referans:
 
@@ -565,7 +400,7 @@ Referans:
 FEniCSx Q2 32x32 tip = 0.0201973648361
 ```
 
-Dyna 8x8 sonuçları ve relative tip hatası:
+Dyna 8x8:
 
 ```text
 Formulation        Tip             Relative error
@@ -574,63 +409,243 @@ Mixed Q4/P0        0.01915555105    5.16%
 F-bar Q4           0.01940548609    3.92%
 ```
 
-Mixed–F-bar 8x8 tip farkı:
-
-```text
-≈ 1.288%
-```
-
-Bilimsel okuma:
-
-- **Displacement-only Q4:** nearly-incompressible problem için locking nedeniyle production adayı olmaktan güçlü biçimde uzaklaşıyor.
-- **Mixed Q4/P0:** doğruluk ve incompressibility davranışı güçlü; pressure DOF nedeniyle 8x8 sistem 208 equation.
-- **F-bar Q4:** mevcut tip-displacement doğruluk ölçütünde en iyi sonuç; 8x8 sistem 144 equation ile mixed'den daha küçük, fakat bu benchmarkta 15 Newton/linear solve ile mixed'in 10 solve değerinden daha fazla iterasyon gerektiriyor.
-
-8x8 equation maliyeti:
-
-```text
-Displacement Q4 = 144
-Mixed Q4/P0     = 208   (+44.4% equation / F-bar'a göre)
-F-bar Q4        = 144
-```
-
-Mevcut kanıtlar **F-bar lehine güçlü aday sinyali** veriyor, fakat production formulation henüz seçilmedi.
-
-Mixed pressure ile FEniCSx continuum pressure alanları farklı approximation space'lerde olduğu için yalnız mean/std/RMS sayılarını doğrudan birebir hata metriği olarak kullanmak doğru değildir. Pressure stability kararı; mesh trendi, stationarity, roughness ve dış continuum referansı birlikte değerlendirilerek verilecek.
+Mevcut displacement doğruluk ölçütünde F-bar en iyi adaydır.
 
 ---
 
-## 19. 2026-08-18 güncel durum
+## 15. Platform numerical reproducibility
+
+Resmi compiler matrixte aynı benchmark sonuçları şu platformlarda üretildi:
+
+- Windows 2022 / Intel ifx 2025.2
+- Windows / gfortran 14
+- macOS ARM64 / gfortran 14
+- Linux / gfortran 14
+
+35-test aşamasındaki karşılaştırma:
+
+```text
+Cook maksimum bağıl fark   ≈ 3.65e-14
+Sweep maksimum bağıl fark  ≈ 1.39e-13
+```
+
+Equation-count ve iteration/linear-solve sözleşmeleri de eşleşti.
+
+---
+
+## 16. Mixed Q4/P0 checkerboard pressure-space testi
+
+Smooth Cook pressure roughness trendi mixed stability kararı için yeterli görülmedi.
+
+Yeni test:
+
+`tests/test_v03_mixed_q4p0_checkerboard_risk.f90`
+
+CTest adı:
+
+`benchmark.v0.3.mixed_up.checkerboard_null_mode`
+
+Düzenli 4x4 Q4 mesh üzerinde mean-zero checkerboard pressure modu ile mean-zero fakat checkerboard olmayan kontrol modu karşılaştırıldı.
+
+Resmi macOS/gfortran CTest çıktısı:
+
+```text
+Checkerboard normalized coupling = 6.223551e-17
+Probe normalized coupling        = 1.581139e-01
+```
+
+Yorum:
+
+- kontrol pressure modu displacement alanına açık biçimde kuple oluyor,
+- checkerboard pressure modu `K_up` divergence coupling içinde makine hassasiyeti seviyesinde kuplajsız kalıyor,
+- bu nedenle mevcut Q4/P0 pressure interpolation incompressible limite giderken production stability açısından güvenli kabul edilmiyor.
+
+Testin amacı solverı düzeltmek değil, bilinen riskin regression/decision kanıtı olarak sürekli görünür kalmasını sağlamaktır.
+
+Test dosyası commit'i:
+
+`a292e58c560014a45653a4dd780bc4389f8d7a97`
+
+CTest entegrasyon commit'i:
+
+`bc472dfb8a367e7493201e0328025f9298f2751e`
+
+---
+
+## 17. 36-test resmi compiler matrix
+
+Checkerboard testi eklendikten sonra Fortran CI yeniden çalıştırıldı.
+
+Sonuç:
+
+| Platform | Configure | Build | 36 CTest | Artifacts |
+|---|---|---|---|---|
+| Windows 2022 / Intel ifx 2025.2 | ✅ | ✅ | ✅ | ✅ |
+| Windows / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
+| macOS ARM64 / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
+| Linux / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
+
+FEniCSx/DOLFINx dış referans workflow'u da aynı code head üzerinde yeniden geçti. ✅
+
+Doğrulanan code head:
+
+`bc472dfb8a367e7493201e0328025f9298f2751e`
+
+---
+
+## 18. Production formulation kararı — ADR-0007
+
+ADR-0006'nın kanıtla seçim şartı tamamlandıktan sonra production kararı verildi.
+
+ADR:
+
+`docs/decisions/ADR-0007-NEARLY-INCOMPRESSIBLE-PRODUCTION-FORMULATION.md`
+
+Karar:
+
+```text
+V0.3 plane-strain nearly-incompressible production default = F-bar Q4
+Displacement-only Q4 = baseline / regression
+Mixed Q4/P0 = experimental / verification; production değil
+```
+
+ADR commit'i:
+
+`68a8ce034471faad66b1e36803ca606a17a7c571`
+
+### Neden F-bar?
+
+- Q2 32x32 dış referansa göre en düşük 8x8 displacement hatası: `%3.92`
+- incompressibility sweep kaybı: `%8.38`
+- 144 equation ile mixed'in 208 equation sisteminden daha küçük global sistem
+- energy-consistent residual
+- analytic consistent tangent
+- platformlar arası çok yüksek numerical reproducibility
+- independent pressure interpolation taşımadığı için mevcut Q4/P0 checkerboard riskini taşımıyor
+
+### Kabul edilen trade-off
+
+Cook 8x8 benchmarkında F-bar:
+
+```text
+15 Newton / linear solve
+```
+
+mixed ise:
+
+```text
+10 Newton / linear solve
+```
+
+Dolayısıyla F-bar her ölçütte otomatik olarak daha ucuz değildir. Sparse solver ve büyük mesh aşamasında wall-clock/bellek ayrıca ölçülecek.
+
+---
+
+## 19. Mixed formulationın geleceği
+
+Mixed Q4/P0 kodu silinmeyecek.
+
+Kullanım:
+
+- doğrulama,
+- pressure diagnostics,
+- mixed block solver araştırması,
+- gelecekteki stabil mixed formulation için altyapı.
+
+Fakat mevcut Q4/P0 **production default değildir**.
+
+Gelecekte bağımsız pressure DOF gerektiğinde:
+
+- stabilizasyonlu mixed yöntem,
+- inf-sup kararlı interpolation,
+- farklı element ailesi
+
+adayları ayrı benchmark ve ayrı ADR ile seçilecek.
+
+---
+
+## 20. Axisymmetric ve 2.5D geçiş kararı
+
+ADR-0007 yalnız **plane-strain** production baseline kararıdır.
+
+F-bar plane-strain kodu axisymmetric probleme doğrudan kopyalanmayacak.
+
+Axisymmetric türetimde yeniden doğrulanacak başlıklar:
+
+- full 3D axisymmetric deformation gradient
+- hoop stretch
+- `J` / `J_bar`
+- `2*pi*R` reference-volume weighting
+- energy-consistent residual
+- analytic consistent tangent
+- reaction force
+
+Axisymmetric torsion / 2.5D için ayrıca:
+
+- circumferential displacement
+- full torsional `F`
+- `J` ve F-bar dönüşümü
+- reaction torque
+
+zinciri doğrulanacak.
+
+Zorunlu doğrulama yolu:
+
+```text
+FD tangent
+→ homogeneous/patch test
+→ mesh refinement
+→ independent external reference
+→ product-level force/torque validation
+```
+
+---
+
+## 21. Results pressure semantiği
+
+F-bar bağımsız bir pressure unknown çözmez.
+
+Bu nedenle F-bar Results pressure çıktısı:
+
+- constitutive/J tabanlı **derived continuum pressure diagnostic** olarak etiketlenecek,
+- mixed pressure DOF gibi sunulmayacak,
+- Gauss-point/element provenance korunacak.
+
+---
+
+## 22. Dokümantasyon senkronizasyonu
+
+`docs/PROJECT_STATUS.md` ADR-0007, 36-test matrix, FEniCSx dış referans ve checkerboard sonucu ile güncellendi.
+
+Status commit'i:
+
+`26f8b22a66c811c3350dca9cfeb360f533f3fd27`
+
+`docs/architecture/SOLVER_ARCHITECTURE.md` içindeki mixed `u-p` formulationı peşinen production gereksinimi kabul eden eski ifade ADR-0007 tarafından production implementation açısından supersede edilmiştir. `Sistem-ve-Mimari` branch'ine dokunulmadı.
+
+---
+
+## 23. Güncel durum ve sıradaki adım
 
 Aktif geliştirme:
 
 ```text
-develop/v0.3 head = 3ac2a5c642b46468fdcc86ac65c34be091f007f2
-Draft PR #1       = open / draft / mergeable
+V0.3 code-validation head = bc472dfb8a367e7493201e0328025f9298f2751e
+V0.3 docs head            = 26f8b22a66c811c3350dca9cfeb360f533f3fd27
+Draft PR #1               = open / draft / merge edilmedi
+Production formulation    = F-bar Q4
+CTest                      = 36 / 36, 4 platform
+FEniCSx external reference = PASS
 ```
 
-PR #1 V0.3 exit criteria tamamlanmadan `main`e merge edilmeyecek.
+Sıradaki V0.3 adımları:
 
-Tamamlanan kritik V0.3 doğrulamaları:
-
-- GitHub Actions budget/provisioning engeli ✅
-- Windows/Intel ifx 35 CTest ✅
-- Windows/gfortran 35 CTest ✅
-- macOS ARM64/gfortran 35 CTest ✅
-- Linux/gfortran 35 CTest ✅
-- Cook platform numerical reproducibility ✅
-- incompressibility sweep platform reproducibility ✅
-- FEniCSx Q2 2x2/4x4/8x8/16x16/32x32 dış referans ✅
-- FEniCSx 16x16 -> 32x32 `%1` convergence-aday kriteri ✅
-- üç formulation için resmi dış-reference tip error hesabı ✅
-
-Henüz tamamlanması gerekenler:
-
-1. Mixed pressure stability değerlendirmesini dış continuum pressure ile metodolojik olarak tamamla.
-2. Accuracy / locking / robustness / maliyet / genişletilebilirlik ortak karar tablosunu tamamla.
-3. F-bar ve mixed için production kullanım risklerini ve gelecekteki axisymmetric / 2.5D genişletme etkisini karşılaştır.
-4. Seçilecek formulation için bağımsız doğrulama kapsamını son kez kontrol et.
-5. Production formulation ADR kararını ver.
-6. V0.3 exit criteria tamamlandıktan sonra release hazırlığına geç.
+1. F-bar production yolu için dedicated distortion/robustness benchmarkı ekle.
+2. Büyük meshlerde wall-clock ve bellek ölçüm altyapısını hazırla.
+3. F-bar Results pressure semantiğini kod/contract seviyesinde netleştir.
+4. PR #1 V0.3 exit criteria listesini güncelle ve kalan maddeleri kapat.
+5. V0.3 release hazırlığına geç.
+6. Sonraki geliştirme dalgasında axisymmetric F-bar türetimini başlat.
+7. Axisymmetric doğrulanmadan axisymmetric torsion / 2.5D production implementasyonuna geçme.
 
 `Sistem-ve-Mimari` branch'ine dokunulmadı.
