@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "status": "independent_precheck_not_official_fortran_ctest",
+  "problem": "4x4 normalized Cook plane-strain incompressibility sweep",
+  "mu": 1.0,
+  "traction_y": 0.01,
+  "lambda_over_mu": [10.0, 100.0, 1000.0],
+  "tip_displacement": {
+    "displacement_q4": [0.013261008291102709, 0.007446729588465552, 0.0059565828567928695],
+    "mixed_q4_p0": [0.01841318573172066, 0.017025882343639772, 0.01685744314188171],
+    "fbar_q4": [0.019116696074738142, 0.017685881788285233, 0.017515068782856445]
+  },
+  "lambda10_to_1000_drop": {
+    "displacement_q4": 0.5508243100810135,
+    "mixed_q4_p0": 0.08448796783883475,
+    "fbar_q4": 0.08378025400485903
+  },
+  "mixed_fbar_relative_tip_difference": {
+    "lambda_10": 0.036800833170494394,
+    "lambda_100": 0.03731787040907572,
+    "lambda_1000": 0.03754627795800667
+  },
+  "interpretation": [
+    "Displacement-only Q4 lambda/mu büyüdükçe güçlü yapay rijitleşme gösteriyor.",
+    "Mixed Q4/P0 ve F-bar aynı sweep boyunca çok daha düşük displacement kaybı gösteriyor.",
+    "Mixed ve F-bar arasındaki fark yaklaşık yüzde 3.7 seviyesinde ve sweep boyunca kararlı.",
+    "Bu kayıt bağımsız Python/NumPy precheck'tir; resmi Fortran CTest sonucu değildir."
+  ]
+}
