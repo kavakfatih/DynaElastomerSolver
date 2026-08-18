@@ -16,7 +16,7 @@ program test_q4_mixed_up_element
   real(dp) :: q(9), qp(9), qm(9)
   real(dp) :: old_residual(8), old_tangent(8,8), old_min_j
   real(dp) :: F11, F22, J, relative_error
-  integer :: status, status_dummy, j
+  integer :: status, status_dummy, col
   type(neo_hookean_parameters_t) :: p
 
   X(1,:) = [0.0_dp,0.0_dp]
@@ -40,18 +40,18 @@ program test_q4_mixed_up_element
   if (min_j <= 0.0_dp) error stop 'Mixed u-p elementte J pozitif değil.'
 
   call pack_state(u, pressure, q)
-  do j = 1,9
+  do col = 1,9
     qp = q
     qm = q
-    qp(j) = qp(j) + h
-    qm(j) = qm(j) - h
+    qp(col) = qp(col) + h
+    qm(col) = qm(col) - h
 
     call evaluate_from_state(qp, rp, Kdummy, status_dummy, min_j_dummy)
     if (status_dummy /= DES_STATUS_OK) error stop 'Pozitif FD perturbasyonu başarısız.'
     call evaluate_from_state(qm, rm, Kdummy, status_dummy, min_j_dummy)
     if (status_dummy /= DES_STATUS_OK) error stop 'Negatif FD perturbasyonu başarısız.'
 
-    tangent_fd(:,j) = (rp-rm)/(2.0_dp*h)
+    tangent_fd(:,col) = (rp-rm)/(2.0_dp*h)
   end do
 
   relative_error = maxval(abs(tangent-tangent_fd)) &
