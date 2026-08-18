@@ -186,11 +186,9 @@ Q4/P0 production seçimi değildir.
 
 ## 9. V0.3 — Pressure stability diagnostics
 
-Yeni modül:
-
 `src/fortran/results/des_pressure_diagnostics.f90`
 
-Metrikler:
+İlk metrikler:
 
 - min / max / mean.
 - standard deviation / RMS.
@@ -211,7 +209,7 @@ Neighbor jump tek başına checkerboard kararı değildir; mesh refinement + ba�
 
 ## 10. V0.3 — F-bar verification prototype
 
-F-bar için resmi/open-source finite-strain implementasyonları incelendi. Dyna 3×3 deformation-gradient temsiliyle:
+Dyna 3×3 deformation-gradient temsiliyle:
 
 ```text
 J_bar = integral(J dV0) / integral(dV0)
@@ -221,7 +219,7 @@ F_bar_g = alpha_g F_g
 
 kullanır.
 
-İlk prototip yalnız `F_bar` ile eski residualı çağırmıyor. Element enerjisi:
+Element enerjisi:
 
 ```text
 E(u) = sum_g W(F_bar_g(u)) w_g
@@ -244,9 +242,9 @@ Eklenen F-bar zincir:
 
 Bağımsız sayısal ön kontrol, F-bar'ın displacement-only Q4'e göre locking'i azaltan yönde davranabileceğini gösterdi; bu değerler Fortran CI doğrulaması tamamlanmadan resmi Dyna sonucu sayılmıyor.
 
-## 11. V0.3 CI ve güncel test sayısı
+## 11. V0.3 CI ve test sayısı
 
-`develop/v0.3` CI dört compiler status context'i yayınlayacak:
+`develop/v0.3` CI dört compiler için status context üretmek üzere düzenlendi:
 
 - Linux / gfortran 14
 - macOS ARM64 / gfortran 14
@@ -255,20 +253,118 @@ Bağımsız sayısal ön kontrol, F-bar'ın displacement-only Q4'e göre locking
 
 Concurrency eklendi; yalnız en güncel develop commit'i test edilir.
 
-V0.3 CTest tanımı artık **32 test**.
+V0.3 CTest tanımı: **32 test**.
 
 Tam dört-compiler sonuç henüz kapanmış olarak kaydedilmedi.
 
+## 12. V0.3 — Draft PR ve sürüm geçiş görünürlüğü
+
+Kullanıcının branch tabanlı sürüm geçiş kuralına uygun olarak V0.3 için Draft PR açıldı:
+
+- **PR #1:** `V0.3 — Nearly-Incompressible Formulation Bake-off`
+- head: `develop/v0.3`
+- base: `main`
+- durum: **draft**
+
+Kural:
+
+- V0.3 exit criteria tamamlanmadan PR ready yapılmaz.
+- V0.3 doğrulama tamamlanmadan `main`e merge yapılmaz.
+- V0.2 için `release/v0.2` geri dönüş noktası korunur.
+
+## 13. V0.3 — Cook sonuçlarının makine-okunur kaydı
+
+CI artık Linux/gfortran14 CTest `LastTest.log` çıktısını artifact olarak saklayacak şekilde genişletildi.
+
+Yeni parser:
+
+`tools/verification/parse_v03_bakeoff_log.py`
+
+Görevi:
+
+- yeni fizik çözmek değil,
+- başarılı Fortran Cook testlerinin stdout'unu ayrıştırmak,
+- source commit / Actions run / compiler provenance bilgisini eklemek,
+- displacement / mixed / F-bar sonuçlarını tek JSON şemasında saklamak.
+
+Hedef artifact:
+
+`V0.3_COOK_BAKEOFF_RESULTS.json`
+
+Parser, Fortran `ES` formatındaki boşlukları toleranslı işleyecek şekilde düzeltildi.
+
+## 14. V0.3 — Pressure graph roughness
+
+Pressure alanında büyük mean değerin oscillation metriğini maskelemesini azaltmak için iki yeni boyutsuz ölçü eklendi:
+
+```text
+neighbor_jump_to_std = neighbor_jump_rms / pressure_std
+graph_roughness      = (neighbor_jump_rms / pressure_std)^2
+```
+
+- mean pressure çıkarılmış değişkenlik ölçeği kullanılır.
+- smooth pressure alanında mesh refinement ile düşmesi beklenir.
+- alternating/checkerboard benzeri high-frequency alanlarda yüksek kalması beklenir.
+- constant pressure alanında ikisi de sıfırdır.
+
+Unit test, `[1,2,3,4]` pressure alanında `jump/std = sqrt(2)` ve `graph_roughness = 2` bekler; constant pressure alanında sıfır bekler.
+
+Bu ölçüler yine tek başına instability kararı değildir; dış referansla birlikte yorumlanacaktır.
+
+## 15. V0.3 — Bağımsız FEniCSx Q2 Cook referansı
+
+Dyna formulationlarından bağımsız dış benchmark için yeni script eklendi:
+
+`tools/reference/fenicsx_v03_cook_q2_reference.py`
+
+Ortak problem:
+
+```text
+plane strain
+mu = 1
+lambda = 1000
+right nominal traction_y = 0.01
+aynı normalize Cook geometrisi
+```
+
+FEniCSx tarafı:
+
+- Q2 quadrilateral displacement alanı.
+- meshler 2×2 / 4×4 / 8×8 / 16×16.
+- UFL automatic residual/Jacobian.
+- PETSc SNES + LU/MUMPS.
+- tip y displacement.
+- continuum pressure `p=lambda ln(J)` mean/std/RMS.
+- average `J`.
+- total strain energy.
+- SNES iterations.
+
+Workflow:
+
+`.github/workflows/fenicsx-v03-reference.yml`
+
+Container:
+
+`dolfinx/dolfinx:v0.11.0`
+
+Custom status:
+
+`dyna/v0.3-fenicsx-q2-reference`
+
+Bu Q2 çözüm production formulation değildir; Dyna'nın düşük dereceli Q4 adaylarından bağımsız dış referanstır.
+
+**Durum:** script ve workflow eklendi; gerçek Actions sonucu henüz başarı olarak kaydedilmedi.
+
 ## Güncel sıradaki adım
 
-1. 32-test V0.3 compiler matrix'i kesinleştir.
-2. Displacement / mixed / F-bar Cook gerçek Fortran sonuçlarını ortak JSON/tabloya yaz.
-3. Mixed pressure neighbor-jump refinement trendini çıkar.
-4. Mixed pressure field için bağımsız FEM reference oluştur.
-5. F-bar cross-FD ve Cook sonuçlarını dört compiler'da doğrula.
+1. `develop/v0.3` commit'ini sabit tutarak 32-test dört-compiler matrix'i kesinleştir.
+2. Linux CTest artifactinden üç Cook formulation'ın gerçek değerlerini ortak JSON'a çıkar.
+3. FEniCSx Q2 Cook 2/4/8/16 artifact sonucunu al.
+4. Dyna tip displacement mesh trendini Q2 16×16 referansla karşılaştır.
+5. Mixed pressure mean/std/RMS ve graph roughness trendini continuum `lambda ln(J)` referansıyla kıyasla.
 6. F-bar ayakta kalırsa analytic consistent tangent türet.
-7. Üç formulation ortak convergence/locking/robustness tablosunu oluştur.
-8. Seçilen production formulation'ı bağımsız solver ile doğrula.
+7. Üç formulation için ortak convergence/locking/robustness/maliyet tablosu oluştur.
+8. Seçilen production formulation'ı bağımsız solver ile son kez doğrula.
 9. Yalnız bundan sonra ADR kararı ver.
 
 `Sistem-ve-Mimari` branch'ine bu geliştirmelerde dokunulmadı.
