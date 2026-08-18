@@ -1,0 +1,70 @@
+name: Bug / Teknik Hata
+description: Public olarak paylaşılması güvenli bir hata bildirimi oluşturun.
+title: "[Bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Public repository uyarısı**
+
+        Bu form herkese açıktır. Buraya security vulnerability, exploit/PoC, token, parola, private key, müşteri verisi, NDA içeriği, gizli CAD/mesh/test verisi veya patent başvurusu yapılmamış gizli teknik fikir eklemeyin.
+
+        Güvenlik açığı için `SECURITY.md` politikasını kullanın.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Hata özeti
+      description: Public paylaşılması güvenli, kısa teknik açıklama.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Tekrar üretme adımları
+      description: Yalnız sentetik/public-safe veri kullanın.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit / sürüm
+      placeholder: ör. v0.3.0 veya commit SHA
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows / Intel ifx
+        - Windows / gfortran
+        - macOS / gfortran
+        - Linux / gfortran
+        - Diğer
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Beklenen davranış
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Gerçek davranış
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: public_safe
+    attributes:
+      label: Public paylaşım kontrolü
+      options:
+        - label: Bu issue secret, credential, müşteri/NDA verisi veya gizli teknik içerik içermiyor.
+          required: true
+        - label: Bunun bir security vulnerability olmadığını; öyleyse SECURITY.md yolunu kullanmam gerektiğini doğruluyorum.
+          required: true
