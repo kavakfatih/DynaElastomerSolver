@@ -145,11 +145,7 @@ jobs:
             'X-GitHub-Api-Version' = '2022-11-28'
           }
 
-          Invoke-RestMethod -Method Post \
-            -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' \
-            -Headers $headers \
-            -ContentType 'application/json' \
-            -Body $body | Out-Null
+          Invoke-RestMethod -Method Post -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
 
       # actions/upload-artifact v7.0.1
       - name: Configure logunu sakla
