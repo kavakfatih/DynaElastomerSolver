@@ -3,6 +3,8 @@ module des_q4_plane_strain_fbar_force_solver
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
                          DES_ERROR_NEWTON_DID_NOT_CONVERGE
   use des_material_types, only : neo_hookean_parameters_t
+  use des_integration_point_results, only : integration_point_results_t, &
+                                            initialize_q4_integration_results
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
                                 solve_linear_system
   use des_solver_history, only : convergence_record_t, clear_convergence_history, &
@@ -18,9 +20,11 @@ contains
 
   subroutine solve_q4_plane_strain_fbar_force_control( &
       X, connectivity, parameters, fixed_dofs, external_force, &
-      n_increments, max_iterations, tolerance, u, residual, report, linear_settings)
-    ! V0.3 F-bar benchmark driverı. Bu solver yalnız verification prototype içindir;
-    ! element tangent şu aşamada merkezi FD ile üretilir.
+      n_increments, max_iterations, tolerance, u, residual, report, &
+      linear_settings, integration_results)
+    ! V0.3 production F-bar force-control driverı.
+    ! Element residualı energy-consistent, element tangent analitiktir.
+    ! Integration-point Results yalnız yakınsamış final state için üretilir.
     real(dp), intent(in) :: X(:,:)
     integer, intent(in) :: connectivity(:,:)
     type(neo_hookean_parameters_t), intent(in) :: parameters
@@ -32,6 +36,7 @@ contains
     real(dp), intent(out) :: residual(:)
     type(newton_report_t), intent(out) :: report
     type(linear_solver_settings_t), intent(in), optional :: linear_settings
+    type(integration_point_results_t), intent(out), optional :: integration_results
 
     logical, allocatable :: is_fixed(:)
     integer, allocatable :: free_dofs(:)
@@ -45,6 +50,9 @@ contains
 
     active_linear_settings = linear_solver_settings_t()
     if (present(linear_settings)) active_linear_settings = linear_settings
+    if (present(integration_results)) then
+      call initialize_q4_integration_results(integration_results,0)
+    end if
 
     report = newton_report_t()
     report%last_linear_report%backend = active_linear_settings%backend
@@ -137,6 +145,7 @@ contains
       end if
     end do
 
+    ! Önce final state normal production assembly ile doğrulanır.
     call assemble_q4_plane_strain_fbar_mesh( &
         X,connectivity,u,parameters,residual,K,status,min_j)
     report%min_j = min(report%min_j,min_j)
@@ -154,6 +163,28 @@ contains
     if (.not. report%converged) then
       report%status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
       report%last_failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+      return
+    end if
+
+    ! Results talep edilirse yalnız doğrulanmış final state yeniden değerlendirilir.
+    ! Bu ek post-processing pass normal solver yolunun maliyetini değiştirmez.
+    if (present(integration_results)) then
+      call assemble_q4_plane_strain_fbar_mesh( &
+          X,connectivity,u,parameters,residual,K,status,min_j, &
+          integration_results=integration_results)
+      if (status /= DES_STATUS_OK) then
+        report%status = status
+        report%last_failure_status = status
+        report%converged = .false.
+        return
+      end if
+      residual = residual - external_force
+      report%final_residual_norm = maxval(abs(residual(free_dofs)))
+      report%converged = report%final_residual_norm < tolerance
+      if (.not. report%converged) then
+        report%status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+        report%last_failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+      end if
     end if
   end subroutine solve_q4_plane_strain_fbar_force_control
 
