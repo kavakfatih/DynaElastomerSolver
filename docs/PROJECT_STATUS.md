@@ -135,6 +135,23 @@ Metrikler:
 
 `graph_roughness` mesh-komşuluk grafiğinde yüksek frekanslı pressure değişimini boyutsuzlaştırmak için eklenmiştir. Tek başına checkerboard kararı değildir; mesh refinement ve bağımsız pressure reference ile birlikte yorumlanacaktır.
 
+### Manufactured homojen pressure referansı
+
+Yeni test:
+
+`tests/test_v03_mixed_pressure_uniformity.f90`
+
+Düzenli 2x2 Q4 mesh üzerinde exact affine deformasyon ve bütün P0 elemanlarda `p=lambda ln(J)` atanır. Yerel GNU Fortran 14.2 doğrulaması:
+
+```text
+Exact J                   = 1.031600
+Exact pressure            = 0.5911089
+maximum pressure residual = 1.11e-16
+pressure graph roughness  = 0.0
+```
+
+Pressure standard deviation ve bütün neighbor-jump/roughness metrikleri de sıfırdır. Bu benchmark mixed pressure stationarity + diagnostics zinciri için exact sıfır-roughness referansıdır; Cook problemindeki gerçek pressure gradientinin dış solver doğrulamasının yerine geçmez.
+
 Q4/P0 hâlâ production formulation seçimi değildir.
 
 ## Aday C — F-bar Q4
@@ -234,16 +251,18 @@ Workflow:
 
 ## V0.3 CI ve test durumu
 
-CTest tanımı: **32 test**.
+CTest tanımı: **33 test**.
 
 Kesin lokal doğrulamalar:
 
 ```text
 Mixed Q4/P0 9x9 tangent FD error ≈ 1.74e-9
-F-bar analytic tangent cross-FD    ≈ 1.20e-9
-F-bar analytic tangent symmetry    ≈ 2.45e-16
-Pressure diagnostics unit yolu     geçti
-Edge traction / global edge-load   geçti
+Mixed homogeneous pressure residual ≈ 1.11e-16
+Mixed homogeneous graph roughness   = 0.0
+F-bar analytic tangent cross-FD      ≈ 1.20e-9
+F-bar analytic tangent symmetry      ≈ 2.45e-16
+Pressure diagnostics unit yolu       geçti
+Edge traction / global edge-load     geçti
 ```
 
 ### Açık CI engeli
@@ -264,7 +283,7 @@ V0.3 compiler matrix hedefi:
 ## Sıradaki V0.3 adımları
 
 1. GitHub-hosted Actions pre-step engelini çöz ve önce Windows/macOS birincil matrix'i yeniden çalıştır.
-2. F-bar analitik tangent'i Windows/ifx, Windows/gfortran ve macOS/gfortran üzerinde doğrula.
+2. F-bar analitik tangent ve mixed pressure uniformity benchmarkını Windows/ifx, Windows/gfortran ve macOS/gfortran üzerinde doğrula.
 3. Gerçek Cook displacement / mixed / F-bar değerlerini ortak JSON'a çıkar.
 4. FEniCSx Q2 2/4/8/16 Cook dış referansını çalıştır ve artifact sonucunu sakla.
 5. Dyna tip displacement trendini Q2 16x16 referansına göre karşılaştır.
