@@ -88,8 +88,12 @@ def evaluate_tip_y(msh: mesh.Mesh, uh: fem.Function) -> float:
         links = colliding.links(0)
         if len(links) > 0:
             cells = np.array([links[0]], dtype=np.int32)
-            value = uh.eval(point, cells)
-            return float(np.real(value[0, 1]))
+            # DOLFINx sürümüne göre tek nokta/vector eval sonucu (2,) veya (1,2)
+            # gelebilir. Tek noktanın [ux, uy] bileşenlerini şekilden bağımsız oku.
+            value = np.asarray(uh.eval(point, cells)).reshape(-1)
+            if value.size < 2:
+                raise RuntimeError("Cook tip displacement vektörü okunamadı.")
+            return float(np.real(value[1]))
 
     raise RuntimeError("Cook sağ orta noktasını içeren hücre bulunamadı.")
 
