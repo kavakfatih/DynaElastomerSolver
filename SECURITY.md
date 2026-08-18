@@ -4,12 +4,6 @@ Bu belge DynaElastomerSolver için güvenlik açığı bildirim, değerlendirme 
 
 > Güvenlik açığı ayrıntılarını public issue, discussion, pull request, commit mesajı veya herkese açık başka bir kanalda paylaşmayın.
 
-## Güncel repository durumu
-
-Repository şu anda **public** durumdadır. Public geçiş öncesi tamamlanması hedeflenen bir kontrol henüz doğrulanmadıysa, aşağıdaki maddeler **post-public acil iyileştirme** olarak ele alınır.
-
-Özellikle `main` branch koruması, Private Vulnerability Reporting, secret scanning/push protection, geçmiş Git/Actions taraması ve patent/ticari sır incelemesi açık bırakılmamalıdır.
-
 ## Desteklenen sürümler
 
 | Hat | Güvenlik desteği |
@@ -21,18 +15,19 @@ Repository şu anda **public** durumdadır. Public geçiş öncesi tamamlanması
 
 ## Güvenlik açığı nasıl bildirilir?
 
-Public repository için **GitHub Private Vulnerability Reporting** etkinleştirilmelidir.
+Repository public durumdadır. Tercih edilen resmi kanal GitHub **Private Vulnerability Reporting** özelliğidir.
 
-Tercih edilen ve resmi bildirim kanalı:
+Private Vulnerability Reporting etkinse:
 
 1. Repository içindeki **Security** bölümünü açın.
-2. **Report a vulnerability** / private vulnerability reporting seçeneğini kullanın.
-3. Açığın teknik ayrıntılarını yalnız bu özel kanal üzerinden iletin.
+2. **Advisories** bölümüne gidin.
+3. **Report a vulnerability** seçeneğini kullanın.
+4. Açığın teknik ayrıntılarını yalnız bu özel kanal üzerinden iletin.
 
-Private vulnerability reporting geçici olarak kullanılamıyorsa:
+Private Vulnerability Reporting geçici olarak kullanılamıyorsa:
 
 - teknik ayrıntıları public olarak yayınlamayın,
-- yalnızca ayrıntı içermeyen bir iletişim talebi oluşturun veya proje sahibiyle mevcut özel proje kanalı üzerinden iletişime geçin,
+- yalnızca ayrıntı içermeyen bir iletişim talebi oluşturun,
 - exploit, PoC, secret, kişisel veri, token, anahtar veya saldırı ayrıntısı paylaşmayın.
 
 ## Bildirimde bulunması yararlı bilgiler
@@ -77,32 +72,32 @@ Yalnızca bilimsel doğruluk farkları, yakınsama sorunları veya sayısal sonu
 
 ## Güvenli geliştirme kuralları
 
-Public repository için aşağıdaki kontroller etkin tutulmalıdır:
+Repository public olduğundan aşağıdaki kontroller etkin tutulmalıdır:
 
-- Secret scanning,
+- Secret scanning / Secret Protection,
 - Push protection,
 - Dependabot alerts,
 - uygun olduğunda code scanning,
 - minimum GitHub Actions permissions,
-- dependency commit/tag pinleme,
+- dependency commit/digest pinleme,
 - korunan ana branch ve zorunlu CI,
 - force-push ve history rewrite kısıtlamaları,
 - release/tag bütünlüğü kontrolleri.
 
 Workflow token izinleri varsayılan olarak en düşük yetkiyle tanımlanmalıdır. Bir workflow yalnız ihtiyaç duyduğu write yetkisini almalıdır.
 
-## Public repository güvenlik kapısı / post-public remediation
+## Public repository post-public güvenlik kapısı
 
-Aşağıdaki kontrollerin tamamı doğrulanmalıdır:
+Public görünürlük sonrası hardening tamamlanmış sayılmadan önce:
 
 1. tüm Git geçmişi secret/credential açısından taranmalı,
 2. geçmiş Actions logları ve artifactleri incelenmeli,
 3. varsa sızmış credentiallar yalnız silinmemeli, **iptal edilip yenilenmeli**,
 4. müşteri/şirket içi/kişisel veri bulunmadığı doğrulanmalı,
 5. patent ve ticari sır değerlendirmesi tamamlanmalı,
-6. `LICENSE`, `THIRD_PARTY_NOTICES.md` ve `CONTRIBUTING.md` güncel olmalı,
+6. `LICENSE`, `THIRD_PARTY_NOTICES.md` ve `CONTRIBUTING.md` güncel tutulmalı,
 7. Private Vulnerability Reporting etkinleştirilmeli,
-8. branch ruleset / protection kuralları yeniden etkinleştirilmeli ve doğrulanmalıdır.
+8. `main` branch protection/ruleset ve required CI zorunlu hale getirilmelidir.
 
 ## Mühendislik güvenliği notu
 
