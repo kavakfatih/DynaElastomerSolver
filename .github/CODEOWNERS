@@ -1,0 +1,14 @@
+# DynaElastomerSolver code ownership
+# Public repository durumunda tüm kaynak ve politika değişiklikleri
+# repository sahibi tarafından gözden geçirilmelidir.
+
+* @kavakfatih
+
+# Güvenlik ve yasal politika dosyaları
+/LICENSE @kavakfatih
+/NOTICE.md @kavakfatih
+/SECURITY.md @kavakfatih
+/CONTRIBUTING.md @kavakfatih
+/THIRD_PARTY_NOTICES.md @kavakfatih
+/docs/legal/ @kavakfatih
+/.github/ @kavakfatih
