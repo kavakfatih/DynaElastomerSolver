@@ -5,6 +5,7 @@ add_library(DynaElastomerCore STATIC
   math/des_finite_strain.f90
   materials/des_material_types.f90
   materials/des_neo_hookean.f90
+  materials/des_neo_hookean_isochoric.f90
   mesh/des_internal_mesh.f90
   results/des_integration_point_results.f90
   results/des_pressure_diagnostics.f90
@@ -13,6 +14,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q8_herrmann_geometry.f90
   fem/des_mixed_dof_layout.f90
   fem/des_mixed_precheck.f90
+  fem/des_herrmann_pressure_constraint.f90
   fem/des_q4_edge_traction.f90
   fem/des_q4_mesh_edge_traction.f90
   fem/des_q4_plane_strain_neo_hookean.f90
