@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "milestone": "V0.3",
+  "benchmark": "cook_4x4_incompressibility_lambda_mu_sweep",
+  "provenance": {
+    "method": "independent_python_numpy_fem_precheck",
+    "uses_dyna_fortran_binary": false,
+    "authoritative_for_release": false,
+    "branch": "develop/v0.3",
+    "note": "Q4 parent-reference gradient dönüşümü Dyna Fortran reference_gradient ile aynı J^{-T} yönünde uygulanmıştır. Bu veri regression eşikleri için bağımsız ön kontroldür; platform CTest release kanıtıdır."
+  },
+  "problem": {
+    "mesh": "4x4",
+    "plane_condition": "plane_strain",
+    "mu": 1.0,
+    "lambda_over_mu": [10.0, 100.0, 1000.0],
+    "reference_nominal_traction_y": 0.01,
+    "load_increments": 5
+  },
+  "results": {
+    "lambda_over_mu_10": {
+      "displacement_q4_tip": 0.013261008291102704,
+      "mixed_q4_p0_tip": 0.01841318573172065,
+      "fbar_q4_tip": 0.01911669607473813,
+      "displacement_newton_iterations": 10,
+      "mixed_newton_iterations": 10,
+      "fbar_newton_iterations": 10
+    },
+    "lambda_over_mu_100": {
+      "displacement_q4_tip": 0.007446729588465371,
+      "mixed_q4_p0_tip": 0.017025882343639782,
+      "fbar_q4_tip": 0.01768588178828519,
+      "displacement_newton_iterations": 10,
+      "mixed_newton_iterations": 10,
+      "fbar_newton_iterations": 15
+    },
+    "lambda_over_mu_1000": {
+      "displacement_q4_tip": 0.005956582856792798,
+      "mixed_q4_p0_tip": 0.016857443141881832,
+      "fbar_q4_tip": 0.017515068782856344,
+      "displacement_newton_iterations": 10,
+      "mixed_newton_iterations": 10,
+      "fbar_newton_iterations": 15
+    }
+  },
+  "derived_metrics": {
+    "displacement_tip_drop_lambda10_to_1000_percent": 55.08197622657933,
+    "mixed_tip_drop_lambda10_to_1000_percent": 8.449068034754681,
+    "fbar_tip_drop_lambda10_to_1000_percent": 8.378159518883954,
+    "mixed_fbar_relative_tip_difference_at_1000_percent": 3.754627795799421
+  },
+  "interpretation": "Displacement-only Q4 lambda/mu yükseldikçe güçlü yapay rijitleşme gösterirken mixed Q4/P0 ve F-bar tip cevabı çok daha az değişmektedir. Production formulation seçimi için tek başına yeterli değildir."
+}
