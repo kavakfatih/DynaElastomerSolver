@@ -7,78 +7,67 @@
 
 ---
 
-## Ürün yönü ve geliştirme ilkesi
+## 1. Ürün yönü
 
 - DynaElastomerSolver genel amaçlı CAE değil, **nonlineer elastomer solver** olarak konumlandırıldı.
-- Ana hedefler: finite strain, hyperelasticity, nearly-incompressible elastomer, plane strain, axisymmetric ve axisymmetric torsion/2.5D.
-- ANSYS/Marc feature parity yerine dar problem sınıfında doğruluk, robustness ve açıklanabilir diagnostics hedefleniyor.
-- ADR-0006 ile **implementation-first validation** kuralı sabitlendi: önce çalışan ve doğrulanan fizik, sonra yalnız gerçek ihtiyaçtan doğan mimari.
-- Production incompressibility formulation peşinen seçilmeyecek; displacement Q4 / mixed `u-p` / F-bar aynı benchmark setinde ölçülecek.
+- Hedef: finite strain, hyperelasticity, nearly-incompressibility, robust Newton, plane strain → axisymmetric → axisymmetric torsion/2.5D.
+- ANSYS/Marc feature parity yerine dar problem sınıfında yüksek doğruluk, robustness ve açıklanabilir diagnostics.
+- ADR-0006: **implementation-first validation** — önce çalışan fizik, sonra yalnız gerçek ihtiyaçtan doğan mimari.
+- Production incompressibility formulation baştan seçilmeyecek; benchmark ile displacement Q4 / mixed `u-p` / F-bar karşılaştırılacak.
 
-## V0.1 — Material Core
+## 2. V0.1 — Material Core
 
-- Modern Fortran 2018 + CMake çekirdeği oluşturuldu.
-- Neo-Hookean enerji, First Piola-Kirchhoff stress, Cauchy stress ve analitik consistent `dP/dF` tangent uygulandı.
-- Geçersiz parametre, singular `F` ve non-positive `J` kontrolleri eklendi.
-- Material tangent merkezi finite difference ile doğrulandı; normalize hata yaklaşık `1.26e-9`.
+- Modern Fortran 2018 + CMake.
+- Neo-Hookean `W`, First Piola-Kirchhoff `P`, Cauchy stress ve analytic consistent `dP/dF`.
+- Geçersiz parametre, singular `F`, non-positive `J` kontrolleri.
+- Material tangent FD normalize hata ≈ `1.26e-9`.
 
-## V0.2 — İlk nonlinear FEM dikey dilimi
+## 3. V0.2 — Nonlinear FEM
 
-- Q4 plane-strain + 2×2 Gauss integration geliştirildi.
-- Total-Lagrangian residual ve consistent element tangent yazıldı.
-- Element tangent FD normalize hatası yaklaşık `1.16e-9`.
-- Çok elemanlı assembly, displacement-control Full Newton ve increment stepping eklendi.
-- İki elemanlı reaksiyon referans hatası yaklaşık `1e-15`; final free residual yaklaşık `5.4e-15`.
-- Distorsiyonlu nonlinear patch merkez displacement hatası yaklaşık `3.9e-17`.
+- Q4 plane-strain + 2×2 Gauss.
+- Total-Lagrangian residual/tangent.
+- Element tangent FD normalize hata ≈ `1.16e-9`.
+- Global assembly + displacement-control Full Newton.
+- İki elemanlı reaction relative error ≈ `1e-15`.
+- Final free residual ≈ `5.4e-15`.
+- Distorted nonlinear patch center error ≈ `3.9e-17`.
 
-### V0.2 robustness
+### Robustness
 
-- Adaptive displacement control, rollback, cutback ve retry eklendi.
-- Gerçek `J <= 0` failure senaryosunda `%100` trial reddedilip committed state'e dönüldü ve `%50 + %50` ile çözüm tamamlandı.
-- `solution_state_t`, trial/commit/revert ve `convergence_history_t` eklendi.
-- Cutback exhaustion, minimum `J`, okunabilir status mesajları ve failure root-cause korunumu geliştirildi.
-- 1×1 / 2×2 / 4×4 homojen mesh refinement reaksiyonları `1.605586` olarak eşleşti.
+- Adaptive load stepping.
+- rollback / cutback / retry.
+- `solution_state_t` trial/commit/revert.
+- convergence history.
+- cutback exhaustion.
+- minimum `J` ve failure root-cause.
+- 1×1 / 2×2 / 4×4 homogeneous refinement reaction = `1.605586`.
 
-### InternalMesh ve Results
+### InternalMesh + Results
 
-- Minimal `internal_mesh_t`: 2B coordinates + Q4 connectivity + validation.
-- Duplicate-node ve invalid connectivity reddediliyor.
+- `internal_mesh_t`: 2B coordinates + Q4 connectivity + validation.
 - Eski `X + connectivity` yolu regression için korundu.
-- InternalMesh ve eski assembly residual/tangent açısından eşdeğer doğrulandı.
-- Ham integration-point results: `F`, `J`, `P`, Cauchy, strain energy, element/point kimliği ve status.
-- `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045` doğrulandı.
+- raw integration-point results: `F/J/P/Cauchy/W`.
 
-### Lineer solver sınırı
+### Lineer solver
 
-- `des_linear_solver` eklendi.
-- `linear_solver_settings_t` / `linear_solver_report_t` tanımlandı.
-- İlk backend `stdlib/LAPACK dense`.
-- Newton raporuna `linear_solve_count`, maksimum equation count, linear residual ve last linear report eklendi.
-- Unsupported backend terminal failure olarak korunuyor; adaptive cutback ile anlamsız tekrar yapılmıyor.
+- `des_linear_solver` sınırı.
+- `linear_solver_settings_t` / `linear_solver_report_t`.
+- İlk backend: `kavakfatih/stdlib` → `stdlib_linalg::solve` → LAPACK.
+- Newton lineer diagnostics.
 
-### Severe-distortion + kapalı-form benchmark
+### Severe-distortion doğrulaması
 
-- 2×2 Q4 mesh merkez node `(1.45, 0.55)` ile ciddi skew altında test edildi.
-- Exact affine deformation:
+- 2×2 distorted Q4 mesh.
+- Exact affine `F` ve independent closed-form Neo-Hookean `J/P/W` reference.
+- Displacement, balance, Gauss data, energy ve solver diagnostics aynı testte.
 
-```text
-F = [1.35  0.28]
-    [0.12  0.78]
-J = 1.0194
-```
-
-- FEM/material API'sinden bağımsız kapalı-form Neo-Hookean `J / P / W` referansı eklendi.
-- Merkez displacement, global force balance, 16 Gauss `F/J`, weighted `P`, reference area, total energy ve Newton/lineer diagnostics birlikte doğrulanıyor.
-
-## Açık kaynak Fortran kütüphaneleri
+## 4. Açık kaynak Fortran kütüphaneleri
 
 Aktif zorunlu dependency:
 
-- Dyna fork: `https://github.com/kavakfatih/stdlib`
-- upstream: `https://github.com/fortran-lang/stdlib`
+- `https://github.com/kavakfatih/stdlib`
 - stdlib `0.8.1`
 - pin: `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
-- `stdlib_linalg::solve` üzerinden LAPACK dense çözüm
 
 Araştırılan/planlanan:
 
@@ -92,61 +81,48 @@ Araştırılan/planlanan:
 - JSON-Fortran
 - FrontISTR
 
-Material calibration için hedef zincir:
+Material calibration hedefi:
 
 ```text
 Experimental Data
 → PCHIP
-→ Objective + Physical Admissibility
+→ Physical Objective
 → PRIMA BOBYQA / COBYLA
-→ MINPACK Levenberg–Marquardt
+→ MINPACK Levenberg-Marquardt
 → Material Validation
 ```
 
-Dyna'nın constitutive/FEM/incompressibility/torsion/recovery fiziği kendi kodumuz olarak kalacak; harici kütüphaneler API/adapter sınırları arkasında kullanılacak.
+Dyna constitutive/FEM/incompressibility/torsion/recovery fiziği kendi implementasyonumuz olarak kalır.
 
-## V0.2 bağımsız dış FEM doğrulaması
+## 5. V0.2 bağımsız dış FEM
 
-FEniCSx / DOLFINx `0.11.0.post0` ile bağımsız reference workflow oluşturuldu.
-
-- container: `dolfinx/dolfinx:v0.11.0`
-- residual/Jacobian: UFL automatic differentiation
-- nonlinear solver: PETSc SNES
-- lineer solver: PETSc LU/MUMPS
-
-Sonuç:
+FEniCSx / DOLFINx `0.11.0.post0` ile ayrı UFL/PETSc solver zinciri kullanıldı.
 
 ```text
-FEniCSx lambda_y = 0.8314690882666764
 Dyna lambda_y    = 0.8314690882666784
+FEniCSx lambda_y = 0.8314690882666764
 abs fark         ≈ 2.00e-15
 
-FEniCSx reaction = 1.7423183105139580
 Dyna reaction    = 1.7423183105139586
+FEniCSx reaction = 1.7423183105139580
 abs fark         ≈ 6.66e-16
 
-J vs closed-form fark            ≈ 4.88e-15
-total energy vs closed-form fark ≈ 5.72e-15
+J farkı          ≈ 4.88e-15
+energy farkı     ≈ 5.72e-15
 ```
 
-Bağımsız dış FEM kriteri geçti.
+Bağımsız FEM kriteri geçti.
 
-## V0.2 compiler matrix ve kapanış
+## 6. V0.2 compiler matrix ve release
 
-V0.2 test paketi 20 CTest içerir.
-
-Başarılı GitHub-hosted platformlar:
+20 CTest dört ortamda geçti:
 
 - Ubuntu 24.04 / gfortran 14
 - macOS 26 ARM64 / gfortran 14
 - Windows / gfortran 14
 - Windows 2022 / Intel ifx 2025.2
 
-Intel tarafında ilk `windows-2025` denemeleri CMake compiler-ID/toolchain nedeniyle başarısız oldu. `fortran-lang/setup-fortran` uyumluluk matrisi doğrultusunda Intel job `windows-2022 + ifx 2025.2 + Ninja` yoluna alındı ve doğrudan ifx smoke compile eklendi.
-
-`eb30cd0997ff9329b508f43e8d5606af5ec5865a` commit'i için `dyna/ifx-v02` status context'i **success** oldu. Bu context yalnız setup-fortran, ifx smoke compile, CMake configure, build ve CTest adımlarının tamamı başarılıysa success üretiyor.
-
-### V0.2 sonucu
+Intel için `dyna/ifx-v02` status context'i success oldu; setup-fortran, ifx smoke compile, CMake configure, build ve CTest adımlarının tamamı geçti.
 
 **V0.2.0 TAMAMLANDI.**
 
@@ -154,81 +130,147 @@ Intel tarafında ilk `windows-2025` denemeleri CMake compiler-ID/toolchain neden
 - CMake version: `0.2.0`
 - release metadata commit: `d9a960fb2b8cd9aac0018deb5b099cf68ddc062f`
 
-## Sürüm / branch modeli
+## 7. Sürüm / branch kuralı
 
-Kullanıcı isteğiyle sürümler arasında geri dönüş için branch tabanlı sürümleme kuralı oluşturuldu:
+Kullanıcı isteğiyle sürümler arasında geçiş için:
 
 ```text
 main
 ├── release/v0.2   ← kararlı V0.2.0
-└── develop/v0.3   ← aktif V0.3.0 geliştirmesi
+└── develop/v0.3   ← aktif V0.3.0
 ```
 
-- `main`: doğrulanmış ana hat + sürekli proje kayıtları
-- `release/vX.Y`: korunmuş ve geri dönülebilir sürüm
-- `develop/vX.Y`: yeni sürümün aktif geliştirmesi
-- `Sistem-ve-Mimari`: kullanıcı ayrıca istemedikçe güncellenmez
+- `main`: doğrulanmış ana hat + sürekli proje kayıtları.
+- `release/vX.Y`: geri dönülebilir sürüm.
+- `develop/vX.Y`: aktif yeni sürüm geliştirmesi.
+- `Sistem-ve-Mimari`: kullanıcı ayrıca istemedikçe güncellenmez.
 
-## V0.3 — Nearly-Incompressible Formulation Bake-off
+## 8. V0.3 — Nearly-Incompressible Formulation Bake-off
 
 **Aktif branch:** `develop/v0.3`  
 **CMake version:** `0.3.0`
 
-Amaç:
+Karşılaştırma:
 
 ```text
 Displacement-only Q4
         vs
 Mixed u-p
         vs
-F-bar / eşdeğer locking azaltıcı formulation
+F-bar
 ```
 
-### İlk V0.3 implementasyonu
+### Edge traction ve force-control
 
-1. `des_q4_edge_traction.f90`
-   - Q4 dört yerel kenar
-   - 2-point Gauss edge integration
-   - reference-configuration nominal traction
-   - skew edge desteği
-   - total force conservation
-   - invalid edge / zero edge diagnostics
+Eklendi:
 
-2. `des_q4_mesh_edge_traction.f90`
-   - element edge load → global force vector scatter
-   - birden fazla boundary edge'in aynı global vektörde birikmesi
+- `des_q4_edge_traction.f90`
+- `des_q4_mesh_edge_traction.f90`
+- `des_q4_plane_strain_force_solver.f90`
 
-3. `des_q4_plane_strain_force_solver.f90`
-   - V0.2 displacement solver'dan ayrı minimal force-control Full Newton driver
-   - fixed zero-displacement DOF
-   - reference external force vector
-   - fixed increments
-   - Dyna lineer solver API
-   - `newton_report_t` diagnostics
+Özellikler:
 
-4. Analitik force-control benchmark
-   - tek Q4 homojen Neo-Hookean traction problemi
-   - kapalı-form `P11`, lateral contraction ve reaction referansı
+- reference Q4 edge traction.
+- skew edge ve total force conservation.
+- element-edge → global load vector.
+- fixed-increment force-control Full Newton.
+- analitik homogeneous traction benchmark.
 
-5. Cook-benzeri displacement-Q4 locking baseline
-   - sol kenar ankastre
-   - sağ kenarda yukarı nominal traction
-   - `mu=1`, `lambda=1000`
-   - 2×2 / 4×4 / 8×8 Q4 mesh
-   - coarse-mesh stiffness / volumetric locking davranışı ölçülecek
+Yerel GNU Fortran 14.2 ile element edge traction ve mesh edge-load testleri geçti.
 
-Yerel GNU Fortran 14.2 doğrulamasında element edge-traction ve InternalMesh global edge-load assembly testleri geçti.
+### Displacement-only locking baseline
 
-V0.3 test tanımı şu anda **24 CTest**. Tam dört-compiler CI sonucu bekleniyor.
+Cook-benzeri trapez panel:
 
-## Sıradaki adım
+- left boundary fixed.
+- right boundary upward nominal traction.
+- `mu=1`, `lambda=1000`.
+- 2×2 / 4×4 / 8×8 Q4.
 
-1. `develop/v0.3` 24-test compiler matrix sonucunu kesinleştir.
-2. Cook displacement-Q4 baseline sayısal değerlerini kalıcı benchmark kaydına yaz.
-3. Minimum mixed displacement-pressure (`u-p`) prototipini oluştur.
-4. Pressure DOF / block residual-tangent ve pressure stability diagnostics ekle.
-5. Aynı Cook benchmarkında mixed `u-p` sonucunu ölç.
-6. F-bar Q4 prototipini aynı benchmarka bağla.
-7. Production formulation kararını yalnız ortak benchmark sonuçlarından sonra ver.
+Amaç: full-integration displacement Q4'ün near-incompressible coarse-mesh stiffness / locking davranışını sabitlemek.
+
+## 9. V0.3 Mixed Q4/P0 prototipi
+
+Mixed formulation mevcut V0.2 material law ile aynı fizik ailesini koruyacak şekilde türetildi:
+
+```text
+Psi(F,p) = mu/2 (I1-3)
+         - mu ln(J)
+         + p ln(J)
+         - p^2/(2 lambda)
+```
+
+Pressure stationarity:
+
+```text
+ln(J) - p/lambda = 0
+p = lambda ln(J)
+```
+
+Bu ilişki yerine konunca mevcut V0.2 compressible Neo-Hookean enerji aynen geri elde edilir. Böylece material law değil formulation karşılaştırılır.
+
+Element unknowns:
+
+```text
+8 Q4 displacement DOF + 1 P0 pressure DOF
+```
+
+Global unknowns:
+
+```text
+[u1x,u1y,...,unx,uny | p1,p2,...,p_nelem]
+```
+
+Block Newton sistemi:
+
+```text
+[ Kuu  Kup ] [du] = -[Ru]
+[ Kpu  Kpp ] [dp]    [Rp]
+```
+
+Eklenen kodlar:
+
+- `des_q4_plane_strain_mixed_up_neo_hookean.f90`
+- `des_q4_plane_strain_mixed_up_mesh.f90`
+- `des_q4_plane_strain_mixed_up_force_solver.f90`
+
+Doğrulamalar:
+
+- full 9×9 mixed element tangent merkezi FD.
+- yerel GNU Fortran 14.2 tangent error ≈ **`1.74e-9`**.
+- homojen `p=lambda ln(J)` residual equivalence.
+- global mixed assembly + tangent symmetry.
+- homogeneous mixed force-control reference.
+- mixed Cook 2×2 / 4×4 / 8×8 benchmark.
+- pressure min/max/std diagnostics.
+
+Q4/P0 henüz production seçimi değildir. Pressure stability ve bağımsız reference davranışı ölçülmeden karar verilmeyecek.
+
+Benchmark tanımı:
+
+`docs/verification/V0.3_INCOMPRESSIBILITY_BAKEOFF.md`
+
+V0.3 CTest tanımı artık **28 test**.
+
+## 10. CI düzeni
+
+`develop/v0.3` CI dört compiler için ayrı status context yayınlar:
+
+- Linux / gfortran 14
+- macOS ARM64 / gfortran 14
+- Windows / gfortran 14
+- Windows 2022 / Intel ifx 2025.2
+
+Ayrıca branch bazlı concurrency eklendi; yeni commit geldiğinde eski V0.3 CI koşusu iptal edilir ve yalnız en güncel commit doğrulanır.
+
+## Güncel sıradaki adım
+
+1. 28-test dört-compiler V0.3 matrix sonucunu kesinleştir.
+2. Displacement ve mixed Cook gerçek benchmark değerlerini kalıcı result dosyasına yaz.
+3. Pressure stability / oscillation metriğini bağımsız referansla değerlendirmek üzere tanımla.
+4. F-bar formulation'ı aynı material law ve aynı Cook benchmarkı üzerinde geliştir.
+5. F-bar consistent tangent'i FD ile doğrula.
+6. Displacement / mixed / F-bar ortak sonuç tablosu oluştur.
+7. Production formulation kararını ancak tüm karşılaştırma tamamlandıktan sonra ADR ile sabitle.
 
 `Sistem-ve-Mimari` branch'ine bu geliştirmelerde dokunulmadı.
