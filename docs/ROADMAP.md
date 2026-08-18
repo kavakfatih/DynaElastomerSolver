@@ -9,9 +9,8 @@ DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamaz. Hedef; büyük de
 
 ## V0.1 — Material Core / Bünye Doğrulama Temeli
 
-**Durum:** Bilimsel çekirdek tamamlandı.
+**Durum:** Tamamlandı.
 
-Tamamlananlar:
 - Fortran 2018 / CMake
 - precision/status
 - finite-strain helpers
@@ -19,16 +18,16 @@ Tamamlananlar:
 - analytic consistent tangent
 - material-point + FD tangent tests
 
-Kanıt:
-- material tangent normalized FD error ≈ `1.26e-9`.
+Kanıt: material tangent normalized FD error ≈ `1.26e-9`.
 
 ---
 
 ## V0.2 — İlk Çalışan Nonlinear FEM Dikey Dilimi
 
-**Durum:** `V0.2-dev — kapanış doğrulaması`
+**Durum:** ✅ **TAMAMLANDI — V0.2.0**  
+**Branch:** `release/v0.2`
 
-### Tamamlanan implementasyon
+Tamamlananlar:
 
 - [x] Q4 plane-strain baseline
 - [x] 2×2 Gauss integration
@@ -54,82 +53,66 @@ Kanıt:
 - [x] Newton linear-solver diagnostics
 - [x] severe-distortion benchmark
 - [x] independent closed-form `J / P / W` reference
-- [x] V0.2 benchmark catalogue
-- [x] GitHub Actions compiler matrix
-- [x] FEniCSx/DOLFINx independent external FEM validation
+- [x] FEniCSx/DOLFINx bağımsız dış FEM doğrulaması
+- [x] 20-test compiler matrix
 
-### Doğrulama zinciri
+Compiler matrix:
 
-```text
-Material point
-→ material tangent FD
-→ Q4 tangent FD
-→ global assembly
-→ Full Newton
-→ adaptive recovery
-→ InternalMesh
-→ raw Gauss results
-→ linear diagnostics
-→ patch / mesh refinement
-→ severe distortion
-→ closed-form continuum
-→ cross-compiler CI
-→ independent FEniCSx FEM
-```
+- [x] Ubuntu 24.04 / gfortran 14
+- [x] macOS 26 ARM64 / gfortran 14
+- [x] Windows / gfortran 14
+- [x] Windows 2022 / Intel ifx 2025.2
 
-### Bağımsız dış FEM
-
-**Durum: GEÇTİ**
-
-FEniCSx / DOLFINx `0.11.0.post0` ile homojen plane-strain extension yeniden çözüldü.
-
-Dyna ↔ FEniCSx mutlak farkları:
+Bağımsız FEM farkları:
 
 ```text
 lambda_y   ≈ 2.00e-15
 reaction_x ≈ 6.66e-16
+J          ≈ 4.88e-15
+total W    ≈ 5.72e-15
 ```
-
-FEniCSx ↔ closed-form:
-
-```text
-J            ≈ 4.88e-15
-total energy ≈ 5.72e-15
-```
-
-Kayıt:
-- `docs/verification/V0.2_EXTERNAL_FEM_VALIDATION.md`
-- `docs/verification/results/FENICSX_V0.2_HOMOGENEOUS_EXTENSION.json`
-
-### Compiler matrix
-
-20 CTest:
-
-- [x] Ubuntu 24.04 / gfortran 14
-- [x] macOS 26 ARM64 / gfortran 14
-- [x] Windows 2025 / gfortran 14
-- [ ] Windows 2022 / Intel ifx 2025.2
-
-ifx için Windows 2025 runner'ın VS2026'ya yönlendirilmesi nedeniyle job, GitHub'ın VS2022 uyumluluk yolu olan Windows 2022 runner'a taşındı ve CMake Visual Studio generator `-T fortran=ifx` ile doğrulanıyor.
-
-### V0.2 kapanışında kalan tek büyük madde
-
-- [ ] Windows 2022 / Intel ifx 2025.2 configure + build + 20 CTest
-
-Bu tamamlandığında compiler matrix ve external FEM kriterleri birlikte kapanmış olacak; ardından V0.2 son exit-criteria kontrolü yapılacak.
 
 ---
 
 ## V0.3 — Nearly-Incompressible Formulation Bake-off
 
+**Durum:** 🚧 **AKTİF GELİŞTİRME — V0.3.0**  
+**Branch:** `develop/v0.3`
+
 Amaç: production elastomer element teknolojisini varsayımla değil benchmark ile seçmek.
 
 Karşılaştırılacak adaylar:
+
 1. displacement-only Q4 — baseline
 2. mixed displacement-pressure (`u-p`)
 3. F-bar veya eşdeğer locking-reduction formulation
 
+### Tamamlanan ilk altyapı
+
+- [x] Q4 reference-edge traction integrasyonu
+- [x] eğik edge / kuvvet korunumu / invalid-edge testleri
+- [x] InternalMesh global edge-load assembly
+- [x] fixed-increment force-control Full Newton benchmark driverı
+- [x] analitik homojen traction referans testi
+- [x] Cook-benzeri displacement-Q4 locking baseline benchmarkı
+- [x] V0.3 branch için dört-compiler status-context CI altyapısı
+
+V0.3 CTest tanımı: **24 test**.
+
+### Sıradaki işler
+
+- [ ] 24-test V0.3 compiler matrix sonucunu sabitle
+- [ ] Cook baseline değerlerini kalıcı benchmark kaydına yaz
+- [ ] minimum mixed `u-p` prototipini oluştur
+- [ ] pressure DOF / block residual-tangent
+- [ ] pressure stability ve checkerboard diagnostics
+- [ ] aynı Cook benchmarkında mixed `u-p` sonucu
+- [ ] F-bar Q4 prototipi
+- [ ] displacement / mixed `u-p` / F-bar ortak karşılaştırma tablosu
+- [ ] production formulation ADR kararı
+
 Karar ölçütleri:
+
 - volumetric locking
 - pressure stability / oscillation
 - mesh convergence
@@ -140,14 +123,6 @@ Karar ölçütleri:
 - linear-system conditioning
 - axisymmetric extensibility
 - axisymmetric torsion extensibility
-
-Gerekli altyapı:
-- mixed DOF
-- block residual/tangent
-- pressure diagnostics
-- locking benchmark seti
-- InternalMesh/results pressure extension
-- Dyna linear-solver boundary üzerinden mixed-system benchmark
 
 **Çıkış:** Production nearly-incompressible formulation benchmark kanıtıyla seçilir ve ADR ile sabitlenir.
 
@@ -166,7 +141,6 @@ Gerekli altyapı:
 
 ## V0.5 — Axisymmetric Torsion / 2.5D
 
-Ana farklılaştırıcı kilometre taşlarından biri:
 - `ur, uz, φ`
 - prescribed rotation
 - reaction torque
@@ -201,8 +175,6 @@ Energy
 
 ## V0.7 — Minimum Calibration / Material Lab
 
-Planlanan açık kaynak zincir:
-
 ```text
 Experimental Data
 → PCHIP
@@ -217,7 +189,6 @@ Experimental Data
 
 ## V0.8 — Production NonlinearSolutionManager
 
-V0.2'de gerçek ihtiyaçtan doğan mekanizmaların formulation-independent production seviyesi:
 - Full Newton
 - adaptive increment
 - commit/revert
