@@ -17,6 +17,10 @@ on:
       - '.github/workflows/fenicsx-reference.yml'
   workflow_dispatch:
 
+concurrency:
+  group: dyna-v03-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   statuses: write
