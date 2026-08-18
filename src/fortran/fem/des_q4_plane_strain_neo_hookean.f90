@@ -4,7 +4,8 @@ module des_q4_plane_strain_neo_hookean
   use des_material_types, only : material_kinematics_t, material_response_t, neo_hookean_parameters_t
   use des_neo_hookean, only : evaluate_neo_hookean
   use des_q4_shape, only : q4_shape_functions
-  use des_integration_point_results, only : integration_point_result_t
+  use des_integration_point_results, only : integration_point_result_t, &
+                                            set_derived_logj_pressure
   implicit none
   private
   public :: evaluate_q4_plane_strain_element
@@ -79,11 +80,17 @@ contains
       if (present(integration_results)) then
         integration_results(g)%F = F
         integration_results(g)%J = response%J
+        integration_results(g)%constitutive_F = F
+        integration_results(g)%constitutive_J = response%J
         integration_results(g)%P = response%P
         integration_results(g)%cauchy = response%cauchy
         integration_results(g)%strain_energy_density = response%energy
         integration_results(g)%status = response%status
         integration_results(g)%valid = response%valid
+        if (response%valid) then
+          call set_derived_logj_pressure( &
+              integration_results(g), parameters%lambda, response%J)
+        end if
       end if
 
       if (.not. response%valid) then
