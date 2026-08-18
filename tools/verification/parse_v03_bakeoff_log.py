@@ -93,15 +93,6 @@ def parse_mixed(text: str) -> dict:
             raise ValueError(f"Mixed {mesh}x{mesh} benchmark bloğu bulunamadı")
         values = [finite_float(value, f"mixed {mesh}x{mesh}") for value in match.groups()]
 
-        solver = find_solver_metrics(
-            text,
-            rf"solver\(finalMinJ\)=\s*({NUMBER})\s+iterations=(\d+)\s+linearSolves=(\d+)\s+equations=(\d+)",
-            f"mixed {mesh}x{mesh}",
-        )
-
-        # Aynı solver etiketi her mesh için tekrarlandığından yukarıdaki genel arama
-        # ilk eşleşmeyi döndürür. Mesh bloğu içindeki solver satırını seçmek için
-        # ilgili case başlangıcından sonraki bölge yeniden aranır.
         case_start = match.start()
         next_mesh_label = f"{mesh * 2}x{mesh * 2}:" if mesh < 8 else "V0.3 Q4-P0"
         case_end = text.find(next_mesh_label, match.end())
@@ -171,10 +162,10 @@ def parse_fbar(text: str) -> dict:
     )
 
     return {
-        "formulation": "fbar_q4_verification_prototype",
+        "formulation": "fbar_q4",
         "mesh_results": cases,
         "coarse_to_8x8_gap_percent": gap_percent,
-        "tangent": "central_finite_difference_verification_tangent",
+        "tangent": "analytic_energy_consistent_second_variation",
     }
 
 
