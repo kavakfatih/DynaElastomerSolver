@@ -55,7 +55,10 @@ Compiler matrix:
 ## V0.3 — Nearly-Incompressible Formulation Bake-off
 
 **Durum:** 🚧 **AKTİF — V0.3.0**  
-**Branch:** `develop/v0.3`
+**Branch:** `develop/v0.3`  
+**Draft PR:** `#1 — V0.3 — Nearly-Incompressible Formulation Bake-off`
+
+PR #1 V0.3 exit criteria tamamlanmadan `main`e merge edilmez.
 
 Karşılaştırma:
 
@@ -75,11 +78,13 @@ Production formulation henüz seçilmemiştir.
 - [x] Cook-benzeri 2×2 / 4×4 / 8×8 benchmark
 - [x] dört-compiler develop CI status contexts
 - [x] branch concurrency / obsolete-run cancellation
+- [x] CTest `LastTest.log` benchmark artifact yolu
+- [x] başarılı Fortran benchmark stdout → ortak JSON parser
 
 ### Displacement-only baseline
 
 - [x] near-incompressible Cook baseline
-- [x] coarse-to-fine stiffness / locking trendi için test yolu
+- [x] coarse-to-fine stiffness / locking trendi test yolu
 
 ### Mixed Q4/P0
 
@@ -105,14 +110,15 @@ Pressure stability diagnostics:
 - [x] edge-neighbor graph
 - [x] neighbor jump RMS
 - [x] maximum neighbor jump
-- [x] normalized neighbor jump RMS
+- [x] pressure-RMS normalized neighbor jump
+- [x] mean-free `neighbor_jump_to_std`
+- [x] `graph_roughness = (jump_rms/std)^2`
+- [ ] mesh-refinement roughness trendini gerçek Cook sonuçlarıyla sabitle
 - [ ] independent pressure-field reference comparison
 
 Q4/P0 hâlâ yalnız ilk mixed prototiptir.
 
 ### F-bar verification prototype
-
-Volumetric correction:
 
 ```text
 J_bar = integral(J dV0) / integral(dV0)
@@ -132,19 +138,39 @@ F_bar_g = alpha_g F_g
 - [ ] dört-compiler doğrulama
 - [ ] production adayı kalırsa analytic consistent tangent
 
+### Bağımsız V0.3 dış referans
+
+FEniCSx / DOLFINx Q2 Cook reference yolu eklendi:
+
+- [x] `tools/reference/fenicsx_v03_cook_q2_reference.py`
+- [x] aynı Neo-Hookean `mu=1`, `lambda=1000`
+- [x] aynı normalize Cook geometry / traction
+- [x] Q2 quadrilateral, meshler 2/4/8/16
+- [x] UFL automatic residual/Jacobian
+- [x] PETSc SNES + LU/MUMPS
+- [x] tip displacement
+- [x] continuum `p=lambda ln(J)` mean/std/RMS
+- [x] `J` average / total energy / Newton iterations
+- [x] `.github/workflows/fenicsx-v03-reference.yml`
+- [ ] gerçek Actions sonucunu artifact olarak al
+- [ ] Dyna Cook sonuçlarıyla ortak karşılaştırmayı kaydet
+
+Bu Q2 çözüm production formulation değildir; Dyna'nın düşük dereceli Q4 formulationlarından bağımsız dış benchmarktır.
+
 ### Güncel test sayısı
 
 **32 CTest tanımı**.
 
 ### Sıradaki V0.3 işleri
 
-- [ ] 32-test dört-compiler matrix'i kapat
+- [ ] aynı sabit develop commit'i için 32-test dört-compiler matrix'i kapat
 - [ ] displacement / mixed / F-bar Cook gerçek Fortran değerlerini JSON olarak sabitle
-- [ ] pressure neighbor-jump mesh-refinement trendini kaydet
-- [ ] mixed pressure alanını bağımsız FEM reference ile karşılaştır
+- [ ] FEniCSx Q2 2/4/8/16 dış referans artifactini al
+- [ ] Dyna tip displacement mesh trendini Q2 16x16 referansına göre değerlendir
+- [ ] mixed pressure mean/std/RMS + graph roughness davranışını dış continuum pressure ile kıyasla
 - [ ] F-bar cross-FD ve Cook sonucunu dört compiler'da doğrula
 - [ ] gerekirse F-bar analytic consistent tangent türet
-- [ ] üç formulation ortak mesh/convergence/robustness tablosunu oluştur
+- [ ] üç formulation ortak mesh/convergence/robustness/maliyet tablosunu oluştur
 - [ ] seçilen aday için bağımsız dış solver doğrulaması
 - [ ] production formulation ADR kararı
 
