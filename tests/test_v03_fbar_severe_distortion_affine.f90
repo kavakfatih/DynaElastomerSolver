@@ -100,7 +100,7 @@ program test_v03_fbar_severe_distortion_affine
   ! Seçilen affine alan bu DOF'larda zaten tam sıfırdır.
   if (maxval(abs([expected_u(1,1),expected_u(1,2),expected_u(2,2)])) &
       > 100.0_dp*epsilon(1.0_dp)) then
-    error stop 'Affine referans seçilen zero-constraint DOF'larla uyumsuz.'
+    error stop 'Affine referans seçilen zero-constraint DOF değerleriyle uyumsuz.'
   end if
 
   ! Kapalı-form first Piola stress'ten nominal boundary traction: t0 = P*N0.
