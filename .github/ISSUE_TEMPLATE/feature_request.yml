@@ -1,0 +1,47 @@
+name: Özellik / İyileştirme Önerisi
+description: Yalnız public olarak paylaşılması güvenli öneriler için.
+title: "[Öneri] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Fikrî mülkiyet ve gizlilik uyarısı**
+
+        Public issue içinde patent adayı, ticari sır, NDA, müşteri içeriği veya yayınlanmamış özgün teknik öğretim paylaşmayın. Böyle bir içerik varsa public issue açmayın.
+
+        Public bir fikir gönderimi otomatik hak devri veya DynaElastomerSolver üzerinde lisans/ortak sahiplik oluşturmaz. Ayrıntılar `CONTRIBUTING.md` içindedir.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / ihtiyaç
+      description: Public-safe ve genel seviyede açıklayın.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Önerilen davranış
+      description: Patent/ticari sır niteliğinde gizli teknik çözüm ayrıntısı paylaşmayın.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Doğrulama beklentisi
+      description: Varsa benchmark, test veya acceptance beklentisini belirtin.
+
+  - type: checkboxes
+    id: ip_safe
+    attributes:
+      label: IP / public paylaşım kontrolü
+      options:
+        - label: Bu öneri secret, NDA, müşteri verisi veya ticari sır içermiyor.
+          required: true
+        - label: Patent başvurusu yapılmamış gizli bir teknik buluşu public olarak açıklamıyorum.
+          required: true
+        - label: CONTRIBUTING.md içindeki katkı ve fikrî mülkiyet politikasını okudum.
+          required: true

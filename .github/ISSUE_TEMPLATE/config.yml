@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Güvenlik Politikası
+    url: https://github.com/kavakfatih/DynaElastomerSolver/security/policy
+    about: Güvenlik açığı ayrıntılarını public issue olarak paylaşmayın; SECURITY.md politikasını izleyin.
