@@ -124,6 +124,33 @@ jobs:
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
 
+      # CTest başarılı testlerin stdout'unu da LastTest.log içinde saklar.
+      # Linux job'u V0.3 sayısal benchmark çıktısının kanonik kayıt ortamıdır.
+      - name: V0.3 benchmark logunu hazırla
+        if: always() && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          mkdir -p ci-artifacts
+          if [ -f build/Testing/Temporary/LastTest.log ]; then
+            cp build/Testing/Temporary/LastTest.log ci-artifacts/V0.3_CTEST_LASTTEST.log
+          fi
+          {
+            echo "source_commit=${{ github.sha }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "runner=${{ matrix.os }}"
+            echo "compiler=${{ matrix.compiler }}-${{ matrix.compiler_version }}"
+          } > ci-artifacts/V0.3_CI_METADATA.txt
+
+      # actions/upload-artifact v7.0.1
+      - name: V0.3 benchmark artifactini sakla
+        if: always() && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: v03-benchmark-linux-gfortran14
+          path: ci-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Compiler matrix status yayınla
         if: always()
         shell: pwsh
@@ -149,6 +176,7 @@ jobs:
             state = $state
             context = '${{ matrix.status_context }}'
             description = $description
+            target_url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
           } | ConvertTo-Json -Compress
 
           $headers = @{
