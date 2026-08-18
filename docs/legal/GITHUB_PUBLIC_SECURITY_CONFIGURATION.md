@@ -56,14 +56,20 @@ Public repository için dependency graph GitHub tarafından desteklenen kapsamda
 
 Repository içinde:
 
-- `.github/dependabot.yml` GitHub Actions dependency güncellemelerini haftalık takip eder.
-- GitHub Actions mümkün olduğunda immutable commit SHA ile pinlenir.
-- Container image'ları yalnız mutable tag ile bırakılmamalı; mümkünse digest ile pinlenmelidir.
+- `.github/dependabot.yml` GitHub Actions dependency güncellemelerini haftalık takip eder. ✅
+- GitHub Actions mümkün olduğunda immutable commit SHA ile pinlenir. ✅
+- FEniCSx reference image linux/amd64 digest ile pinlenmiştir. ✅
 - Yeni dependency ekleyen PR, `THIRD_PARTY_NOTICES.md` ve lisans uyumluluğunu kontrol etmelidir.
+
+Pinned image:
+
+```text
+dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
+```
 
 ## 4. Pull request güvenlik kapısı
 
-`.github/pull_request_template.md` aşağıdaki kontrolleri zorunlu hatırlatma olarak içerir:
+`.github/pull_request_template.md` aşağıdaki kontrolleri zorunlu hatırlatma olarak içerir: ✅
 
 - IP/provenance
 - üçüncü taraf lisans
@@ -99,6 +105,8 @@ Public repository için yalnız current tree taraması yeterli değildir. Aşağ
 
 Bulunan credential yalnız history'den silinmez; **revoke/rotate** edilir.
 
+Current-tree hızlı secret keyword kontrolünde belirgin eşleşme bulunmamıştır. Full-history local clone taraması çalışma ortamındaki DNS kısıtı nedeniyle yürütülememiştir ve açık madde olarak kalır.
+
 ## 7. Release bütünlüğü
 
 Release üretiminde:
@@ -114,12 +122,15 @@ kullanılır.
 
 ## 8. Mevcut bilinen açık maddeler
 
-- `main` branch protection henüz GitHub ayarından etkinleştirilmeli.
+- `main` branch protection GitHub ayarından etkinleştirilmeli.
+- Required V0.3 CI status context'leri tanımlanmalı.
 - Private Vulnerability Reporting durumu UI üzerinden doğrulanmalı.
 - Secret scanning / push protection / Dependabot alerts durumu UI üzerinden doğrulanmalı.
 - Full-history secret audit tamamlanmalı.
 - Historical Actions log/artifact audit tamamlanmalı.
-- FEniCSx container image digest pinleme tamamlanmalı.
-- Patent/ticari sır/provenance incelemesi tamamlanmalı.
+- Patent/public-disclosure incelemesi tamamlanmalı.
+- Ticari sır/NDA/provenance incelemesi tamamlanmalı.
+- GitHub Archive Program kararı verilmeli.
+- Telif hakkı sahibinin iki ad + soyadı biçimindeki tam hukuki adı doğrulanınca tüm legal metinlerde tek biçime geçirilmeli.
 
 Takip: GitHub Issue `#2 — Security: Public repository hardening`.
