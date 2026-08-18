@@ -34,6 +34,23 @@ Production formulation henüz seçilmemiştir.
 
 ---
 
+## Hedef platform önceliği
+
+DynaElastomerSolver ürün hedefi:
+
+1. **Windows x64 — birincil**
+   - Intel ifx
+   - gfortran portability
+2. **macOS Apple Silicon — birincil**
+   - gfortran
+3. **Linux — ikincil bilimsel/CI ortamı**
+   - gfortran
+   - FEniCSx/DOLFINx dış referans
+
+Linux ürün dağıtım önceliği değildir; bilimsel doğrulama ve taşınabilirlik için tutulur.
+
+---
+
 ## V0.3 ortak benchmark altyapısı
 
 Tamamlanan implementasyon:
@@ -118,11 +135,9 @@ Metrikler:
 
 `graph_roughness` mesh-komşuluk grafiğinde yüksek frekanslı pressure değişimini boyutsuzlaştırmak için eklenmiştir. Tek başına checkerboard kararı değildir; mesh refinement ve bağımsız pressure reference ile birlikte yorumlanacaktır.
 
-Unit testte bilinen 2x2 pressure alanı için neighbor graph, jump RMS ve yeni roughness değerleri analitik beklenen değerlerle kontrol edilir; sabit pressure alanında roughness sıfır olmalıdır.
+Q4/P0 hâlâ production formulation seçimi değildir.
 
-Q4/P0 hâlâ yalnız ilk mixed prototiptir; production formulation seçimi değildir.
-
-## Aday C — F-bar verification prototype
+## Aday C — F-bar Q4
 
 Volumetric correction:
 
@@ -142,22 +157,45 @@ E(u) = sum_g W(F_bar_g(u)) w_g
 
 Residual bu enerjinin ilk varyasyonundan türetilmiştir; `J_bar` nedeniyle Gauss noktaları arasındaki coupling korunur.
 
-### Tangent durumu
+### Analitik consistent tangent — tamamlandı, platform CI bekliyor
 
-İlk F-bar tangent merkezi finite-difference ile üretilmektedir. Bu bilinçli **verification-first** prototip kararıdır. F-bar production adayı olarak kalırsa analitik consistent tangent ayrıca türetilecektir.
+İlk verification prototipindeki merkezi finite-difference tangent kaldırıldı. Element tangent artık aynı enerjinin analitik ikinci varyasyonundan hesaplanır.
+
+Temel zincir:
+
+```text
+H_q = dF_bar/dq = alpha [B_q + beta_q F]
+
+K_qr = sum_g w_g [H_q : A_bar : H_r + P_bar : H_qr]
+```
+
+`H_qr`; `alpha`, `J` ve `J_bar`ın ikinci türevlerini içerir. Böylece Gauss noktaları arasındaki volumetrik F-bar coupling tangentte de korunur.
+
+Bağımsız lokal doğrulama:
+
+```text
+Python derivation/reference:
+normalized cross-FD error ≈ 8.73e-10
+symmetry error            ≈ 1.90e-16
+
+GNU Fortran 14.2:
+max normalized cross-FD   ≈ 1.20e-9
+symmetry error            ≈ 2.45e-16
+```
+
+Bu sonuçlar güçlü lokal bilimsel kanıttır; Windows/macOS CI tekrar çalışmadan platform doğrulaması kapanmış sayılmaz.
 
 Tamamlanan F-bar zincir:
 
 - `des_q4_plane_strain_fbar_neo_hookean.f90`
-- homogeneous residual equivalence testi
-- cross-FD tangent + symmetry testi
+- homogeneous residual equivalence
+- **analitik consistent tangent**
+- independent cross-FD tangent + symmetry testi
 - `des_q4_plane_strain_fbar_mesh.f90`
 - global assembly
 - `des_q4_plane_strain_fbar_force_solver.f90`
 - homogeneous analytic traction benchmark
 - F-bar Cook 2x2 / 4x4 / 8x8 benchmark
-
-F-bar residual/solver formu ayrıca gözden geçirildi; `J_bar` coupling ve external-force residual işaretinde açık bir tutarsızlık görülmedi. Yine de dört-compiler ve dış referans tamamlanmadan doğrulanmış production davranışı olarak kabul edilmeyecektir.
 
 ---
 
@@ -190,7 +228,7 @@ Workflow:
 - artifact: `fenicsx-v03-cook-q2-reference`
 - custom status: `dyna/v0.3-fenicsx-q2-reference`
 
-**Durum:** workflow ve script repoya eklendi; gerçek run sonucu henüz başarı olarak kaydedilmemiştir.
+**Durum:** workflow kodu hazır; GitHub-hosted job'lar şu anda herhangi bir step başlamadan failure oluyor. Bu nedenle dış referans sonucu henüz başarı olarak kaydedilmedi.
 
 ---
 
@@ -198,39 +236,42 @@ Workflow:
 
 CTest tanımı: **32 test**.
 
-Kesin yerel doğrulamalar:
+Kesin lokal doğrulamalar:
 
 ```text
 Mixed Q4/P0 9x9 tangent FD error ≈ 1.74e-9
-Pressure diagnostics önceki unit test yolu: geçti
-Edge traction / global edge-load: geçti
+F-bar analytic tangent cross-FD    ≈ 1.20e-9
+F-bar analytic tangent symmetry    ≈ 2.45e-16
+Pressure diagnostics unit yolu     geçti
+Edge traction / global edge-load   geçti
 ```
 
-Yeni pressure graph-roughness testleri ve F-bar tam zinciri dört-compiler CI sonucu görülmeden tamamlandı sayılmayacaktır.
+### Açık CI engeli
+
+Draft PR #1 mergeable durumdadır. Ancak GitHub-hosted Actions job'ları Windows, macOS, Linux ve FEniCSx workflow'unda **runner step'leri başlamadan** failure olmaktadır. Tek Linux job rerun'ında da aynı pre-step failure tekrarlandı.
+
+Bu nedenle mevcut kanıt bir Fortran/CMake/FEM test hatasına işaret etmemektedir; failure build veya CTest aşamasına ulaşmamaktadır. Repository/account Actions kullanım ayarı veya GitHub-hosted runner provisioning tarafı ayrıca çözülmelidir.
 
 V0.3 compiler matrix hedefi:
 
-- Ubuntu 24.04 / gfortran 14
-- macOS 26 ARM64 / gfortran 14
-- Windows 2025 / gfortran 14
-- Windows 2022 / Intel ifx 2025.2
-
-**Durum:** tam matrix henüz kapanmış olarak işaretlenmemiştir.
+- **macOS ARM64 / gfortran 14 — birincil**
+- **Windows / gfortran 14 — birincil**
+- **Windows 2022 / Intel ifx 2025.2 — birincil**
+- Ubuntu 24.04 / gfortran 14 — ikincil bilimsel CI
 
 ---
 
 ## Sıradaki V0.3 adımları
 
-1. Aynı sabit `develop/v0.3` commit'i için 32-test dört-compiler sonucu kesinleştir.
-2. Linux CTest artifactinden displacement / mixed / F-bar gerçek Cook değerlerini ortak JSON'a çıkar.
-3. FEniCSx Q2 2/4/8/16 Cook dış referansını çalıştır ve artifact sonucunu sakla.
-4. Dyna 2/4/8 tip displacement trendini Q2 16x16 referansına göre karşılaştır.
-5. Mixed `p` mean/std/RMS değerlerini continuum `lambda ln(J)` referansıyla karşılaştır.
-6. `neighbor_jump_to_std` ve `graph_roughness` mesh-refinement trendini değerlendir.
-7. F-bar'ın güçlü kalması halinde analitik consistent tangent türet.
-8. Üç formulation için ortak mesh / convergence / robustness / maliyet tablosunu oluştur.
-9. Seçilen adayı bağımsız solver ile son kez doğrula.
-10. Yalnız bundan sonra production formulation ADR kararını ver.
+1. GitHub-hosted Actions pre-step engelini çöz ve önce Windows/macOS birincil matrix'i yeniden çalıştır.
+2. F-bar analitik tangent'i Windows/ifx, Windows/gfortran ve macOS/gfortran üzerinde doğrula.
+3. Gerçek Cook displacement / mixed / F-bar değerlerini ortak JSON'a çıkar.
+4. FEniCSx Q2 2/4/8/16 Cook dış referansını çalıştır ve artifact sonucunu sakla.
+5. Dyna tip displacement trendini Q2 16x16 referansına göre karşılaştır.
+6. Mixed `p` mean/std/RMS ve graph roughness trendini continuum `lambda ln(J)` referansıyla kıyasla.
+7. Üç formulation için ortak mesh / convergence / robustness / maliyet tablosunu oluştur.
+8. Seçilen adayı bağımsız solver ile son kez doğrula.
+9. Yalnız bundan sonra production formulation ADR kararını ver.
 
 ## Branch kuralı
 

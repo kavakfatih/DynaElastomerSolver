@@ -355,16 +355,81 @@ Bu Q2 çözüm production formulation değildir; Dyna'nın düşük dereceli Q4 
 
 **Durum:** script ve workflow eklendi; gerçek Actions sonucu henüz başarı olarak kaydedilmedi.
 
+## 16. V0.3 — CI engeli ve hedef platform önceliği
+
+Draft PR #1 ile `main` / `develop/v0.3` conflict'i çözüldü ve PR tekrar `mergeable=true` oldu.
+
+Ardından gerçek GitHub Actions koşuları tetiklendi ancak:
+
+- Windows / gfortran,
+- Windows / Intel ifx,
+- macOS ARM64 / gfortran,
+- Linux / gfortran,
+- FEniCSx Q2
+
+job'ları runner step'leri başlamadan failure oldu. Tek Linux job rerun'ında da aynı pre-step failure tekrarlandı. Bu nedenle mevcut failure kod, CMake veya CTest aşamasına ulaşmış bir hata olarak değerlendirilmez; GitHub-hosted Actions kullanım/provisioning engeli ayrıca çözülmelidir.
+
+Ürün platform önceliği netleştirildi:
+
+```text
+Windows x64 / ifx       PRIMARY
+Windows x64 / gfortran  PRIMARY portability
+macOS Apple Silicon     PRIMARY
+Linux                    SECONDARY scientific CI/reference
+```
+
+## 17. V0.3 — F-bar analitik consistent tangent
+
+F-bar'ın ilk verification tangent'i merkezi finite-difference idi. Bu sınırlama kaldırıldı.
+
+Yeni analitik zincir:
+
+```text
+H_q = dF_bar/dq
+    = alpha [B_q + beta_q F]
+
+beta_q = 1/3 [J_bar,q/J_bar - J,q/J]
+
+K_qr = sum_g w_g [H_q : A_bar : H_r + P_bar : H_qr]
+```
+
+`H_qr`; `alpha`, `J` ve `J_bar`ın ikinci türevlerini içerir. Böylece Gauss noktaları arasındaki volumetrik F-bar coupling tangentte de korunur.
+
+Bağımsız doğrulamalar:
+
+```text
+Python derivation/reference:
+normalized cross-FD error ≈ 8.73e-10
+symmetry error            ≈ 1.90e-16
+
+GNU Fortran 14.2 local:
+max normalized cross-FD   ≈ 1.20e-9
+symmetry error            ≈ 2.45e-16
+```
+
+Kod:
+
+`src/fortran/fem/des_q4_plane_strain_fbar_neo_hookean.f90`
+
+Regression testi:
+
+`tests/test_q4_fbar_element.f90`
+
+Test dili ve toleransları analitik consistent tangent'i bağımsız FD ile doğrulayacak şekilde güncellendi.
+
+Bu geliştirme lokal bilimsel doğrulamayı geçti. Windows ve macOS birincil compiler hatları GitHub Actions engeli çözüldükten sonra ayrıca geçmelidir.
+
 ## Güncel sıradaki adım
 
-1. `develop/v0.3` commit'ini sabit tutarak 32-test dört-compiler matrix'i kesinleştir.
-2. Linux CTest artifactinden üç Cook formulation'ın gerçek değerlerini ortak JSON'a çıkar.
-3. FEniCSx Q2 Cook 2/4/8/16 artifact sonucunu al.
-4. Dyna tip displacement mesh trendini Q2 16×16 referansla karşılaştır.
-5. Mixed pressure mean/std/RMS ve graph roughness trendini continuum `lambda ln(J)` referansıyla kıyasla.
-6. F-bar ayakta kalırsa analytic consistent tangent türet.
-7. Üç formulation için ortak convergence/locking/robustness/maliyet tablosu oluştur.
-8. Seçilen production formulation'ı bağımsız solver ile son kez doğrula.
-9. Yalnız bundan sonra ADR kararı ver.
+1. GitHub-hosted Actions pre-step engelini çöz.
+2. Önce Windows/ifx + Windows/gfortran + macOS ARM64/gfortran matrix'ini kapat.
+3. F-bar analitik tangent'i bu üç birincil platformda doğrula.
+4. Üç Cook formulation'ın gerçek sonuçlarını ortak JSON'a çıkar.
+5. FEniCSx Q2 Cook 2/4/8/16 artifact sonucunu al.
+6. Dyna tip displacement mesh trendini Q2 16×16 referansla karşılaştır.
+7. Mixed pressure mean/std/RMS ve graph roughness trendini continuum `lambda ln(J)` referansıyla kıyasla.
+8. Üç formulation için ortak convergence/locking/robustness/maliyet tablosu oluştur.
+9. Seçilen production formulation'ı bağımsız solver ile son kez doğrula.
+10. Yalnız bundan sonra ADR kararı ver.
 
 `Sistem-ve-Mimari` branch'ine bu geliştirmelerde dokunulmadı.
