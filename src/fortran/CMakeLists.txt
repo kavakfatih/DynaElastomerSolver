@@ -13,6 +13,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q4_plane_strain_neo_hookean.f90
   fem/des_q4_plane_strain_mixed_up_neo_hookean.f90
   fem/des_q4_plane_strain_mesh_neo_hookean.f90
+  fem/des_q4_plane_strain_mixed_up_mesh.f90
   solvers/des_linear_solver.f90
   solvers/des_dense_linear.f90
   solvers/des_solution_state.f90
