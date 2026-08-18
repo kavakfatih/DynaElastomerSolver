@@ -7,18 +7,17 @@ DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamaz. Hedef; büyük de
 
 ---
 
-## V0.1 — Material Core / Bünye Doğrulama Temeli
+## V0.1 — Material Core
 
-**Durum:** Tamamlandı.
+**Durum:** ✅ Tamamlandı
 
 - Fortran 2018 / CMake
-- precision/status
-- finite-strain helpers
+- finite-strain yardımcıları
 - Neo-Hookean `W / P / Cauchy`
 - analytic consistent tangent
-- material-point + FD tangent tests
+- material-point + FD tangent
 
-Kanıt: material tangent normalized FD error ≈ `1.26e-9`.
+Material tangent normalized FD error ≈ `1.26e-9`.
 
 ---
 
@@ -27,27 +26,22 @@ Kanıt: material tangent normalized FD error ≈ `1.26e-9`.
 **Durum:** ✅ **TAMAMLANDI — V0.2.0**  
 **Branch:** `release/v0.2`
 
-Tamamlananlar:
-
-- [x] Q4 plane-strain baseline
-- [x] 2×2 Gauss integration
-- [x] Total-Lagrangian residual/tangent
-- [x] element tangent FD
-- [x] global assembly
-- [x] Full Newton
-- [x] adaptive increment
-- [x] rollback / cutback / retry
-- [x] trial / commit / revert
-- [x] convergence history
-- [x] nonlinear patch + mesh refinement
-- [x] `InternalMesh`
-- [x] raw integration-point results
-- [x] `kavakfatih/stdlib` / LAPACK dense solve
-- [x] backend-independent linear solver API
-- [x] Newton linear-solver diagnostics
-- [x] severe-distortion + closed-form `J/P/W`
-- [x] FEniCSx/DOLFINx bağımsız dış FEM doğrulaması
-- [x] 20-test dört-compiler matrix
+- Q4 plane strain / 2×2 Gauss
+- Total-Lagrangian residual/tangent
+- element tangent FD
+- global assembly
+- Full Newton
+- adaptive increment / cutback / rollback
+- trial/commit/revert + convergence history
+- nonlinear patch + mesh refinement
+- `InternalMesh`
+- raw integration-point results
+- `kavakfatih/stdlib` / LAPACK dense solve
+- backend-independent lineer solver API
+- Newton lineer diagnostics
+- severe-distortion + closed-form `J/P/W`
+- FEniCSx/DOLFINx bağımsız dış FEM doğrulaması
+- 20-test dört-compiler matrix
 
 Compiler matrix:
 
@@ -56,72 +50,102 @@ Compiler matrix:
 - [x] Windows / gfortran 14
 - [x] Windows 2022 / Intel ifx 2025.2
 
-Bağımsız FEM farkları:
-
-```text
-lambda_y   ≈ 2.00e-15
-reaction_x ≈ 6.66e-16
-J          ≈ 4.88e-15
-total W    ≈ 5.72e-15
-```
-
 ---
 
 ## V0.3 — Nearly-Incompressible Formulation Bake-off
 
-**Durum:** 🚧 **AKTİF GELİŞTİRME — V0.3.0**  
+**Durum:** 🚧 **AKTİF — V0.3.0**  
 **Branch:** `develop/v0.3`
 
-Amaç: production elastomer element teknolojisini varsayımla değil benchmark ile seçmek.
+Karşılaştırma:
 
-Karşılaştırılacak adaylar:
+1. displacement-only Q4
+2. mixed Q4/P0 `u-p`
+3. F-bar Q4
 
-1. displacement-only Q4 — baseline
-2. mixed displacement-pressure (`u-p`)
-3. F-bar veya eşdeğer locking-reduction formulation
+Production formulation henüz seçilmemiştir.
 
-### Tamamlanan altyapı
+### Ortak benchmark altyapısı
 
-- [x] Q4 reference-edge traction integration
-- [x] skew edge / force conservation / invalid-edge tests
-- [x] InternalMesh global edge-load assembly
-- [x] fixed-increment force-control Full Newton benchmark driver
-- [x] analitik homojen traction reference test
-- [x] Cook-benzeri displacement-Q4 locking baseline
-- [x] V0.3 dört-compiler status-context CI
-- [x] CI concurrency — yalnız en güncel develop commit'i test edilir
+- [x] Q4 reference-edge traction
+- [x] skew-edge / force conservation tests
+- [x] InternalMesh edge-load assembly
+- [x] fixed-increment force-control Full Newton
+- [x] homogeneous analytic traction benchmark
+- [x] Cook-benzeri 2×2 / 4×4 / 8×8 benchmark
+- [x] dört-compiler develop CI status contexts
+- [x] branch concurrency / obsolete-run cancellation
 
-### Mixed Q4/P0 — ilk prototip
+### Displacement-only baseline
 
-- [x] common V0.2 material law'u koruyan mixed potential
-- [x] Q4 displacement + element-wise P0 pressure DOF
-- [x] `Kuu / Kup / Kpu / Kpp` element block tangent
-- [x] 9×9 consistent tangent FD validation
-- [x] yerel tangent FD error ≈ `1.74e-9`
-- [x] homojen `p=lambda ln(J)` residual equivalence testi
-- [x] global `u + element-pressure` assembly
-- [x] global tangent symmetry testi
-- [x] mixed force-control Full Newton solver
-- [x] analitik homogeneous mixed traction benchmark
-- [x] mixed Cook 2×2 / 4×4 / 8×8 benchmark
-- [x] pressure min/max/std ölçümü
-- [x] V0.3 formulation/benchmark tanım dokümanı
+- [x] near-incompressible Cook baseline
+- [x] coarse-to-fine stiffness / locking trendi için test yolu
 
-V0.3 CTest tanımı: **28 test**.
+### Mixed Q4/P0
 
-Q4/P0 henüz production candidate olarak kabul edilmiş değildir. Pressure stability / oscillation ve bağımsız referans davranışı ölçülmeden formulation kararı verilmeyecektir.
+Ortak V0.2 material law'u koruyan mixed potential:
 
-### Sıradaki işler
+```text
+Psi(F,p) = mu/2(I1-3) - mu ln(J) + p ln(J) - p^2/(2 lambda)
+```
 
-- [ ] 28-test dört-compiler V0.3 matrix sonucunu sabitle
-- [ ] displacement-only ve mixed Cook gerçek CI değerlerini kalıcı result dosyasına yaz
-- [ ] pressure stability / oscillation metriğini tanımla
-- [ ] Q4/P0 pressure davranışını bağımsız FEM referansıyla değerlendir
-- [ ] F-bar finite-strain formulation türevini ortak material law üzerinde oluştur
-- [ ] F-bar consistent tangent + FD test
-- [ ] F-bar Cook benchmark
-- [ ] displacement / mixed / F-bar ortak karşılaştırma tablosu
-- [ ] seçilen formulation için bağımsız solver karşılaştırması
+- [x] 8 displacement + 1 P0 pressure element DOF
+- [x] `Kuu/Kup/Kpu/Kpp`
+- [x] 9×9 tangent FD validation
+- [x] local tangent error ≈ `1.74e-9`
+- [x] homogeneous residual equivalence
+- [x] global mixed assembly
+- [x] mixed Full Newton force solver
+- [x] analytic homogeneous traction benchmark
+- [x] mixed Cook 2×2 / 4×4 / 8×8
+
+Pressure stability diagnostics:
+
+- [x] min/max/mean/std/RMS
+- [x] edge-neighbor graph
+- [x] neighbor jump RMS
+- [x] maximum neighbor jump
+- [x] normalized neighbor jump RMS
+- [ ] independent pressure-field reference comparison
+
+Q4/P0 hâlâ yalnız ilk mixed prototiptir.
+
+### F-bar verification prototype
+
+Volumetric correction:
+
+```text
+J_bar = integral(J dV0) / integral(dV0)
+alpha_g = (J_bar/J_g)^(1/3)
+F_bar_g = alpha_g F_g
+```
+
+- [x] energy-consistent element residual
+- [x] `J_bar` Gauss coupling'i residualda
+- [x] merkezi FD verification tangent
+- [x] homogeneous residual-equivalence test
+- [x] cross-FD / symmetry test tanımı
+- [x] global F-bar assembly
+- [x] F-bar force-control Newton solver
+- [x] homogeneous analytic traction benchmark
+- [x] F-bar Cook 2×2 / 4×4 / 8×8 benchmark
+- [ ] dört-compiler doğrulama
+- [ ] production adayı kalırsa analytic consistent tangent
+
+### Güncel test sayısı
+
+**32 CTest tanımı**.
+
+### Sıradaki V0.3 işleri
+
+- [ ] 32-test dört-compiler matrix'i kapat
+- [ ] displacement / mixed / F-bar Cook gerçek Fortran değerlerini JSON olarak sabitle
+- [ ] pressure neighbor-jump mesh-refinement trendini kaydet
+- [ ] mixed pressure alanını bağımsız FEM reference ile karşılaştır
+- [ ] F-bar cross-FD ve Cook sonucunu dört compiler'da doğrula
+- [ ] gerekirse F-bar analytic consistent tangent türet
+- [ ] üç formulation ortak mesh/convergence/robustness tablosunu oluştur
+- [ ] seçilen aday için bağımsız dış solver doğrulaması
 - [ ] production formulation ADR kararı
 
 Karar ölçütleri:
@@ -132,39 +156,31 @@ Karar ölçütleri:
 - nonlinear convergence
 - distortion sensitivity
 - minimum `J`
-- DOF / assembly maliyeti
-- linear-system conditioning
+- DOF / matrix maliyeti
+- lineer solve davranışı
 - axisymmetric extensibility
 - axisymmetric torsion extensibility
-
-**Çıkış:** Production nearly-incompressible formulation benchmark kanıtıyla seçilir ve ADR ile sabitlenir.
 
 ---
 
 ## V0.4 — Axisymmetric Nonlinear Elastomer
 
-- `ur, uz` kinematics
+- `ur, uz`
 - `2πR` integration
-- seçilmiş incompressibility formulation'ın axisymmetric türevi
-- axisymmetric BC
+- seçilmiş incompressibility formulation
 - reaction force
-- analitik + bağımsız solver benchmarkları
-
----
+- bağımsız benchmark
 
 ## V0.5 — Axisymmetric Torsion / 2.5D
 
 - `ur, uz, φ`
 - prescribed rotation
 - reaction torque
-- torque–angle
+- torque-angle
 - torsional stiffness
-- pressure coupling gerektiğinde
-- bağımsız solver + fiziksel test doğrulaması
+- bağımsız solver + fiziksel test
 
----
-
-## V0.6 — Hedef Hiperelastik Model Kütüphanesi
+## V0.6 — Hyperelastic Model Library
 
 Öncelik:
 1. Mooney-Rivlin
@@ -176,29 +192,19 @@ Karar ölçütleri:
 Her model:
 
 ```text
-Energy
-→ Stress
-→ Consistent Tangent
-→ FD Tangent
-→ Material-point Benchmark
-→ FEM Benchmark
+Energy → Stress → Consistent Tangent → FD → Material Benchmark → FEM Benchmark
 ```
 
----
-
-## V0.7 — Minimum Calibration / Material Lab
+## V0.7 — Material Calibration
 
 ```text
 Experimental Data
 → PCHIP
-→ Objective + Physical Admissibility
+→ Physical Objective
 → PRIMA BOBYQA / COBYLA
-→ MINPACK Levenberg–Marquardt
+→ MINPACK Levenberg-Marquardt
 → Material Validation
-→ Parameters + Metrics + Provenance
 ```
-
----
 
 ## V0.8 — Production NonlinearSolutionManager
 
@@ -206,81 +212,25 @@ Experimental Data
 - adaptive increment
 - commit/revert
 - cutback/retry
-- convergence/divergence reason
-- negative `J`
-- distortion diagnostics
-- mixed pressure diagnostics
-- backend-independent linear report
-- solver history
+- divergence reasons
+- `J` / distortion / pressure diagnostics
+- backend-independent linear reports
 
-Benchmark ihtiyacı gösterirse:
-- line search
-- Modified Newton
-- BFGS/Broyden
-- predictor/recovery
+Benchmark ihtiyacı gösterirse line search / Modified Newton / BFGS-Broyden.
 
----
+## V0.9 — Minimum Engineering Workflow
 
-## V0.9 — Minimum Mühendislik İş Akışı
-
-- DXF / geometry adapters
-- named boundaries
+- geometry adapters
 - Gmsh → `InternalMesh`
+- named boundaries
 - mesh precheck
-- raw results database
-- displacement / stretch / stress / pressure / `J` / energy
-- reaction force/torque
-- torque–angle / force–displacement
-- GaussPointInspector
+- result database
+- pressure / stress / stretch / `J` / energy
+- force/torque histories
 - minimum Qt shell
-
----
 
 ## V1.0 — Doğrulanmış Nonlineer Elastomer Solver
 
-Birincil kapsam:
-- quasi-static
-- finite strain
-- hyperelastic elastomer
-- bonded metal–elastomer
-- plane strain
-- axisymmetric
-- axisymmetric torsion / 2.5D
-- prescribed displacement/rotation
-- reaction force/torque
-- validated nearly-incompressible formulation
-- selected hyperelastic models
-
-V1.0 dışında:
-- general contact/friction
-- self-contact
-- debonding
-- viscoelasticity
-- Mullins/hysteresis
-- fatigue/life/damage
-- dynamics
-- binary material plugin
-- general CAD
-- ANSYS/Marc feature parity
-
-## Bilimsel geliştirme kuralı
-
-```text
-Teori
- ↓
-Minimal implementation
- ↓
-Unit / constitutive validation
- ↓
-Element benchmark
- ↓
-Mesh convergence
- ↓
-Independent solver comparison
- ↓
-Uygun olduğunda physical test
- ↓
-Production scope
-```
+Başarı özellik sayısıyla değil; material-point, element, mesh convergence, incompressibility, robustness, bağımsız solver ve fiziksel test kanıtlarıyla ölçülür.
 
 > Önce çalışan ve doğrulanan en küçük fizik zinciri; sonra yalnız kanıtlanmış ihtiyaca göre mimari genişleme.
