@@ -212,11 +212,11 @@ F-bar artık numerical-tangent prototipi değildir.
 ## 9. Platform önceliği
 
 ```text
-Windows x64 / Intel ifx        PRIMARY
-Windows x64 / gfortran         PRIMARY portability
-macOS Apple Silicon / gfortran PRIMARY
-Linux / gfortran               SECONDARY scientific CI
-Linux / FEniCSx                external reference
+Windows x64 / Intel ifx         PRIMARY
+Windows x64 / gfortran          PRIMARY portability
+macOS Apple Silicon / gfortran  PRIMARY
+Linux / gfortran                SECONDARY scientific CI
+Linux / FEniCSx                 external reference
 ```
 
 ---
@@ -355,7 +355,7 @@ Ham kayıt:
 
 `docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_INDEPENDENT_PRECHECK.json`
 
-Bu sweep, displacement-only Q4'ün nearly-incompressible limite giderken yapay rijitleşmesini çok net ayırıyor.
+Bu sweep, displacement-only Q4'ün nearly-incompressible limite giderken yapay rijitleşmesini net ayırıyor.
 
 ---
 
