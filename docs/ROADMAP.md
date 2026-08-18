@@ -65,7 +65,7 @@ Material tangent normalized FD error ≈ 1.26e-9
 F-bar daha sonra mesh incelmesiyle:
 
 ```text
-8×8 relative error  ≈ 3.9207%
+8×8 relative error   ≈ 3.9207%
 16×16 relative error ≈ 0.9083%
 ```
 
@@ -104,18 +104,20 @@ ANSYS PLANE183 ve Hexagon Marc Herrmann element yaklaşımı davranış/benchmar
 - [x] Q8 serendipity displacement shape functions
 - [x] 3-DOF lineer pressure-space ilk adayı
 - [x] partition-of-unity / Kronecker / derivative identity testleri
-- [ ] Q8 isoparametric geometry/Jacobian/gradient contract
-- [ ] discontinuous element-pressure global DOF layout
-- [ ] plane-strain 19-local-unknown mapping (`16u + 3p`)
-- [ ] torsion-compatible generic mapping (`24u + 3p`)
-- [ ] global `Nd/Np` precheck metriği
+- [x] Q8 isoparametric geometry/Jacobian/gradient contract
+- [x] discontinuous element-pressure global DOF layout
+- [x] plane-strain 19-local-unknown mapping (`16u + 3p`)
+- [x] torsion-compatible generic mapping (`24u + 3p`)
+- [x] global `Nd/Np` precheck metriği
 
-Pressure basis production kabulü değildir; stability testlerinden sonra sabitlenecektir.
+Pressure basis production kabulü değildir; stability testlerinden sonra sabitlenecektir. `Nd/Np` kontrolü de inf-sup/stability kanıtının yerine geçmez; yalnız açık overconstraint riskini erkenden yakalar.
 
 ### H1 — Plane-Strain Q8/P1 Herrmann Element
 
+İlk alt adım, `p` değişkeninin gerçek hydrostatic pressure anlamını koruyacak material/formulation sözleşmesidir. Material Core'un deviatorik response'u ile mixed volumetric constraint birbirinden ayrılacaktır.
+
+- deviatoric / hydrostatic material split contract
 - finite-strain `F`, `J`, `F^{-T}`
-- deviatoric hyperelastic response
 - independent hydrostatic pressure unknown
 - nearly-incompressible compatibility
 - fully-incompressible `J=1` constraint
