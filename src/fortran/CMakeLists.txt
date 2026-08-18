@@ -7,6 +7,7 @@ add_library(DynaElastomerCore STATIC
   materials/des_neo_hookean.f90
   mesh/des_internal_mesh.f90
   results/des_integration_point_results.f90
+  results/des_pressure_diagnostics.f90
   fem/des_q4_shape.f90
   fem/des_q4_edge_traction.f90
   fem/des_q4_mesh_edge_traction.f90
