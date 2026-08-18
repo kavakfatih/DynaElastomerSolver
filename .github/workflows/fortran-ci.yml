@@ -124,6 +124,23 @@ jobs:
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
 
+      # Performans ölçümü correctness CTest paketinden ayrıdır. Runner süreleri
+      # değişken olduğundan wall-clock için pass/fail eşiği uygulanmaz. Benchmark
+      # yalnız Linux/gfortran hattında çalışır ve JSON + process peak RSS üretir.
+      - name: V0.3 F-bar büyük mesh performansını ölç
+        id: perf
+        if: matrix.os == 'ubuntu-24.04' && steps.ctest.outcome == 'success'
+        shell: bash
+        run: |
+          cd build/tests
+          /usr/bin/time -v -o V0.3_FBAR_PERFORMANCE_RSS.txt \
+            ./benchmark_v03_fbar_performance
+          echo '=== F-bar performance JSON ==='
+          cat V0.3_FBAR_PERFORMANCE_RESULTS.json
+          echo
+          echo '=== Process peak RSS (/usr/bin/time -v) ==='
+          cat V0.3_FBAR_PERFORMANCE_RSS.txt
+
       # Birleşik Cook ve lambda/mu sweep testleri kendi geçerli JSON'larını üretir.
       # Sonuçlar log parse edilerek yeniden oluşturulmaz; doğrudan gerçek Fortran
       # çözümlerinden artifact paketine alınır.
@@ -136,6 +153,7 @@ jobs:
           DYNA_RUNNER: ${{ matrix.os }}
           DYNA_COMPILER: ${{ matrix.compiler }}-${{ matrix.compiler_version }}
           DYNA_CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+          DYNA_PERF_OUTCOME: ${{ steps.perf.outcome }}
         run: |
           python - <<'PY'
           import os
@@ -164,6 +182,28 @@ jobs:
                   + ', '.join(missing)
               )
 
+          performance_results = [
+              'V0.3_FBAR_PERFORMANCE_RESULTS.json',
+              'V0.3_FBAR_PERFORMANCE_RSS.txt',
+          ]
+          perf_missing = []
+          for result_name in performance_results:
+              candidates = list(Path('build').rglob(result_name))
+              if candidates:
+                  shutil.copy2(candidates[0], out / result_name)
+              else:
+                  perf_missing.append(result_name)
+
+          if (
+              os.environ.get('DYNA_RUNNER') == 'ubuntu-24.04'
+              and os.environ.get('DYNA_PERF_OUTCOME') == 'success'
+              and perf_missing
+          ):
+              raise SystemExit(
+                  'Linux performans benchmarkı başarılı fakat artifact eksik: '
+                  + ', '.join(perf_missing)
+              )
+
           last_test = Path('build/Testing/Temporary/LastTest.log')
           if last_test.exists():
               shutil.copy2(last_test, out / 'V0.3_CTEST_LASTTEST.log')
@@ -174,6 +214,7 @@ jobs:
               f"runner={os.environ.get('DYNA_RUNNER','')}\n"
               f"compiler={os.environ.get('DYNA_COMPILER','')}\n"
               f"ctest={os.environ.get('DYNA_CTEST_OUTCOME','')}\n"
+              f"performance={os.environ.get('DYNA_PERF_OUTCOME','')}\n"
           )
           (out / 'V0.3_CI_METADATA.txt').write_text(metadata, encoding='utf-8')
           PY
@@ -187,6 +228,11 @@ jobs:
           echo
           echo '=== Incompressibility lambda/mu sweep ==='
           cat ci-artifacts/V0.3_INCOMPRESSIBILITY_SWEEP_RESULTS.json
+          if [ -f ci-artifacts/V0.3_FBAR_PERFORMANCE_RESULTS.json ]; then
+            echo
+            echo '=== F-bar large-mesh performance ==='
+            cat ci-artifacts/V0.3_FBAR_PERFORMANCE_RESULTS.json
+          fi
 
       # actions/upload-artifact v7.0.1
       - name: V0.3 platform benchmark artifactlerini sakla
@@ -208,15 +254,21 @@ jobs:
           CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+          PERF_OUTCOME: ${{ steps.perf.outcome }}
         run: |
           $smokeOk = $true
           if ('${{ matrix.compiler }}' -eq 'intel') {
             $smokeOk = ($env:SMOKE_OUTCOME -eq 'success')
           }
 
-          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $smokeOk -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success')
+          $perfOk = $true
+          if ('${{ matrix.os }}' -eq 'ubuntu-24.04') {
+            $perfOk = ($env:PERF_OUTCOME -eq 'success')
+          }
+
+          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $smokeOk -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success' -and $perfOk)
           $state = if ($passed) { 'success' } else { 'failure' }
-          $description = "setup=$($env:SETUP_OUTCOME); smoke=$($env:SMOKE_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
+          $description = "setup=$($env:SETUP_OUTCOME); smoke=$($env:SMOKE_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME); perf=$($env:PERF_OUTCOME)"
           if ($description.Length -gt 140) { $description = $description.Substring(0, 140) }
 
           $body = @{
