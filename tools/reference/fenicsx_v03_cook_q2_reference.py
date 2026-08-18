@@ -37,6 +37,7 @@ from dolfinx.fem.petsc import NonlinearProblem
 MU = 1.0
 LAMBDA = 1000.0
 TRACTION_Y = 0.01
+LOAD_STEPS = 5
 
 Y_RIGHT_BOTTOM = 44.0 / 48.0
 Y_RIGHT_TOP = 60.0 / 48.0
@@ -147,9 +148,10 @@ def solve_case(n: int) -> dict:
         + 0.5 * LAMBDA * ufl.ln(J) ** 2
     )
 
-    traction = fem.Constant(
-        msh, np.array([0.0, TRACTION_Y], dtype=scalar_type)
-    )
+    # Tam yükü tek Newton çözümünde vermek, nearly-incompressible Cook problemi için
+    # gereksiz derecede zor bir başlangıç oluşturuyor. Aynı nonlineer problem 5 sabit
+    # yük artımıyla continuation üzerinden çözülür; her adım önceki çözümden başlar.
+    traction = fem.Constant(msh, np.zeros(2, dtype=scalar_type))
     potential = psi * dx - ufl.inner(traction, uh) * ds(1)
     residual = ufl.derivative(potential, uh, v)
     jacobian = ufl.derivative(residual, uh, du)
@@ -174,12 +176,26 @@ def solve_case(n: int) -> dict:
             "ksp_error_if_not_converged": True,
         },
     )
-    problem.solve()
 
-    snes_reason = int(problem.solver.getConvergedReason())
-    snes_iterations = int(problem.solver.getIterationNumber())
-    if snes_reason <= 0:
-        raise RuntimeError(f"Q2 Cook SNES yakınsamadı: n={n}, reason={snes_reason}")
+    snes_iterations_per_step = []
+    snes_reason = 0
+    for load_step in range(1, LOAD_STEPS + 1):
+        load_fraction = load_step / LOAD_STEPS
+        traction.value[:] = np.array(
+            [0.0, load_fraction * TRACTION_Y], dtype=scalar_type
+        )
+        problem.solve()
+
+        snes_reason = int(problem.solver.getConvergedReason())
+        step_iterations = int(problem.solver.getIterationNumber())
+        snes_iterations_per_step.append(step_iterations)
+        if snes_reason <= 0:
+            raise RuntimeError(
+                "Q2 Cook SNES yakınsamadı: "
+                f"n={n}, load_step={load_step}/{LOAD_STEPS}, reason={snes_reason}"
+            )
+
+    snes_iterations = int(sum(snes_iterations_per_step))
 
     area = global_scalar(msh, 1.0 * dx)
     p_field = LAMBDA * ufl.ln(J)
@@ -211,7 +227,9 @@ def solve_case(n: int) -> dict:
         },
         "J_average": j_mean,
         "total_strain_energy": total_energy,
+        "load_steps": LOAD_STEPS,
         "snes_iterations": snes_iterations,
+        "snes_iterations_per_step": snes_iterations_per_step,
         "snes_reason": snes_reason,
     }
 
@@ -247,6 +265,7 @@ def main() -> None:
         },
         "load": {
             "reference_nominal_traction": [0.0, TRACTION_Y],
+            "load_steps": LOAD_STEPS,
             "left_boundary": "ux=uy=0",
         },
         "geometry": {
@@ -272,6 +291,7 @@ def main() -> None:
             "Pressure is the continuum field p=lambda*ln(J), not an independent mixed unknown.",
             "This result is an external benchmark, not a production formulation selection.",
             "A reference is not accepted as converged unless the final two Q2 mesh levels satisfy the configured convergence threshold.",
+            "The nonlinear solve uses five equal traction increments; each step continues from the previous converged state.",
         ],
     }
 
