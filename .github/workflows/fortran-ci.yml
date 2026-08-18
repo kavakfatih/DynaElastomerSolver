@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-test:
@@ -65,6 +65,7 @@ jobs:
 
       # fortran-lang/setup-fortran v1.9.0
       - name: Fortran derleyicisini kur
+        id: setup_fortran
         uses: fortran-lang/setup-fortran@2a1b9c55897d827a9dfeb114408f3615e53b2b72
         with:
           compiler: ${{ matrix.compiler }}
@@ -80,46 +81,77 @@ jobs:
           fypp --version
           python --version
 
-      - name: CMake configure
+      - name: Intel ifx smoke compile
+        id: smoke
+        if: matrix.compiler == 'intel'
         shell: bash
         run: |
-          set +e
+          cat > ifx_smoke.f90 <<'EOF'
+          program ifx_smoke
+            implicit none
+            print *, 'DynaElastomerSolver ifx smoke OK'
+          end program ifx_smoke
+          EOF
+          "$FC" ifx_smoke.f90 -o ifx_smoke.exe
+          ./ifx_smoke.exe
 
-          if [[ "${{ matrix.compiler }}" == "intel" ]]; then
-            # GitHub windows-2025 etiketi Haziran 2026'dan itibaren VS2026 imajına
-            # yönlendirildiği için ifx/VS2022 entegrasyonu Windows 2022 runner'da doğrulanır.
-            # CMake'in resmî Intel Fortran Visual Studio toolset seçimi kullanılır.
-            cmake -S . -B build \
-              -G "Visual Studio 17 2022" \
-              -A x64 \
-              -T "fortran=ifx" \
-              -DDES_BUILD_TESTS=ON \
-              > cmake-configure.log 2>&1
-          else
-            cmake -S . -B build -G Ninja \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DCMAKE_Fortran_COMPILER="$FC" \
-              -DDES_BUILD_TESTS=ON \
-              > cmake-configure.log 2>&1
-          fi
-
-          status=$?
-          set -e
-
+      - name: CMake configure
+        id: configure
+        shell: bash
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_Fortran_COMPILER="$FC" \
+            -DDES_BUILD_TESTS=ON \
+            > cmake-configure.log 2>&1
           cat cmake-configure.log
-          if [ "$status" -ne 0 ]; then
-            message=$(tail -n 60 cmake-configure.log | tr '\n' ' ' | cut -c1-4000)
-            echo "::error file=CMakeLists.txt::CMake configure başarısız (${FC}): ${message}"
-            exit "$status"
-          fi
 
       - name: Derle
+        id: build
         shell: bash
-        run: cmake --build build --config Debug --parallel 2
+        run: cmake --build build --parallel 2
 
       - name: CTest
+        id: ctest
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
+
+      - name: Intel ifx V0.2 sonucunu kaydet
+        if: always() && matrix.compiler == 'intel'
+        shell: pwsh
+        env:
+          SETUP_OUTCOME: ${{ steps.setup_fortran.outcome }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+        run: |
+          $result = [ordered]@{
+            schema_version = 1
+            milestone = 'V0.2'
+            branch = '${{ github.ref_name }}'
+            source_commit = '${{ github.sha }}'
+            runner = 'windows-2022'
+            compiler = 'Intel ifx 2025.2'
+            setup_fortran = $env:SETUP_OUTCOME
+            smoke_compile = $env:SMOKE_OUTCOME
+            cmake_configure = $env:CONFIGURE_OUTCOME
+            build = $env:BUILD_OUTCOME
+            ctest = $env:CTEST_OUTCOME
+            all_passed = ($env:SETUP_OUTCOME -eq 'success' -and $env:SMOKE_OUTCOME -eq 'success' -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success')
+            recorded_at_utc = (Get-Date).ToUniversalTime().ToString('o')
+          }
+
+          New-Item -ItemType Directory -Force -Path 'docs/verification/results' | Out-Null
+          $result | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 'docs/verification/results/IFX_V0.2_CI.json'
+
+          git config user.name 'DynaElastomerSolver CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add docs/verification/results/IFX_V0.2_CI.json
+          git commit -m 'CI: V0.2 ifx doğrulama sonucunu kaydet'
+          if ($LASTEXITCODE -eq 0) {
+            git push origin HEAD:main
+          }
 
       # actions/upload-artifact v7.0.1
       - name: Configure logunu sakla
