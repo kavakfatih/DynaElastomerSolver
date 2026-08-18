@@ -522,3 +522,73 @@ Sıradaki adımlar:
 5. V0.3 kapandıktan sonra axisymmetric F-bar geliştirme dalgasına geç.
 
 `Sistem-ve-Mimari` branch'ine dokunulmadı.
+
+---
+
+## 21. Public repository — lisans, fikrî mülkiyet ve güvenlik politikası
+
+2026-08-18 tarihinde repository'nin ileride public yapılması kararı için proprietary/source-available hak koruma katmanı oluşturuldu.
+
+Karar:
+
+```text
+DynaElastomerSolver özgün kodu = proprietary / source-available
+Copyright © 2026 Fatih KAVAK
+All Rights Reserved
+Open-source license = YOK
+GitHub ToS platform rights = saklı / genişletilmez
+```
+
+Eklendi:
+
+- `LICENSE`
+- `NOTICE.md`
+- `SECURITY.md`
+- `CONTRIBUTING.md`
+- `THIRD_PARTY_NOTICES.md`
+- `docs/legal/PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md`
+- `.github/CODEOWNERS`
+
+Hak sınırı:
+
+- MIT/GPL/Apache/BSD lisansı verilmedi.
+- Dyna'nın özgün kodunda kullanım/değiştirme/dağıtım/ticari kullanım/patent/marka hakları açık yazılı izin dışında verilmez.
+- GitHub public-repo görüntüleme/fork/platform hakları GitHub Terms nedeniyle saklıdır ve özel lisans bunları genişletmez.
+- third-party components kendi lisanslarında kalır.
+- `kavakfatih/stdlib @ 9a15c7772f1a76a6c497b9f3abb793841fc81f74` MIT License olarak ayrı notice altında tutulur.
+
+Güvenlik/publish gate:
+
+- full Git history secret scan zorunlu
+- Actions logs/artifacts review zorunlu
+- leaked credentials revoke/rotate
+- Private Vulnerability Reporting public öncesi aktif
+- secret scanning / push protection / Dependabot / uygun code scanning
+- visibility sonrası branch rulesets yeniden doğrulanacak
+- GitHub Archive Program opt-out kararı verilecek
+- patent ve ticari sır review tamamlanmadan visibility public yapılmayacak
+
+Patent kararı:
+
+Public source disclosure patent novelty/trade-secret stratejisini etkileyebileceğinden `PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md` içinde zorunlu NO-GO gate tanımlandı.
+
+CI security review:
+
+- GitHub Actions SHA-pinned actions ✅
+- workflow permissions `contents: read` + gerekli `statuses: write` ✅
+- FEniCSx Docker `dolfinx/dolfinx:v0.11.0` tag-only; public/release öncesi digest pinleme follow-up.
+
+Repository visibility:
+
+**Hâlâ private.** Patent/secret-history/security GO/NO-GO açık maddeleri kapanmadan public yapılmayacak.
+
+Sıradaki public hazırlık adımları:
+
+1. full-history secret/credential audit.
+2. historical Actions logs/artifacts audit.
+3. patent/ticari sır review.
+4. GitHub Private Vulnerability Reporting ve security features activation.
+5. FEniCSx Docker digest pinleme.
+6. tüm GO/NO-GO maddeleri kapandıktan sonra visibility public değerlendirmesi.
+
+`Sistem-ve-Mimari` branch'ine dokunulmadı.
