@@ -1,0 +1,57 @@
+# DynaElastomerSolver — public repository ignore baseline
+
+# CMake / build outputs
+/build/
+/build-*/
+/_build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Testing/
+
+# Fortran/compiler outputs
+*.mod
+*.smod
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+
+# Local CI/reference outputs
+/ci-artifacts/
+/reference-results/
+*.log
+
+# Local editor / OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets / credentials — these must never be committed
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# Local auth/config files
+.netrc
+.npmrc
+.pypirc
+credentials.json
+secrets.json
