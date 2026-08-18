@@ -64,30 +64,20 @@ Tamamlananlar:
 - Newton iteration / lineer solve / equation-count diagnostics
 - mixed pressure diagnostics
 - F-bar `J_bar` min/max diagnostics
+- birleşik üçlü Cook benchmark executable'ı
+- `lambda/mu = 10/100/1000` incompressibility sweep benchmarkı
 
 ### Birleşik üçlü Cook benchmarkı
 
-Yeni test:
-
 `tests/test_v03_cook_bakeoff_compare.f90`
 
-Bu test displacement Q4, mixed Q4/P0 ve F-bar'ı aynı executable içinde:
+Displacement Q4, mixed Q4/P0 ve F-bar aynı executable içinde aynı mesh/boundary/material/yük altında çözülür.
 
-- aynı mesh üreticisi,
-- aynı boundary condition,
-- aynı traction,
-- aynı material parametreleri,
-- aynı ölçüm semantiği
-
-ile çözer.
-
-Test doğrudan geçerli:
+Test doğrudan:
 
 `V0.3_COOK_BAKEOFF_RESULTS.json`
 
-üretir. Böylece sonuçların `LastTest.log` parse edilerek yeniden oluşturulması ana yol olmaktan çıkarıldı.
-
-JSON schema v3 alanları:
+üretir. JSON schema v3:
 
 - tip displacement
 - final minimum `J`
@@ -98,7 +88,14 @@ JSON schema v3 alanları:
 - F-bar `J_bar` min/max
 - coarse-to-8x8 convergence gap
 
-CTest tanımı artık **34 test**.
+`tools/verification/parse_v03_bakeoff_log.py` yedek log-parser yoludur. F-bar metadata'sı güncel formulation ile eşitlendi:
+
+```text
+formulation = fbar_q4
+tangent = analytic_energy_consistent_second_variation
+```
+
+CTest tanımı artık **35 test**.
 
 ---
 
@@ -114,7 +111,7 @@ traction_y = 0.01
 
 Amaç displacement-only Q4'ün nearly-incompressible durumda volumetric-locking davranışını ölçmek.
 
-**Önemli ölçüm düzeltmesi:** coarse-to-8x8 gap tek başına locking şiddeti kabul edilmeyecek. 8x8 displacement Q4 çözümü de locked olabilir. Asıl hata dış converged Q2/FEniCSx referansına göre ölçülecek.
+**Önemli:** coarse-to-8x8 gap tek başına locking şiddeti kabul edilmeyecek. 8x8 displacement Q4 çözümü de locked olabilir. Asıl hata dış converged Q2/FEniCSx referansına göre ölçülecek.
 
 ---
 
@@ -145,6 +142,7 @@ Tamamlanan zincir:
 - mixed Full Newton force-control
 - homogeneous analytic traction benchmark
 - Cook 2x2 / 4x4 / 8x8
+- Cook çözümünde element pressure consistency: `p_e = lambda <ln J>_e`
 
 Pressure diagnostics:
 
@@ -213,7 +211,7 @@ Windows/macOS platform doğrulaması GitHub Actions engeli çözüldükten sonra
 
 ## Bağımsız Cook precheck
 
-CI engelinden bağımsız ikinci bir Python/NumPy FEM implementasyonu ile aynı Cook problemi önceden çözüldü.
+CI engelinden bağımsız ikinci bir Python/NumPy FEM implementasyonu ile aynı Cook problemi çözüldü.
 
 Ham veri:
 
@@ -233,36 +231,71 @@ Tip displacement precheck:
 
 Sinyaller:
 
-- 8x8 displacement Q4, F-bar displacementının yalnız yaklaşık `%33.8`'i seviyesinde.
+- 8x8 displacement Q4, F-bar displacementının yaklaşık `%33.8`'i seviyesinde.
 - mixed ile F-bar relative tip farkı `9.09% -> 3.75% -> 1.29%` azalıyor.
 - mixed pressure graph roughness `2.874 -> 0.976 -> 0.321` azalıyor.
 
-Bu sonuçlar **resmi Dyna Fortran/CTest sonucu değildir** ve production kararını tek başına belirlemez. Ancak benchmarkın locking ve pressure-stability davranışını doğru yönde ayırabildiğine dair güçlü bağımsız precheck kanıtıdır.
+Bu sonuçlar **resmi Dyna Fortran/CTest sonucu değildir** ve production kararını tek başına belirlemez.
+
+### Precheck düzeltme kaydı
+
+Geçici ikinci cross-check sırasında parent→reference gradient dönüşümünde `J^{-1}` yönü yanlış uygulanmıştı. Bu geçici sonuçlar repodan kaldırıldı. Doğru dönüşüm Fortran `reference_gradient` ile aynı `J^{-T}` yönündedir ve yukarıdaki mevcut independent-precheck sonuçlarını yeniden üretmiştir.
+
+---
+
+## Incompressibility sweep
+
+Yeni regression:
+
+`tests/test_v03_incompressibility_sweep.f90`
+
+4x4 Cook meshinde:
+
+```text
+lambda/mu = 10, 100, 1000
+```
+
+üç formulation aynı yük altında çözülür.
+
+Bağımsız doğru-gradient precheck:
+
+| lambda/mu | Displacement Q4 | Mixed Q4/P0 | F-bar Q4 |
+|---:|---:|---:|---:|
+| 10 | 0.01326101 | 0.01841319 | 0.01911670 |
+| 100 | 0.00744673 | 0.01702588 | 0.01768588 |
+| 1000 | 0.00595658 | 0.01685744 | 0.01751507 |
+
+`lambda/mu = 10 -> 1000`:
+
+```text
+Displacement tip drop ≈ 55.08 %
+Mixed tip drop        ≈  8.45 %
+F-bar tip drop        ≈  8.38 %
+Mixed/F-bar farkı @1000 ≈ 3.75 %
+```
+
+Ham precheck:
+
+`docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_PRECHECK.json`
+
+Bu benchmark displacement-only Q4'ün nearly-incompressible sınıra giderken belirgin yapay rijitleşmesini doğrudan `lambda/mu` ekseninde ölçer.
 
 ---
 
 ## Platform sonuç artifactleri
 
-`.github/workflows/fortran-ci.yml` güncellendi.
-
-Birleşik Fortran benchmark JSON'u artık her compiler job'unda doğrudan artifact olarak saklanacak:
+`.github/workflows/fortran-ci.yml` birleşik Fortran benchmark JSON'unu her compiler job'unda artifact olarak saklayacak şekilde düzenlenmiştir:
 
 - Windows / Intel ifx
 - Windows / gfortran
 - macOS ARM64 / gfortran
 - Linux / gfortran
 
-Yeni karşılaştırıcı:
+Karşılaştırıcı:
 
 `tools/verification/compare_v03_platform_results.py`
 
-Amaç:
-
-- `tip`, final `J`, pressure ve `J_bar` alanlarının platformlar arasında tolerans içinde eşleşmesini doğrulamak,
-- equation count'u exact kontrol etmek,
-- Newton iteration farklarını bilgi olarak raporlamak.
-
-Bu sayede Windows ve macOS yalnız build/CTest olarak değil, **sayısal sonuç reproducibility** açısından da karşılaştırılacak.
+Amaç platformlar arasında `tip`, final `J`, pressure ve `J_bar` sayısal reproducibility kontrolüdür.
 
 ---
 
@@ -297,14 +330,15 @@ Bu nedenle mevcut hata Fortran/CMake/CTest seviyesine ulaşmış bir kod hatası
 ## Sıradaki V0.3 adımları
 
 1. GitHub-hosted Actions pre-step engelini çöz.
-2. Önce Windows/ifx + Windows/gfortran + macOS ARM64/gfortran 34-test matrix'ini kapat.
+2. Önce Windows/ifx + Windows/gfortran + macOS ARM64/gfortran **35-test** matrix'ini kapat.
 3. Üç birincil platformun birleşik bake-off JSON'larını `compare_v03_platform_results.py` ile karşılaştır.
-4. FEniCSx Q2 2/4/8/16 Cook dış referans artifactini al.
-5. Dyna displacement/mixed/F-bar sonuçlarını converged Q2 referansına göre hata metriğiyle değerlendir.
-6. Mixed pressure mean/std/RMS + graph roughness trendini continuum pressure reference ile kıyasla.
-7. Üç formulation için ortak convergence/robustness/maliyet tablosunu tamamla.
-8. Seçilen adayı bağımsız solver ile son kez doğrula.
-9. Production formulation ADR kararını ver.
+4. Incompressibility sweep regressionını üç birincil platformda doğrula.
+5. FEniCSx Q2 2/4/8/16 Cook dış referans artifactini al.
+6. Dyna displacement/mixed/F-bar sonuçlarını converged Q2 referansına göre hata metriğiyle değerlendir.
+7. Mixed pressure mean/std/RMS + graph roughness trendini continuum pressure reference ile kıyasla.
+8. Üç formulation için ortak convergence/robustness/maliyet tablosunu tamamla.
+9. Seçilen adayı bağımsız solver ile son kez doğrula.
+10. Production formulation ADR kararını ver.
 
 ## Branch kuralı
 
