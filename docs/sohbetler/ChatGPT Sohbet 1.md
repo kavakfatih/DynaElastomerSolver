@@ -465,3 +465,65 @@ Dolayısıyla mevcut durum **"kodda hata bulundu" değil, "CI engeli nedeniyle p
 3. FEniCSx Q2 reference'ı 32x32 seviyesine kadar çalıştır ve convergence kriterini uygula.
 4. Mixed ve F-bar'ı converged dış referansa göre karşılaştır.
 5. Ortak karar tablosunu oluştur ve production formulation ADR'sini sabitle.
+
+---
+
+## 17. 2026-08-18 Q2 32x32 / 64x64 ek convergence kontrolü
+
+GitHub Actions engeli sürerken Q2 denklemleri ChatGPT çalışma ortamında repo precheck'indeki aynı fizik ve aynı matematiksel sözleşmeyle yeniden kuruldu. Bu hesap **resmi repo artifacti, Dyna CTest veya FEniCSx sonucu değildir**.
+
+Önce 16x16 çözüm yeniden hesaplandı ve mevcut repo kaydıyla sayısal olarak eşleşti:
+
+```text
+repo kayıtlı 16x16 tip = 0.0200264326066
+yeniden hesaplanan     = 0.0200264326066
+```
+
+Ardından:
+
+```text
+Q2 32x32 tip = 0.0201973654566
+Q2 64x64 tip = 0.0202716452366
+```
+
+Refinement:
+
+```text
+16 -> 32 ≈ 0.8463%
+32 -> 64 ≈ 0.3664%
+```
+
+V0.3 precheck convergence kriteri `%1` olduğundan **32x32 bağımsız Q2 precheck seviyesinde converged-adaydır**. 64x64 kontrolü bu sonucu desteklemektedir.
+
+8x8 Q4 formulation sonuçlarının daha ince Q2 referanslara göre relative tip hatası:
+
+```text
+Q2 32x32 referansı:
+Displacement Q4 ≈ 67.50%
+Mixed Q4/P0     ≈  5.16%
+F-bar Q4        ≈  3.92%
+
+Q2 64x64 referansı:
+Displacement Q4 ≈ 67.62%
+Mixed Q4/P0     ≈  5.51%
+F-bar Q4        ≈  4.27%
+```
+
+Bilimsel okuma:
+
+- displacement-only Q4 locking nedeniyle production adayı olmaktan uzaklaşıyor,
+- mixed Q4/P0 güçlü aday olmaya devam ediyor,
+- F-bar Q4 mevcut displacement doğruluk göstergelerinde en güçlü aday.
+
+Ancak **production formulation hâlâ seçilmedi**. FEniCSx/DOLFINx dış referansı ve birincil compiler matrix tamamlanmadan ADR kararı verilmeyecek.
+
+CI tarafında ayrıca runner label'ları güncel GitHub-hosted runner listesine göre doğrulandı; `ubuntu-24.04`, `windows-2022`, `windows-2025` ve `macos-26` geçerlidir. Tüm platform job'larının step başlamadan aynı anda düşmesi nedeniyle öncelikli engel Actions account/budget/usage veya runner provisioning katmanı olarak kalmaktadır.
+
+### Güncel sıradaki adım
+
+1. GitHub Actions billing/usage/budget engelini hesap ayarlarından kaldır.
+2. Fortran CI 35-test matrix'ini yeniden çalıştır.
+3. FEniCSx Q2 32x32 minimum, mümkünse 64x64 kontrolünü çalıştır.
+4. Resmi FEniCSx sonucu ile Mixed ve F-bar accuracy/pressure karşılaştırmasını tamamla.
+5. Robustness + maliyet + genişletilebilirlik tablosunu tamamla.
+6. Production formulation ADR kararını ver.
