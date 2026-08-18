@@ -9,232 +9,125 @@
 
 ## 1. Ürün yönü
 
-DynaElastomerSolver genel amaçlı CAE olmaya çalışmayacak.
+DynaElastomerSolver genel amaçlı CAE olmayacak; nonlineer elastomer problemlerinde dar fakat güçlü bir solver olacak.
 
-Ana ürün ilkesi:
-
-> Genel amaçlı CAE yerine nonlineer elastomer analizlerinde olağanüstü güçlü, güvenilir ve açıklanabilir olmak.
-
-Öncelik:
+Ana yön:
 
 ```text
 finite strain
 → hyperelasticity
-→ nearly-incompressibility
+→ nearly incompressibility
 → robust Newton
 → plane strain
 → axisymmetric
 → axisymmetric torsion / 2.5D
 ```
 
-ADR-0006: **implementation-first validation**. Önce çalışan ve ölçülen fizik, sonra yalnız ihtiyaç kadar mimari genişleme.
+ADR-0006: **implementation-first validation**.
 
 ---
 
-## 2. Sürüm ve branch kuralı
-
-Kullanıcının talebiyle sürümler branch üzerinden geri dönülebilir hale getirildi.
-
-```text
-main             → doğrulanmış ana hat + sürekli kayıtlar
-release/v0.2     → kararlı V0.2.0
-develop/v0.3     → aktif V0.3.0
-Sistem-ve-Mimari → kullanıcı ayrıca istemedikçe dokunulmaz
-```
-
-Her tamamlanan sürüm için `release/vX.Y`, yeni geliştirme için `develop/vX.Y+1` kullanılacak.
-
-Draft PR #1:
-
-`V0.3 — Nearly-Incompressible Formulation Bake-off`
-
-V0.3 exit criteria tamamlanmadan ready/merge yapılmayacak.
-
----
-
-## 3. V0.1 — Material Core
+## 2. V0.1 — Material Core
 
 Tamamlandı:
 
-- Modern Fortran 2018
-- CMake
-- Neo-Hookean strain energy
-- First Piola-Kirchhoff `P`
-- Cauchy stress
+- Modern Fortran 2018 + CMake
+- Neo-Hookean `W / P / Cauchy`
 - analitik consistent material tangent
-- invalid parameter / singular `F` / non-positive `J` diagnostics
-
-Material tangent merkezi FD normalize hata:
+- material-point FD doğrulaması
 
 ```text
-≈ 1.26e-9
+material tangent normalized FD error ≈ 1.26e-9
 ```
 
 ---
 
-## 4. V0.2 — Nonlinear FEM dikey dilimi
+## 3. V0.2 — Nonlinear FEM ve robustness
 
-V0.2.0 tamamlandı ve `release/v0.2` branch'ine sabitlendi.
+Tamamlandı:
 
-Tamamlanan ana zincir:
-
-```text
-Neo-Hookean
-→ Q4 plane strain / 2×2 Gauss
-→ Total-Lagrangian residual/tangent
-→ global assembly
-→ Full Newton
-→ adaptive increment / cutback / rollback
-→ InternalMesh
-→ raw integration-point results
-→ backend-independent lineer solver
-→ stdlib/LAPACK dense backend
-```
-
-Eklenen solver yetenekleri:
-
-- trial / commit / revert state
+- Q4 plane strain / 2x2 Gauss
+- Total-Lagrangian residual/tangent
+- global assembly
+- Full Newton
+- adaptive increment / rollback / cutback
+- state commit/revert
 - convergence history
-- cutback/retry
-- minimum `J`
-- failure root-cause preservation
-- lineer solver report
-- backend/equation-count/linear residual diagnostics
+- InternalMesh
+- raw integration-point results
+- backend-independent lineer solver API
+- `kavakfatih/stdlib` / LAPACK dense backend
+- lineer solver diagnostics
+- severe-distortion benchmark
+- FEniCSx bağımsız doğrulama
 
-Bilinen V0.2 doğrulamaları:
-
-```text
-Material tangent FD               ≈ 1.26e-9
-Q4 element tangent FD             ≈ 1.16e-9
-2-element reaction relative error ≈ 1e-15
-solver final free residual         ≈ 5.4e-15
-nonlinear patch center error       ≈ 3.9e-17
-```
-
-Bağımsız FEniCSx/DOLFINx doğrulaması:
+Ana kanıtlar:
 
 ```text
-Dyna lambda_y    = 0.8314690882666784
-FEniCSx lambda_y = 0.8314690882666764
-abs fark         ≈ 2.00e-15
-
-Dyna reaction    = 1.7423183105139586
-FEniCSx reaction = 1.7423183105139580
-abs fark         ≈ 6.66e-16
+element tangent FD        ≈ 1.16e-9
+2-element reaction error  ≈ 1e-15
+solver free residual      ≈ 5.4e-15
+nonlinear patch error     ≈ 3.9e-17
 ```
 
-20 CTest geçti:
+V0.2 compiler matrix:
 
-- Ubuntu 24.04 / gfortran 14
-- macOS ARM64 / gfortran 14
-- Windows / gfortran 14
-- Windows 2022 / Intel ifx 2025.2
+- Ubuntu/gfortran14 ✅
+- macOS ARM64/gfortran14 ✅
+- Windows/gfortran14 ✅
+- Windows/Intel ifx 2025.2 ✅
+
+**V0.2.0 tamamlandı.**
+
+Branch: `release/v0.2`.
 
 ---
 
-## 5. Açık kaynak Fortran bağımlılık politikası
+## 4. Branch kuralı
 
-Aktif dependency:
+```text
+main
+├── release/v0.2
+└── develop/v0.3
+```
 
-`https://github.com/kavakfatih/stdlib`
+- `main`: doğrulanmış ana hat + sürekli kayıtlar
+- `release/vX.Y`: geri dönülebilir sürüm
+- `develop/vX.Y`: aktif geliştirme
+- `Sistem-ve-Mimari`: kullanıcı açıkça istemedikçe güncellenmez
 
-Pinned commit:
-
-`9a15c7772f1a76a6c497b9f3abb793841fc81f74`
-
-Dyna kendi bilimsel çekirdeğini sahiplenir:
-
-- constitutive law
-- FEM formulation
-- incompressibility strategy
-- axisymmetric formulation
-- torsion formulation
-- nonlinear solution policy
-
-Kütüphaneler infrastructure/solver/calibration katmanlarında adapter arkasında kullanılacak.
-
-Araştırılan/planlanan:
-
-- Reference LAPACK
-- MUMPS
-- MINPACK
-- PRIMA
-- PCHIP
-- HDF5
-- JSON-Fortran
-- FrontISTR
+Draft PR #1, V0.3 tamamlanmadan `main`e merge edilmeyecek.
 
 ---
 
-## 6. V0.3 — Nearly-Incompressible Formulation Bake-off
+## 5. V0.3 — Nearly-Incompressible Formulation Bake-off
 
-Aktif branch:
+Karşılaştırılan formulationlar:
 
-`develop/v0.3`
-
-Üç aday aynı fizik ve aynı benchmarklarda karşılaştırılıyor:
-
-```text
-A — displacement-only Q4
-B — mixed Q4/P0 u-p
-C — F-bar Q4
-```
+1. displacement-only Q4
+2. mixed Q4/P0 `u-p`
+3. F-bar Q4
 
 Production formulation henüz seçilmedi.
 
 ---
 
-## 7. Ortak V0.3 yük/solver altyapısı
+## 6. Ortak V0.3 benchmark altyapısı
 
 Eklendi:
 
 - Q4 reference-edge traction
-- 2-point edge Gauss integration
-- skew-edge force conservation
-- InternalMesh edge-load global assembly
+- skew-edge / total-force conservation
+- InternalMesh edge-load assembly
 - fixed-increment force-control Full Newton
 - homogeneous analytic traction benchmark
-- Cook-benzeri 2×2 / 4×4 / 8×8 mesh benchmarkları
-- final-state `J` ile historical Newton minimum `J` ayrımı
-- Newton iteration / lineer solve / equation-count ölçümü
-
-Birleşik benchmark:
-
-`tests/test_v03_cook_bakeoff_compare.f90`
-
-Aynı executable içinde üç formulation çözülür ve doğrudan:
-
-`V0.3_COOK_BAKEOFF_RESULTS.json`
-
-üretilir.
-
-Platform numerical reproducibility aracı:
-
-`tools/verification/compare_v03_platform_results.py`
+- normalize Cook 2x2 / 4x4 / 8x8
+- final-state minimum `J`
+- Newton iteration / lineer solve / equation-count diagnostics
 
 ---
 
-## 8. Displacement-only Q4 baseline
-
-V0.2 full-integration Q4, V0.3'te locking baseline olarak korunuyor.
-
-Cook baseline:
-
-```text
-mu = 1
-lambda = 1000
-traction_y = 0.01
-```
-
-Önemli karar:
-
-> Coarse-to-8x8 displacement gap tek başına locking metriği değildir. 8x8 Q4 de locked olabilir. Production karşılaştırması dış converged referansa göre yapılacak.
-
----
-
-## 9. Mixed Q4/P0
-
-Mixed potential:
+## 7. Mixed Q4/P0
 
 ```text
 Psi(F,p) = mu/2(I1-3)
@@ -249,106 +142,153 @@ Stationarity:
 p = lambda ln(J)
 ```
 
-Element:
-
-```text
-8 displacement DOF + 1 constant P0 pressure DOF
-```
-
-Global sistem:
-
-```text
-[ Kuu Kup ] [du] = -[Ru]
-[ Kpu Kpp ] [dp]    [Rp]
-```
-
 Tamamlandı:
 
-- 9×9 residual/tangent
+- 8 displacement + 1 P0 pressure DOF / element
 - `Kuu/Kup/Kpu/Kpp`
-- tangent merkezi FD validation
-- local error ≈ `1.74e-9`
+- 9x9 consistent tangent
 - global mixed assembly
-- mixed force-control Full Newton
-- homogeneous analytic traction
-- Cook 2×2 / 4×4 / 8×8
+- mixed Full Newton
+- Cook benchmark
+
+Tangent doğrulaması:
+
+```text
+local normalized FD error ≈ 1.74e-9
+```
 
 Pressure diagnostics:
 
-- min/max/mean/std/RMS
-- edge-neighbor graph
-- neighbor jump RMS/max
-- normalized jump
+- mean/std/RMS
+- neighbor jump
 - `neighbor_jump_to_std`
 - `graph_roughness`
 
-Manufactured homogeneous pressure reference:
+Manufactured homojen exact pressure benchmarkı:
 
 ```text
-Exact J                   = 1.031600
-Exact pressure            = 0.5911089
-maximum pressure residual = 1.11e-16
-graph roughness           = 0
+J                       = 1.031600
+p = lambda ln(J)        = 0.5911089
+max pressure residual   ≈ 1.11e-16
+graph roughness         = 0
 ```
-
-Cook benchmarkına ayrıca element bazlı pressure stationarity consistency kontrolü eklendi:
-
-```text
-p_e = lambda <ln J>_e
-```
-
-Bu kontrol pressure alanı roughness'ından ayrıdır; mixed denklemin kendisinin çözülüp çözülmediğini ölçer.
 
 ---
 
-## 10. F-bar Q4
-
-Kinematik:
+## 8. F-bar Q4
 
 ```text
 J_bar = integral(J dV0) / integral(dV0)
-alpha_g = (J_bar/J_g)^(1/3)
-F_bar_g = alpha_g F_g
+alpha = (J_bar/J)^(1/3)
+F_bar = alpha F
 ```
 
-Enerji:
+Element enerjisi:
 
 ```text
 E(u) = sum_g W(F_bar_g(u)) w_g
 ```
 
-Residual bu enerjinin ilk varyasyonundan hesaplanır.
-
-İlk prototipte numerical tangent kullanılmıştı. Bu sınır kaldırıldı.
-
-Analitik consistent tangent:
+Residual enerjinin ilk varyasyonundan, tangent analitik ikinci varyasyonundan hesaplanıyor.
 
 ```text
 H_q = dF_bar/dq
-    = alpha [B_q + beta_q F]
-
 K_qr = sum_g w_g [H_q : A_bar : H_r + P_bar : H_qr]
 ```
 
-Bağımsız doğrulama:
+Doğrulama:
 
 ```text
-Python derivation/reference:
-normalized cross-FD error ≈ 8.73e-10
-symmetry error            ≈ 1.90e-16
-
-GNU Fortran 14.2 local:
-max normalized cross-FD   ≈ 1.20e-9
-symmetry error            ≈ 2.45e-16
+Python cross-FD  ≈ 8.73e-10
+Python symmetry  ≈ 1.90e-16
+GNU Fortran FD   ≈ 1.20e-9
+GNU symmetry     ≈ 2.45e-16
 ```
 
 F-bar artık numerical-tangent prototipi değildir.
 
 ---
 
-## 11. Bağımsız Cook precheck
+## 9. Platform önceliği
 
-GitHub Actions CI engelinden bağımsız ikinci Python/NumPy FEM implementasyonu kullanıldı.
+```text
+Windows x64 / Intel ifx        PRIMARY
+Windows x64 / gfortran         PRIMARY portability
+macOS Apple Silicon / gfortran PRIMARY
+Linux / gfortran               SECONDARY scientific CI
+Linux / FEniCSx                external reference
+```
+
+---
+
+## 10. GitHub Actions engeli
+
+Draft PR conflict'i çözüldü. Ancak Windows, macOS, Linux ve FEniCSx GitHub-hosted job'ları runner step'leri başlamadan failure oluyor.
+
+Tek Linux rerun'ı da aynı pre-step failure davranışını gösterdi.
+
+Bu nedenle açık hata build/CMake/CTest seviyesine ulaşmış kod hatası olarak kabul edilmiyor.
+
+---
+
+## 11. Birleşik üçlü Cook benchmarkı
+
+Yeni test:
+
+`tests/test_v03_cook_bakeoff_compare.f90`
+
+Üç formulation artık aynı executable içinde aynı:
+
+- mesh
+- material
+- traction
+- boundary condition
+- ölçüm sözleşmesi
+
+ile çözülüyor.
+
+Test doğrudan:
+
+`V0.3_COOK_BAKEOFF_RESULTS.json`
+
+üretiyor.
+
+JSON schema v3:
+
+- tip displacement
+- final minimum `J`
+- iterations
+- linear solves
+- equations
+- mixed pressure diagnostics
+- F-bar `J_bar` range
+
+`LastTest.log` parser ana sonuç üretim yolu olmaktan çıkarıldı.
+
+---
+
+## 12. Platform numerical reproducibility
+
+Her compiler job'u kendi bake-off JSON artifactini saklayacak:
+
+- Windows / ifx
+- Windows / gfortran
+- macOS ARM64 / gfortran
+- Linux / gfortran
+
+Yeni araç:
+
+`tools/verification/compare_v03_platform_results.py`
+
+Kontroller:
+
+- tip/final `J`/pressure/`J_bar` numerical equality
+- equation-count exact equality
+- iteration farkları bilgi olarak raporlanır
+
+---
+
+## 13. Bağımsız Cook precheck
 
 Kayıtlar:
 
@@ -358,196 +298,98 @@ Kayıtlar:
 Tip displacement:
 
 ```text
-              2x2         4x4         8x8
-Displacement  0.00569117  0.00595658  0.00656453
-Mixed         0.01224824  0.01685744  0.01915555
-F-bar         0.01347320  0.01751507  0.01940549
+               2x2         4x4         8x8
+Displacement   0.00569117  0.00595658  0.00656453
+Mixed          0.01224824  0.01685744  0.01915555
+F-bar          0.01347320  0.01751507  0.01940549
 ```
 
 Sinyaller:
 
-```text
-8x8 displacement / F-bar ≈ 33.8%
+- 8x8 displacement/F-bar oranı ≈ `%33.8`
+- mixed–F-bar farkı `9.09% -> 3.75% -> 1.29%`
+- mixed graph roughness `2.874 -> 0.976 -> 0.321`
 
-Mixed-F-bar relative tip farkı:
-2x2 ≈ 9.09%
-4x4 ≈ 3.75%
-8x8 ≈ 1.29%
+Bu sonuç resmi Dyna Fortran/CTest sonucu değildir.
 
-Mixed graph roughness:
-2x2 ≈ 2.874
-4x4 ≈ 0.976
-8x8 ≈ 0.321
-```
+Bilimsel karar:
 
-Bu precheck resmi Dyna Fortran/CTest kanıtı değildir.
+> Coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 displacement Q4 de locked olabilir.
 
-### Geçici cross-check hata kaydı
-
-İkinci geçici Python cross-check'te Q4 parent→reference gradient dönüşüm yönü yanlış uygulanmıştı (`J^{-1}` yerine Dyna'nın kullandığı `J^{-T}` yönü gerekliydi).
-
-Yanlış geçici sonuç dosyaları repodan kaldırıldı.
-
-Doğru dönüşüm uygulandığında mevcut `V0.3_COOK_INDEPENDENT_PRECHECK` sonuçları yeniden elde edildi.
-
-Bu olay regression/reference matematiğinde dönüşüm yönünün açık tutulması gerektiğini teyit etti; Fortran üretim kodunda bu hata yoktu.
+Asıl doğruluk converged dış Q2/FEniCSx referansına göre ölçülecek.
 
 ---
 
-## 12. V0.3 incompressibility sweep
+## 14. Incompressibility sweep
 
 Yeni test:
 
 `tests/test_v03_incompressibility_sweep.f90`
 
-4×4 Cook meshinde:
+Sabit 4x4 Cook mesh:
 
 ```text
-lambda/mu = 10, 100, 1000
+lambda/mu = 10 -> 100 -> 1000
 ```
 
-üç formulation aynı yük altında çözülüyor.
-
-Bağımsız doğru-gradient precheck:
+Bağımsız precheck:
 
 ```text
-lambda/mu    Displacement     Mixed        F-bar
-10           0.01326101       0.01841319   0.01911670
-100          0.00744673       0.01702588   0.01768588
-1000         0.00595658       0.01685744   0.01751507
+lambda/mu      10          100         1000
+Displacement   0.0132610   0.00744673  0.00595658
+Mixed          0.0184132   0.01702588  0.01685744
+F-bar          0.0191167   0.01768588  0.01751507
 ```
 
-`10 → 1000` değişiminde:
+Tip displacement kaybı `lambda/mu=10 -> 1000`:
 
 ```text
-Displacement tip drop ≈ 55.08%
-Mixed tip drop        ≈  8.45%
-F-bar tip drop        ≈  8.38%
-Mixed/F-bar farkı @1000 ≈ 3.75%
+Displacement Q4 ≈ 55.08%
+Mixed Q4/P0     ≈ 8.45%
+F-bar Q4        ≈ 8.38%
 ```
 
-Ham precheck:
+`lambda/mu=1000` mixed–F-bar relative farkı ≈ `3.75%`.
 
-`docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_PRECHECK.json`
+Ham kayıt:
 
-Bu test displacement-only Q4 locking davranışını doğrudan `lambda/mu` ekseninde regression kriterine dönüştürür.
+`docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_INDEPENDENT_PRECHECK.json`
+
+Bu sweep, displacement-only Q4'ün nearly-incompressible limite giderken yapay rijitleşmesini çok net ayırıyor.
 
 ---
 
-## 13. Benchmark JSON metadata düzeltmesi
+## 15. FEniCSx Q2 dış referans
 
-F-bar artık analitik tangent kullandığı için `parse_v03_bakeoff_log.py` metadata'sı güncellendi:
-
-```text
-formulation = fbar_q4
-tangent = analytic_energy_consistent_second_variation
-```
-
-Eski `central_finite_difference_verification_tangent` etiketi kaldırıldı.
-
----
-
-## 14. V0.3 bağımsız FEniCSx Q2 referansı
-
-Script:
+Hazır:
 
 `tools/reference/fenicsx_v03_cook_q2_reference.py`
 
-Hedef:
-
-- aynı Cook geometri/material/yük
-- Q2 quadrilateral
-- 2×2 / 4×4 / 8×8 / 16×16
-- UFL automatic residual/Jacobian
-- PETSc SNES + LU/MUMPS
-- tip displacement
-- continuum `p=lambda ln(J)`
-- average `J`
-- total strain energy
-
-Dyna'nın formulation kodunu kullanmayan dış referanstır.
-
----
-
-## 15. Platform önceliği
-
-Birincil hedefler:
+Plan:
 
 ```text
-Windows x64 / Intel ifx
-Windows x64 / gfortran
-macOS Apple Silicon / gfortran
+Q2 Cook 2x2 / 4x4 / 8x8 / 16x16
+→ converged tip displacement
+→ continuum p=lambda ln(J)
+→ Dyna üç formulation karşılaştırması
 ```
 
-Linux:
-
-```text
-secondary scientific CI
-FEniCSx external reference
-```
-
-Linux ürün dağıtım önceliği değildir.
+Actions engeli nedeniyle gerçek artifact henüz alınmadı.
 
 ---
 
-## 16. Açık GitHub Actions engeli
+## Güncel durum
 
-Draft PR conflict'i çözülmüş olsa da GitHub-hosted Actions job'ları:
+V0.3 CTest tanımı: **35 test**.
 
-- Windows / gfortran
-- Windows / Intel ifx
-- macOS ARM64 / gfortran
-- Linux / gfortran
-- FEniCSx Q2
-
-runner step'leri başlamadan failure olmaktadır.
-
-Tek Linux rerun'ında da aynı pre-step failure görülmüştür.
-
-Bu nedenle mevcut failure:
-
-```text
-Fortran derleme hatası değil
-CMake configure hatası değil
-CTest physics failure değil
-```
-
-olarak değerlendiriliyor; GitHub Actions account/repository usage veya runner provisioning engeli ayrıca çözülmeli.
-
----
-
-## 17. Güncel V0.3 test durumu
-
-CTest tanımı:
-
-**35 test**
-
-Yeni/önemli V0.3 testleri arasında:
-
-- displacement Cook locking baseline
-- mixed Cook baseline
-- F-bar Cook baseline
-- birleşik üçlü Cook bake-off
-- mixed pressure uniformity
-- mixed Cook pressure stationarity consistency
-- incompressibility `lambda/mu` sweep
-- F-bar analytic tangent cross-FD/symmetry
-
-35-test Windows/macOS matrix henüz GitHub Actions engeli nedeniyle kapanmış sayılmıyor.
-
----
-
-## 18. Güncel sıradaki adım
+Sıradaki adım:
 
 1. GitHub-hosted Actions pre-step engelini çöz.
-2. Windows/ifx + Windows/gfortran + macOS ARM64/gfortran 35-test matrix'i kapat.
-3. Üç platformun `V0.3_COOK_BAKEOFF_RESULTS.json` sonuçlarını numerical reproducibility açısından karşılaştır.
-4. Incompressibility sweep'i üç birincil platformda doğrula.
-5. FEniCSx Q2 2/4/8/16 dış referans artifactini al.
-6. Dyna üç formulation sonucunu converged Q2 referansına göre relative error ile değerlendir.
-7. Mixed pressure mean/std/RMS/stationarity/graph roughness alanını continuum pressure referansıyla kıyasla.
-8. Ortak convergence/robustness/maliyet tablosunu tamamla.
-9. Seçilen formulation'ı bağımsız solver ile son kez doğrula.
-10. Production formulation kararını ADR ile sabitle.
+2. Windows/ifx + Windows/gfortran + macOS ARM64 35-test matrix'ini çalıştır.
+3. Üç platform bake-off JSON'larını numerical reproducibility açısından karşılaştır.
+4. FEniCSx Q2 dış referansını çalıştır.
+5. Üç formulation'ı dış referansa göre relative error ile değerlendir.
+6. Pressure stability + convergence + maliyet tablosunu tamamla.
+7. Production formulation ADR kararını ver.
 
-`Sistem-ve-Mimari` branch'ine bu geliştirmelerde dokunulmadı.
+`Sistem-ve-Mimari` branch'ine dokunulmadı.
