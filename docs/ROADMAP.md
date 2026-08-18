@@ -60,6 +60,14 @@ Compiler matrix:
 
 PR #1 V0.3 exit criteria tamamlanmadan `main`e merge edilmez.
 
+### Platform önceliği
+
+- **Windows x64 / Intel ifx — birincil**
+- **Windows x64 / gfortran — birincil portability**
+- **macOS Apple Silicon / gfortran — birincil**
+- Linux / gfortran — ikincil bilimsel CI
+- Linux / FEniCSx — bağımsız FEM reference
+
 Karşılaştırma:
 
 1. displacement-only Q4
@@ -118,7 +126,7 @@ Pressure stability diagnostics:
 
 Q4/P0 hâlâ yalnız ilk mixed prototiptir.
 
-### F-bar verification prototype
+### F-bar Q4
 
 ```text
 J_bar = integral(J dV0) / integral(dV0)
@@ -128,15 +136,20 @@ F_bar_g = alpha_g F_g
 
 - [x] energy-consistent element residual
 - [x] `J_bar` Gauss coupling'i residualda
-- [x] merkezi FD verification tangent
+- [x] **analitik consistent tangent**
 - [x] homogeneous residual-equivalence test
-- [x] cross-FD / symmetry test tanımı
+- [x] independent cross-FD tangent doğrulaması
+- [x] local GNU Fortran cross-FD error ≈ `1.20e-9`
+- [x] local tangent symmetry error ≈ `2.45e-16`
 - [x] global F-bar assembly
 - [x] F-bar force-control Newton solver
 - [x] homogeneous analytic traction benchmark
 - [x] F-bar Cook 2×2 / 4×4 / 8×8 benchmark
-- [ ] dört-compiler doğrulama
-- [ ] production adayı kalırsa analytic consistent tangent
+- [ ] Windows/ifx platform doğrulaması
+- [ ] Windows/gfortran platform doğrulaması
+- [ ] macOS ARM64/gfortran platform doğrulaması
+
+F-bar artık sayısal tangent prototipi değildir; analitik ikinci varyasyon uygulanmıştır. Production kararı yine yalnız ortak benchmark sonuçlarıyla verilecektir.
 
 ### Bağımsız V0.3 dış referans
 
@@ -157,19 +170,25 @@ FEniCSx / DOLFINx Q2 Cook reference yolu eklendi:
 
 Bu Q2 çözüm production formulation değildir; Dyna'nın düşük dereceli Q4 formulationlarından bağımsız dış benchmarktır.
 
+### CI engeli
+
+Draft PR mergeable durumdadır. Ancak GitHub-hosted job'lar şu anda runner step'leri başlamadan failure olmaktadır. Tek Linux job rerun'ı da aynı pre-step failure davranışını göstermiştir.
+
+Bu nedenle mevcut hata build/CTest seviyesine ulaşmamaktadır. GitHub Actions account/repository kullanımı veya runner provisioning engeli ayrıca çözülmelidir.
+
 ### Güncel test sayısı
 
 **32 CTest tanımı**.
 
 ### Sıradaki V0.3 işleri
 
-- [ ] aynı sabit develop commit'i için 32-test dört-compiler matrix'i kapat
+- [ ] GitHub-hosted Actions pre-step engelini çöz
+- [ ] önce Windows + macOS birincil compiler matrix'i kapat
+- [ ] F-bar analitik tangent'i üç birincil compiler hattında doğrula
 - [ ] displacement / mixed / F-bar Cook gerçek Fortran değerlerini JSON olarak sabitle
 - [ ] FEniCSx Q2 2/4/8/16 dış referans artifactini al
 - [ ] Dyna tip displacement mesh trendini Q2 16x16 referansına göre değerlendir
 - [ ] mixed pressure mean/std/RMS + graph roughness davranışını dış continuum pressure ile kıyasla
-- [ ] F-bar cross-FD ve Cook sonucunu dört compiler'da doğrula
-- [ ] gerekirse F-bar analytic consistent tangent türet
 - [ ] üç formulation ortak mesh/convergence/robustness/maliyet tablosunu oluştur
 - [ ] seçilen aday için bağımsız dış solver doğrulaması
 - [ ] production formulation ADR kararı
