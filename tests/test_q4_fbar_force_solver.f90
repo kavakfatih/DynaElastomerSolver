@@ -3,6 +3,8 @@ program test_q4_fbar_force_solver
   use des_status, only : DES_STATUS_OK
   use des_material_types, only : neo_hookean_parameters_t
   use des_internal_mesh, only : internal_mesh_t, initialize_q4_internal_mesh
+  use des_integration_point_results, only : integration_point_results_t, &
+      DES_PRESSURE_SOURCE_DERIVED_CONSTITUTIVE, DES_PRESSURE_MEASURE_LOGJ_CONJUGATE
   use des_q4_edge_traction, only : Q4_EDGE_RIGHT
   use des_q4_mesh_edge_traction, only : add_q4_reference_edge_traction
   use des_q4_plane_strain_newton_solver, only : newton_report_t
@@ -16,10 +18,12 @@ program test_q4_fbar_force_solver
   integer :: connectivity(1,4)
   integer, parameter :: fixed_dofs(3) = [1,2,7]
   real(dp) :: lambda_x,lambda_y_ref,J_ref,traction_ref,reaction_left,edge_length
-  integer :: status
+  real(dp) :: expected_pressure
+  integer :: status,g
   type(internal_mesh_t) :: mesh
   type(neo_hookean_parameters_t) :: p
   type(newton_report_t) :: report
+  type(integration_point_results_t) :: results
 
   X(1,:) = [0.0_dp,0.0_dp]
   X(2,:) = [1.0_dp,0.0_dp]
@@ -33,6 +37,7 @@ program test_q4_fbar_force_solver
   lambda_y_ref = solve_lateral_stretch(lambda_x,p%mu,p%lambda)
   J_ref = lambda_x*lambda_y_ref
   traction_ref = p%mu*lambda_x + (p%lambda*log(J_ref)-p%mu)/lambda_x
+  expected_pressure = p%lambda*log(J_ref)
 
   call initialize_q4_internal_mesh(mesh,X,connectivity,status)
   if (status /= DES_STATUS_OK) error stop 'F-bar force test mesh oluşturulamadı.'
@@ -46,7 +51,7 @@ program test_q4_fbar_force_solver
   u = 0.0_dp
   call solve_q4_plane_strain_fbar_force_control( &
       X,connectivity,p,fixed_dofs,external_force, &
-      5,30,5.0e-9_dp,u,residual,report)
+      5,30,5.0e-9_dp,u,residual,report,integration_results=results)
 
   if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
     error stop 'F-bar force-control analitik problemde yakınsamadı.'
@@ -64,8 +69,27 @@ program test_q4_fbar_force_solver
     error stop 'F-bar sol reaksiyon analitik traction ile dengede değil.'
   end if
 
+  if (results%count() /= 4) error stop 'F-bar solver final state icin 4 Gauss sonucu bekleniyordu.'
+  do g = 1,4
+    if (.not. results%points(g)%valid) error stop 'F-bar final Gauss sonucu gecersiz.'
+    if (.not. results%points(g)%pressure_valid) error stop 'F-bar final derived pressure gecersiz.'
+    if (results%points(g)%pressure_source /= DES_PRESSURE_SOURCE_DERIVED_CONSTITUTIVE) then
+      error stop 'F-bar final pressure source derived constitutive olmali.'
+    end if
+    if (results%points(g)%pressure_measure /= DES_PRESSURE_MEASURE_LOGJ_CONJUGATE) then
+      error stop 'F-bar final pressure measure logJ-conjugate olmali.'
+    end if
+    if (abs(results%points(g)%constitutive_J-J_ref) > 5.0e-8_dp) then
+      error stop 'F-bar final constitutive_J analitik affine referansla uyusmuyor.'
+    end if
+    if (abs(results%points(g)%pressure_value-expected_pressure) > 2.0e-6_dp) then
+      error stop 'F-bar final derived pressure analitik affine referansla uyusmuyor.'
+    end if
+  end do
+
   write(*,'(A,ES14.6)') 'F-bar analitik traction = ',traction_ref
   write(*,'(A,ES14.6)') 'F-bar sol reaction = ',reaction_left
+  write(*,'(A,ES14.6)') 'F-bar derived pressure = ',results%points(1)%pressure_value
   write(*,'(A,ES14.6)') 'F-bar final residual = ',report%final_residual_norm
   write(*,'(A)') 'Q4 F-bar force-control testi BASARILI.'
 
