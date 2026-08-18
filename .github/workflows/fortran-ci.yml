@@ -124,42 +124,57 @@ jobs:
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
 
-      # CTest başarılı testlerin stdout'unu da LastTest.log içinde saklar.
-      # Linux job'u V0.3 sayısal benchmark çıktısının kanonik kayıt ortamıdır.
-      - name: V0.3 benchmark logunu hazırla
-        if: always() && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
+      # Birleşik Cook testi kendi geçerli JSON'unu üretir. Sonuç, log parse ederek
+      # yeniden oluşturulmaz; doğrudan gerçek Fortran çözümünden alınır.
+      - name: V0.3 benchmark artifactini hazırla
+        if: always()
         shell: bash
+        env:
+          DYNA_SOURCE_COMMIT: ${{ github.sha }}
+          DYNA_RUN_ID: ${{ github.run_id }}
+          DYNA_RUNNER: ${{ matrix.os }}
+          DYNA_COMPILER: ${{ matrix.compiler }}-${{ matrix.compiler_version }}
+          DYNA_CTEST_OUTCOME: ${{ steps.ctest.outcome }}
         run: |
-          mkdir -p ci-artifacts
-          if [ -f build/Testing/Temporary/LastTest.log ]; then
-            cp build/Testing/Temporary/LastTest.log ci-artifacts/V0.3_CTEST_LASTTEST.log
-          fi
-          {
-            echo "source_commit=${{ github.sha }}"
-            echo "run_id=${{ github.run_id }}"
-            echo "runner=${{ matrix.os }}"
-            echo "compiler=${{ matrix.compiler }}-${{ matrix.compiler_version }}"
-          } > ci-artifacts/V0.3_CI_METADATA.txt
+          python - <<'PY'
+          import os
+          import shutil
+          from pathlib import Path
 
-      - name: V0.3 Cook sonuç JSON'unu üret
-        if: steps.ctest.outcome == 'success' && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
+          out = Path('ci-artifacts')
+          out.mkdir(exist_ok=True)
+
+          candidates = list(Path('build').rglob('V0.3_COOK_BAKEOFF_RESULTS.json'))
+          if candidates:
+              shutil.copy2(candidates[0], out / 'V0.3_COOK_BAKEOFF_RESULTS.json')
+          elif os.environ.get('DYNA_CTEST_OUTCOME') == 'success':
+              raise SystemExit('CTest başarılı fakat birleşik V0.3 bake-off JSON bulunamadı.')
+
+          last_test = Path('build/Testing/Temporary/LastTest.log')
+          if last_test.exists():
+              shutil.copy2(last_test, out / 'V0.3_CTEST_LASTTEST.log')
+
+          metadata = (
+              f"source_commit={os.environ.get('DYNA_SOURCE_COMMIT','')}\n"
+              f"run_id={os.environ.get('DYNA_RUN_ID','')}\n"
+              f"runner={os.environ.get('DYNA_RUNNER','')}\n"
+              f"compiler={os.environ.get('DYNA_COMPILER','')}\n"
+              f"ctest={os.environ.get('DYNA_CTEST_OUTCOME','')}\n"
+          )
+          (out / 'V0.3_CI_METADATA.txt').write_text(metadata, encoding='utf-8')
+          PY
+
+      - name: V0.3 benchmark JSON'unu göster
+        if: steps.ctest.outcome == 'success'
         shell: bash
-        run: |
-          python tools/verification/parse_v03_bakeoff_log.py \
-            --log ci-artifacts/V0.3_CTEST_LASTTEST.log \
-            --output ci-artifacts/V0.3_COOK_BAKEOFF_RESULTS.json \
-            --source-commit "${{ github.sha }}" \
-            --run-id "${{ github.run_id }}" \
-            --runner "${{ matrix.os }}" \
-            --compiler "gfortran-${{ matrix.compiler_version }}"
-          cat ci-artifacts/V0.3_COOK_BAKEOFF_RESULTS.json
+        run: cat ci-artifacts/V0.3_COOK_BAKEOFF_RESULTS.json
 
       # actions/upload-artifact v7.0.1
-      - name: V0.3 benchmark artifactini sakla
-        if: always() && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
+      - name: V0.3 platform benchmark artifactini sakla
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: v03-benchmark-linux-gfortran14
+          name: v03-benchmark-${{ matrix.compiler }}-${{ matrix.compiler_version }}-${{ runner.os }}
           path: ci-artifacts/
           if-no-files-found: warn
           retention-days: 14
