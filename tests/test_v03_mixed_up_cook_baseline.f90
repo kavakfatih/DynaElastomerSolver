@@ -1,10 +1,12 @@
 program test_v03_mixed_up_cook_baseline
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
+  use des_tensor3, only : inverse3
   use des_material_types, only : neo_hookean_parameters_t
   use des_internal_mesh, only : internal_mesh_t, initialize_q4_internal_mesh
   use des_pressure_diagnostics, only : pressure_diagnostics_t, &
                                        evaluate_q4_pressure_diagnostics
+  use des_q4_shape, only : q4_shape_functions
   use des_q4_edge_traction, only : Q4_EDGE_RIGHT
   use des_q4_mesh_edge_traction, only : add_q4_reference_edge_traction
   use des_q4_plane_strain_mixed_up_mesh, only : assemble_q4_plane_strain_mixed_up_mesh
@@ -15,14 +17,15 @@ program test_v03_mixed_up_cook_baseline
 
   real(dp) :: tip_2, tip_4, tip_8
   real(dp) :: minj_2, minj_4, minj_8
+  real(dp) :: stationarity_2, stationarity_4, stationarity_8
   integer :: iter_2, iter_4, iter_8
   integer :: linear_2, linear_4, linear_8
   integer :: eq_2, eq_4, eq_8
   type(pressure_diagnostics_t) :: pd_2, pd_4, pd_8
 
-  call run_mixed_cook_case(2,tip_2,minj_2,iter_2,linear_2,eq_2,pd_2)
-  call run_mixed_cook_case(4,tip_4,minj_4,iter_4,linear_4,eq_4,pd_4)
-  call run_mixed_cook_case(8,tip_8,minj_8,iter_8,linear_8,eq_8,pd_8)
+  call run_mixed_cook_case(2,tip_2,minj_2,iter_2,linear_2,eq_2,pd_2,stationarity_2)
+  call run_mixed_cook_case(4,tip_4,minj_4,iter_4,linear_4,eq_4,pd_4,stationarity_4)
+  call run_mixed_cook_case(8,tip_8,minj_8,iter_8,linear_8,eq_8,pd_8,stationarity_8)
 
   if (.not. (tip_2 < tip_4 .and. tip_4 < tip_8)) then
     error stop 'Mixed u-p Cook mesh-refinement displacement sıralaması bozuldu.'
@@ -41,17 +44,24 @@ program test_v03_mixed_up_cook_baseline
     error stop 'Mixed Cook pressure neighbor graph oluşmadı.'
   end if
 
-  call print_case('2x2',tip_2,minj_2,iter_2,linear_2,eq_2,pd_2)
-  call print_case('4x4',tip_4,minj_4,iter_4,linear_4,eq_4,pd_4)
-  call print_case('8x8',tip_8,minj_8,iter_8,linear_8,eq_8,pd_8)
+  ! P0 pressure unknown'ı element bazında stationarity denklemini sağlamalıdır:
+  ! p_e = lambda * <ln J>_e. Bu kontrol pressure alanının düzgünlüğünden ayrıdır;
+  ! solver'ın kendi mixed denklemini gerçekten çözdüğünü doğrular.
+  if (max(stationarity_2,max(stationarity_4,stationarity_8)) > 2.0e-4_dp) then
+    error stop 'Mixed Cook pressure stationarity tutarlılığı tolerans dışında.'
+  end if
+
+  call print_case('2x2',tip_2,minj_2,iter_2,linear_2,eq_2,pd_2,stationarity_2)
+  call print_case('4x4',tip_4,minj_4,iter_4,linear_4,eq_4,pd_4,stationarity_4)
+  call print_case('8x8',tip_8,minj_8,iter_8,linear_8,eq_8,pd_8,stationarity_8)
   write(*,'(A)') 'V0.3 Q4-P0 mixed u-p Cook baseline testi BASARILI.'
 
 contains
 
   subroutine run_mixed_cook_case(n,tip_displacement,final_min_j,total_iterations, &
-                                 linear_solves,equation_count,pd)
+                                 linear_solves,equation_count,pd,stationarity_error)
     integer, intent(in) :: n
-    real(dp), intent(out) :: tip_displacement, final_min_j
+    real(dp), intent(out) :: tip_displacement, final_min_j, stationarity_error
     integer, intent(out) :: total_iterations, linear_solves, equation_count
     type(pressure_diagnostics_t), intent(out) :: pd
 
@@ -124,11 +134,16 @@ contains
 
     call evaluate_q4_pressure_diagnostics(connectivity,pressure,pd,status)
     if (status /= DES_STATUS_OK) error stop 'Mixed Cook pressure diagnostics başarısız.'
+
+    call evaluate_pressure_stationarity_error( &
+        X,connectivity,u,pressure,parameters%lambda,stationarity_error,status)
+    if (status /= DES_STATUS_OK) error stop 'Mixed Cook pressure stationarity hesabı başarısız.'
   end subroutine run_mixed_cook_case
 
-  subroutine print_case(label,tip,final_min_j,total_iterations,linear_solves,equation_count,pd)
+  subroutine print_case(label,tip,final_min_j,total_iterations,linear_solves,equation_count,pd, &
+                        stationarity_error)
     character(len=*), intent(in) :: label
-    real(dp), intent(in) :: tip, final_min_j
+    real(dp), intent(in) :: tip, final_min_j, stationarity_error
     integer, intent(in) :: total_iterations, linear_solves, equation_count
     type(pressure_diagnostics_t), intent(in) :: pd
 
@@ -139,11 +154,109 @@ contains
       pd%maximum_neighbor_jump,pd%normalized_neighbor_jump_rms
     write(*,'(A,2(ES14.6,1X))') '  roughness(jump/std,graph)= ', &
       pd%neighbor_jump_to_std,pd%graph_roughness
+    write(*,'(A,ES14.6)') '  pressure stationarity max error= ',stationarity_error
     write(*,'(A,ES14.6,3(A,I0))') '  solver(finalMinJ)= ',final_min_j, &
       ' iterations=',total_iterations, &
       ' linearSolves=',linear_solves, &
       ' equations=',equation_count
   end subroutine print_case
+
+  subroutine evaluate_pressure_stationarity_error( &
+      X,connectivity,u,pressure,lame_lambda,max_error,status)
+    real(dp), intent(in) :: X(:,:),u(:,:),pressure(:),lame_lambda
+    integer, intent(in) :: connectivity(:,:)
+    real(dp), intent(out) :: max_error
+    integer, intent(out) :: status
+
+    real(dp), parameter :: gp = 0.57735026918962576451_dp
+    real(dp), parameter :: gauss_xi(4) = [-gp,gp,gp,-gp]
+    real(dp), parameter :: gauss_eta(4) = [-gp,-gp,gp,gp]
+    real(dp) :: Xe(4,2),ue(4,2),N(4),dN_parent(4,2),dN_dX(4,2)
+    real(dp) :: Jmap(2,2),invJmap(2,2),detJmap
+    real(dp) :: F(3,3),Finv(3,3),J,volume,weighted_ln_j,expected_pressure
+    integer :: e,g,a,i,Jdir,node
+    logical :: inverse_ok
+
+    status = DES_STATUS_OK
+    max_error = 0.0_dp
+
+    do e = 1,size(connectivity,1)
+      do a = 1,4
+        node = connectivity(e,a)
+        Xe(a,:) = X(node,:)
+        ue(a,:) = u(node,:)
+      end do
+
+      volume = 0.0_dp
+      weighted_ln_j = 0.0_dp
+
+      do g = 1,4
+        call q4_shape_functions(gauss_xi(g),gauss_eta(g),N,dN_parent)
+        call reference_gradient(Xe,dN_parent,Jmap,invJmap,detJmap,dN_dX)
+        if (detJmap <= 0.0_dp) then
+          status = -1
+          return
+        end if
+
+        F = 0.0_dp
+        F(1,1) = 1.0_dp
+        F(2,2) = 1.0_dp
+        F(3,3) = 1.0_dp
+        do a = 1,4
+          do i = 1,2
+            do Jdir = 1,2
+              F(i,Jdir) = F(i,Jdir) + ue(a,i)*dN_dX(a,Jdir)
+            end do
+          end do
+        end do
+
+        call inverse3(F,Finv,J,inverse_ok)
+        if (.not. inverse_ok .or. J <= 0.0_dp) then
+          status = -1
+          return
+        end if
+
+        volume = volume + detJmap
+        weighted_ln_j = weighted_ln_j + detJmap*log(J)
+      end do
+
+      expected_pressure = lame_lambda*weighted_ln_j/volume
+      max_error = max(max_error,abs(pressure(e)-expected_pressure))
+    end do
+  end subroutine evaluate_pressure_stationarity_error
+
+  pure subroutine reference_gradient(X,dN_parent,Jmap,invJmap,detJmap,dN_dX)
+    real(dp), intent(in) :: X(4,2),dN_parent(4,2)
+    real(dp), intent(out) :: Jmap(2,2),invJmap(2,2),detJmap,dN_dX(4,2)
+    integer :: a
+
+    Jmap = 0.0_dp
+    do a = 1,4
+      Jmap(1,1) = Jmap(1,1) + dN_parent(a,1)*X(a,1)
+      Jmap(1,2) = Jmap(1,2) + dN_parent(a,1)*X(a,2)
+      Jmap(2,1) = Jmap(2,1) + dN_parent(a,2)*X(a,1)
+      Jmap(2,2) = Jmap(2,2) + dN_parent(a,2)*X(a,2)
+    end do
+
+    detJmap = Jmap(1,1)*Jmap(2,2) - Jmap(1,2)*Jmap(2,1)
+    if (abs(detJmap) <= 100.0_dp*epsilon(1.0_dp)) then
+      invJmap = 0.0_dp
+      dN_dX = 0.0_dp
+      return
+    end if
+
+    invJmap(1,1) =  Jmap(2,2)/detJmap
+    invJmap(1,2) = -Jmap(1,2)/detJmap
+    invJmap(2,1) = -Jmap(2,1)/detJmap
+    invJmap(2,2) =  Jmap(1,1)/detJmap
+
+    do a = 1,4
+      dN_dX(a,1) = invJmap(1,1)*dN_parent(a,1) &
+                  + invJmap(1,2)*dN_parent(a,2)
+      dN_dX(a,2) = invJmap(2,1)*dN_parent(a,1) &
+                  + invJmap(2,2)*dN_parent(a,2)
+    end do
+  end subroutine reference_gradient
 
   subroutine build_cook_mesh(nx,ny,X,connectivity)
     integer, intent(in) :: nx,ny
