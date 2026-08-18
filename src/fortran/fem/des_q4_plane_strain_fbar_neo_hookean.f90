@@ -7,6 +7,8 @@ module des_q4_plane_strain_fbar_neo_hookean
                                  neo_hookean_parameters_t
   use des_neo_hookean, only : evaluate_neo_hookean
   use des_q4_shape, only : q4_shape_functions
+  use des_integration_point_results, only : integration_point_result_t, &
+                                            set_derived_logj_pressure
   implicit none
   private
 
@@ -15,7 +17,7 @@ module des_q4_plane_strain_fbar_neo_hookean
 contains
 
   subroutine evaluate_q4_plane_strain_fbar_element( &
-      X, u, parameters, residual, tangent, status, min_j, j_bar)
+      X, u, parameters, residual, tangent, status, min_j, j_bar, integration_results)
     ! V0.3 finite-strain F-bar Q4 formulation.
     !
     ! F_bar_g = alpha_g F_g
@@ -30,8 +32,10 @@ contains
     integer, intent(out) :: status
     real(dp), intent(out) :: min_j
     real(dp), intent(out), optional :: j_bar
+    type(integration_point_result_t), intent(out), optional :: integration_results(4)
 
     real(dp) :: jbar_local
+    integer :: result_status
 
     call evaluate_fbar_residual( &
         X, u, parameters, residual, status, min_j, jbar_local)
@@ -41,6 +45,13 @@ contains
 
     call evaluate_fbar_analytic_tangent( &
         X, u, parameters, tangent, status)
+    if (status /= DES_STATUS_OK) return
+
+    if (present(integration_results)) then
+      call evaluate_fbar_integration_results( &
+          X, u, parameters, jbar_local, integration_results, result_status)
+      if (result_status /= DES_STATUS_OK) status = result_status
+    end if
   end subroutine evaluate_q4_plane_strain_fbar_element
 
   subroutine evaluate_fbar_residual( &
@@ -348,6 +359,92 @@ contains
       end do
     end do
   end subroutine evaluate_fbar_analytic_tangent
+
+  subroutine evaluate_fbar_integration_results( &
+      X, u, parameters, j_bar, results, status)
+    real(dp), intent(in) :: X(4,2), u(4,2), j_bar
+    type(neo_hookean_parameters_t), intent(in) :: parameters
+    type(integration_point_result_t), intent(out) :: results(4)
+    integer, intent(out) :: status
+
+    real(dp), parameter :: gp = 0.57735026918962576451_dp
+    real(dp), parameter :: gauss_xi(4) = [-gp, gp, gp, -gp]
+    real(dp), parameter :: gauss_eta(4) = [-gp, -gp, gp, gp]
+    real(dp), parameter :: jac_tol = 100.0_dp*epsilon(1.0_dp)
+
+    real(dp) :: N(4), dN_parent(4,2), dN_dX(4,2)
+    real(dp) :: Jmap(2,2), invJmap(2,2), detJmap
+    real(dp) :: F(3,3), Fbar(3,3), Finv(3,3), J, alpha
+    integer :: g, a, i, Jdir
+    logical :: inverse_ok
+    type(material_kinematics_t) :: kin
+    type(material_response_t) :: response
+
+    status = DES_STATUS_OK
+
+    do g = 1,4
+      results(g) = integration_point_result_t()
+      results(g)%point_id = g
+      results(g)%xi = gauss_xi(g)
+      results(g)%eta = gauss_eta(g)
+
+      call q4_shape_functions(gauss_xi(g),gauss_eta(g),N,dN_parent)
+      call reference_gradient(X,dN_parent,Jmap,invJmap,detJmap,dN_dX)
+      results(g)%reference_weight = detJmap
+      if (detJmap <= jac_tol) then
+        results(g)%status = DES_ERROR_INVALID_ELEMENT_JACOBIAN
+        status = results(g)%status
+        return
+      end if
+
+      F = 0.0_dp
+      F(1,1) = 1.0_dp
+      F(2,2) = 1.0_dp
+      F(3,3) = 1.0_dp
+      do a = 1,4
+        do i = 1,2
+          do Jdir = 1,2
+            F(i,Jdir) = F(i,Jdir) + u(a,i)*dN_dX(a,Jdir)
+          end do
+        end do
+      end do
+
+      call inverse3(F,Finv,J,inverse_ok)
+      if (.not. inverse_ok) then
+        results(g)%status = DES_ERROR_SINGULAR_F
+        status = results(g)%status
+        return
+      end if
+      if (J <= 0.0_dp) then
+        results(g)%status = DES_ERROR_NONPOSITIVE_J
+        status = results(g)%status
+        return
+      end if
+
+      alpha = (j_bar/J)**(1.0_dp/3.0_dp)
+      Fbar = alpha*F
+      kin%F = Fbar
+      call evaluate_neo_hookean(kin,parameters,response)
+
+      results(g)%F = F
+      results(g)%J = J
+      results(g)%constitutive_F = Fbar
+      results(g)%constitutive_J = response%J
+      results(g)%P = response%P
+      results(g)%cauchy = response%cauchy
+      results(g)%strain_energy_density = response%energy
+      results(g)%status = response%status
+      results(g)%valid = response%valid
+
+      if (.not. response%valid) then
+        status = response%status
+        return
+      end if
+
+      call set_derived_logj_pressure( &
+          results(g), parameters%lambda, response%J)
+    end do
+  end subroutine evaluate_fbar_integration_results
 
   pure subroutine reference_gradient( &
       X, dN_parent, Jmap, invJmap, detJmap, dN_dX)
