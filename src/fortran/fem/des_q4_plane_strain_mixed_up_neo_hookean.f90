@@ -40,7 +40,7 @@ contains
     real(dp) :: N(4), dN_parent(4,2), dN_dX(4,2)
     real(dp) :: Jmap(2,2), invJmap(2,2), detJmap
     real(dp) :: F(3,3), Finv(3,3), FinvT(3,3)
-    real(dp) :: P(3,3), A(3,3,3,3)
+    real(dp) :: P(3,3), material_tangent(3,3,3,3)
     real(dp) :: J, lnJ, weight
     integer :: g, a, b, i, k, Jdir, Ldir, row, col
     logical :: inverse_ok
@@ -93,16 +93,18 @@ contains
       ! P = dPsi/dF = mu*F + (p-mu)*F^{-T}
       P = mu*F + (pressure-mu)*FinvT
 
-      ! A = dP/dF |p sabit.
-      A = 0.0_dp
+      ! dP/dF, pressure bu blok türevinde bağımsız değişken olarak sabittir.
+      material_tangent = 0.0_dp
       do i = 1,3
         do Jdir = 1,3
           do k = 1,3
             do Ldir = 1,3
               if (i == k .and. Jdir == Ldir) then
-                A(i,Jdir,k,Ldir) = A(i,Jdir,k,Ldir) + mu
+                material_tangent(i,Jdir,k,Ldir) = &
+                  material_tangent(i,Jdir,k,Ldir) + mu
               end if
-              A(i,Jdir,k,Ldir) = A(i,Jdir,k,Ldir) &
+              material_tangent(i,Jdir,k,Ldir) = &
+                material_tangent(i,Jdir,k,Ldir) &
                 - (pressure-mu)*FinvT(k,Jdir)*FinvT(i,Ldir)
             end do
           end do
@@ -136,7 +138,7 @@ contains
               do Jdir = 1,2
                 do Ldir = 1,2
                   tangent(row,col) = tangent(row,col) &
-                    + A(i,Jdir,k,Ldir) &
+                    + material_tangent(i,Jdir,k,Ldir) &
                     * dN_dX(a,Jdir)*dN_dX(b,Ldir)*weight
                 end do
               end do
