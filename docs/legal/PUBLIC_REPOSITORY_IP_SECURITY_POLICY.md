@@ -1,113 +1,111 @@
 # DynaElastomerSolver — Public Repository IP ve Güvenlik Politikası
 
-**Sürüm:** 1.1 — 18 Ağustos 2026  
-**Hak sahibi:** Fatih KAVAK  
+**Belge türü:** Public repository fikrî mülkiyet ve güvenlik politikası  
 **Repository:** `kavakfatih/DynaElastomerSolver`  
-**Repository durumu:** **PUBLIC**  
 **Lisans modeli:** Proprietary / source-available / All Rights Reserved  
 **Açık kaynak durumu:** Açık kaynak değildir
 
-Bu politika DynaElastomerSolver'ın public GitHub repository olarak yayınlanması ve public kaldığı sürece uygulanacak fikrî mülkiyet, patent, ticari sır, üçüncü taraf lisans, güvenlik ve repository yönetişim kurallarını tanımlar.
-
-Repository public olduğu için, public geçiş öncesi tamamlanmamış kontroller bu sürümde **post-public acil iyileştirme** olarak değerlendirilir.
+Bu politika DynaElastomerSolver repository'sinin public görünürlük altında fikrî mülkiyet, patent, ticari sır, üçüncü taraf lisans, güvenlik ve GitHub yönetişim kontrollerini tanımlar.
 
 ---
 
-## 1. Temel hak ilkesi
+## 1. Temel yayın ilkesi
 
-Public repository yalnız kaynak kodunun herkes tarafından görüntülenebilir hâle gelmesi anlamına gelir.
+Public repository yalnız kaynak kodunun herkes tarafından görüntülenebilir olmasını ifade eder.
 
-DynaElastomerSolver'ın özgün içeriği için:
+DynaElastomerSolver için public görünürlük:
 
-- MIT / Apache / GPL / BSD veya başka bir açık kaynak lisansı verilmemiştir,
-- genel kullanım izni verilmez,
-- ticari veya kurum içi production kullanım izni verilmez,
-- değiştirme / türev eser izni verilmez,
-- redistribution / sublicensing izni verilmez,
-- patent lisansı verilmez,
-- marka kullanım izni verilmez.
+- MIT / Apache / GPL / BSD veya başka bir açık kaynak lisansı verilmesi anlamına gelmez,
+- genel kullanım izni vermez,
+- ticari kullanım izni vermez,
+- değiştirme veya türev eser üretme izni vermez,
+- redistribution / sublicensing izni vermez,
+- patent lisansı vermez,
+- marka kullanım izni vermez.
 
-Bağlayıcı koşullar `LICENSE` içindedir. Üçüncü taraf bileşenler kendi lisansları altında kalır.
-
----
-
-## 2. GitHub platform hakları — istisna
-
-GitHub Terms of Service, public repository içeriği için GitHub'a, Affiliates'e ve GitHub kullanıcılarına doğrudan belirli platform hakları verebilir. Buna public repository'nin GitHub üzerinde görüntülenmesi ve fork edilmesi dahildir.
-
-Dyna `LICENSE` dosyası bu platform haklarını genişletmez ve bunları ortadan kaldırdığı şeklinde yorumlanmaz.
-
-**Önemli:** GitHub'ın yürürlükteki Terms of Service'i GitHub ve Affiliates için AI/ML geliştirme/eğitim hakları içerebilir. Dyna'nın üçüncü taraf AI/ML kısıtı, GitHub'ın kendi sözleşmesinden doğan haklarını geçersiz kıldığı şeklinde yorumlanmaz.
+Repository'nin özgün Dyna içeriğinde `LICENSE` dosyası geçerlidir. Üçüncü taraf bileşenlerde kendi lisansları geçerlidir.
 
 ---
 
-## 3. Patent ve kamuya açıklama durumu — ACİL
+## 2. GitHub public-repository hak sınırı
 
-Repository artık public olduğu için içindeki teknik öğretim kamuya açıklanmış kabul edilebilir. Patentlenebilir olabilecek bir unsur varsa ülke/bölgeye göre yenilik ve başvuru stratejisi etkilenmiş olabilir.
+GitHub Terms of Service uyarınca GitHub ve GitHub kullanıcıları platformun çalışması için belirli sınırlı haklar elde edebilir; public repository kullanıcılar tarafından görüntülenebilir ve GitHub işlevleri kapsamında fork edilebilir.
 
-Özellikle incelenecek alanlar:
+Dyna lisansı bu platform haklarını genişletmez.
+
+**Kural:** GitHub'ın platform sözleşmesinden doğan haklar dışında hiçbir ek kullanım hakkı varsayılmaz.
+
+---
+
+## 3. Patent/public-disclosure kontrolü — ZORUNLU
+
+Repository artık public olduğundan patentlenebilir teknik unsurlar için public-disclosure tarihi dikkate alınarak ayrı uzman incelemesi yapılmalıdır.
+
+Özellikle şu alanlar kontrol edilir:
 
 - özgün nearly-incompressible formulation türetmeleri,
 - özgün F-bar varyasyonları,
 - axisymmetric / 2.5D torsion yöntemleri,
 - nonlinear recovery / solver algoritmaları,
-- calibration yöntemleri,
-- özgün result semantics / veri işleme,
-- ürün seviyesinde solver + ölçüm kombinasyonları.
+- özgün calibration yöntemleri,
+- özgün result semantics veya veri işleme yöntemleri,
+- ürün seviyesinde yeni teknik çözüm oluşturan solver/ölçüm kombinasyonları.
 
-**Kural:** Yeni patentlenebilir teknik içerik bundan sonra public branch'e eklenmeden önce patent değerlendirmesi yapılır. Mevcut public açıklamalar için patent vekiliyle mümkün olan başvuru seçenekleri gecikmeden değerlendirilir.
+Patent başvurusu düşünülüyorsa kamuya açıklanmış ve açıklanmamış teknik içerik patent vekili / uzmanıyla ayrıca değerlendirilir.
 
 ---
 
-## 4. Ticari sır ve gizli bilgi
+## 4. Ticari sır / NDA kontrolü — ZORUNLU
 
-Public repository'de yer alan bir bilginin gizli tutulduğu varsayılamaz. Ticari sır olarak korunması gereken içerik public branch'lere eklenmez.
+Public repository içinde yayınlanan bilgi fiilen herkese erişilebilir olduğundan gizli tutulması gereken içerik current tree ve Git geçmişinden çıkarılmalıdır.
 
-Yasak örnekler:
+Public'e çıkmaması gereken örnekler:
 
-- müşteri verisi,
-- NDA kapsamındaki teknik içerik,
-- gerçek şirket içi test/reçete/proses/tolerans bilgileri,
-- lisans anahtarları ve credentiallar,
-- API tokenları / private keys,
-- özel endpoint ve kurum içi ağ bilgileri,
+- müşteri verileri,
+- gerçek test datasının gizli bölümleri,
+- şirket içi reçete / proses / tolerans bilgileri,
+- NDA kapsamındaki teknik dokümanlar,
+- lisans anahtarları,
+- API tokenları,
+- credentiallar,
+- özel endpointler,
+- kurum içi IP / kullanıcı / sistem bilgileri,
 - gizli CAD / mesh / ürün geometrileri,
-- henüz patent stratejisi belirlenmemiş gizli teknik öğretim.
+- açıklanmaması gereken teknik öğretim.
 
-Yalnız current tree değil, Git geçmişi ve Actions log/artifact geçmişi de taranır. Bir credential geçmişte açığa çıkmışsa yalnız silmek yeterli değildir; revoke/rotate edilir.
+Bir secret geçmişte commitlendiyse yalnız dosyadan silmek yeterli değildir; credential iptal edilir/rotate edilir ve gerekiyorsa history temizliği uygulanır.
 
 ---
 
 ## 5. Telif ve hak sahipliği
 
-Public içerik için hak sahipliği/provenance belgelenmelidir.
+Aşağıdaki sorular her release ve önemli contribution öncesinde kontrol edilir:
 
-Kontrol soruları:
+- Dyna özgün kodunun hak sahipliği açık mı?
+- başka çalışan/şirket/üniversite/müşteri hak iddia edebilir mi?
+- dış katkı var mı?
+- üçüncü taraf kodu kopyalanmış mı?
+- AI-assisted kodun provenance'ı incelenmiş mi?
+- kod veya doküman başka lisanslardan türemiş mi?
 
-- özgün kodu kim yazdı?
-- işveren/şirket/üniversite/müşteri hak iddia edebilir mi?
-- dış contributor katkısı var mı?
-- üçüncü taraf kodu veya dokümanı kopyalandı mı?
-- AI-assisted kodun provenance'ı incelendi mi?
-- başka bir lisansın yükümlülüğü doğuyor mu?
+Dış contributor katkısı bulunuyorsa gerekli IP assignment / yazılı izin tamamlanmadan merge/release yapılmaz.
 
-Dış contributor içeriği gerekli IP assignment / izin olmadan production branch'e merge edilmez. Ayrıntı: `CONTRIBUTING.md`.
-
-Türkiye'de isteğe bağlı kayıt-tescil, hakkı doğuran işlem olarak değil, eser sahipliğinin ispatını kolaylaştırabilecek ek kayıt yöntemi olarak ayrıca değerlendirilebilir.
+Hak sahibi adı hukuki tam ad biçiminde `LICENSE`, `NOTICE`, README ve bu politika üzerinde tutarlı kullanılmalıdır.
 
 ---
 
-## 6. Üçüncü taraf lisansları
+## 6. Üçüncü taraf lisans kapısı
 
-Her dependency için en az şu kayıt tutulur:
+Her dependency şu bilgilerle kayıt altında tutulur:
 
 ```text
 Dependency
 ├── upstream repository
-├── version / commit
+├── pinlenen version / commit
 ├── copyright owner
 ├── license
-├── fetched / linked / vendored kullanım biçimi
+├── kullanım biçimi
+├── vendored / fetched / linked durumu
 └── notice yükümlülüğü
 ```
 
@@ -120,161 +118,171 @@ license: MIT
 copyright: stdlib contributors
 ```
 
-Üçüncü taraf bildirimleri `THIRD_PARTY_NOTICES.md` içinde tutulur. Üçüncü taraf kodu Dyna proprietary telif hakkıymış gibi yeniden etiketlenmez.
+Üçüncü taraf lisans metinleri `THIRD_PARTY_NOTICES.md` içinde korunur.
+
+**Yasak:** Üçüncü taraf açık kaynak kodunu Dyna proprietary telif hakkıymış gibi işaretlemek.
 
 ---
 
 ## 7. Katkı politikası
 
-Varsayılan akış:
+Public repository dışarıdan pull request alabilir; ancak bu katkının kabul edileceği anlamına gelmez.
+
+Varsayılan politika:
 
 ```text
 Unsolicited external code contribution
-→ otomatik kabul edilmez
-→ IP/provenance incelemesi
-→ gerekiyorsa yazılı hak devri / lisans sözleşmesi
-→ teknik review + CI
-→ owner kararı
+→ merge edilmez
+→ IP/provenance incelemesi gerekir
+→ gerekiyorsa yazılı hak devri gerekir
+→ sonra teknik review + CI
 ```
 
-Patentlenebilir veya gizli fikirler public issue/discussion içinde paylaşılmamalıdır.
+Ayrıntı: `CONTRIBUTING.md` ve `.github/pull_request_template.md`.
 
 ---
 
-## 8. Secret / credential güvenliği — ACİL
+## 8. Secret ve credential güvenliği
 
-Aşağıdakiler taranır:
+Aşağıdaki alanlar taranır:
 
 - current source tree,
-- tüm Git commit geçmişi,
-- silinmiş dosyalar,
-- tag ve branch geçmişi,
+- tüm commit history,
+- deleted files,
+- git tags,
+- branch history,
 - GitHub Actions logs,
-- workflow artifactleri,
-- test fixture'ları,
-- config ve generated outputlar.
+- workflow artifacts,
+- test fixtures,
+- `.env` benzeri dosyalar,
+- config örnekleri,
+- build logs ve generated outputs.
 
-Aranacak sınıflar:
+Bir credential bulunursa **revoke/rotate** yapılmadan yalnız history temizliğiyle güvenli kabul edilmez.
 
-- GitHub tokenları,
-- cloud API keys,
-- SSH/private keys,
-- passwords,
-- connection strings,
-- package registry credentials,
-- signing keys,
-- internal host/VPN bilgileri,
-- kişisel veya müşteri verisi.
-
-Current-tree hızlı araması tam audit yerine geçmez.
+Current-tree hızlı keyword taramasında belirgin secret eşleşmesi bulunmamıştır; bu sonuç full-history audit yerine geçmez.
 
 ---
 
-## 9. GitHub Actions / supply-chain güvenliği
+## 9. GitHub Actions ve CI güvenliği
 
-Varsayılan workflow izin hedefi:
+### Minimum permission
+
+Varsayılan hedef:
 
 ```yaml
 permissions:
   contents: read
 ```
 
-Write yetkisi yalnız gerçekten gerekliyse ve minimum kapsamla verilir.
+Write yetkisi yalnız gerçekten gerekli job/workflow'a verilir.
 
-Third-party Actions mümkünse immutable commit SHA ile pinlenir. Container image'ları mümkünse digest ile pinlenir.
+### Third-party actions
 
-Fork PR kodu:
+- mümkünse commit SHA ile pinlenir,
+- major tag tek başına güven zinciri kabul edilmez,
+- action publisher ve dependency chain incelenir.
 
-- secretlara doğrudan erişmez,
-- privileged workflow ile otomatik çalıştırılmaz,
-- maintainer review olmadan write token alamaz.
+### Container images
 
-Mevcut takip maddesi: FEniCSx referans workflow'undaki `dolfinx/dolfinx:v0.11.0` image tag'i digest ile sabitlenmelidir.
-
----
-
-## 10. Public repository güvenlik özellikleri
-
-Aşağıdaki kontroller doğrulanmadan public repo güvenlik açısından tamamlanmış kabul edilmez:
-
-- [ ] Secret scanning aktif ve incelendi
-- [ ] Push protection aktif
-- [ ] Dependabot alerts aktif
-- [ ] Dependency graph aktif
-- [ ] Code scanning uygun kapsamda aktif
-- [ ] Private Vulnerability Reporting aktif
-- [x] `SECURITY.md` mevcut
-- [x] `CODEOWNERS` mevcut
-- [x] Actions permissions minimum seviyeye yakın
-- [ ] `main` branch korunuyor
-- [ ] force push engelli
-- [ ] zorunlu CI checks tanımlı
-- [ ] release/tag bütünlük politikası uygulanıyor
-
----
-
-## 11. `main` branch koruması — ACİL
-
-Public geçiş sonrası 18 Ağustos 2026 denetiminde `main` için:
+FEniCSx reference image public-repo hardening kapsamında linux/amd64 immutable digest ile pinlenmiştir:
 
 ```text
-protected = false
+dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
+```
+
+### Fork PR güvenliği
+
+Fork'tan gelen kod:
+
+- repository secretlarına doğrudan erişmemeli,
+- privileged workflow ile otomatik çalıştırılmamalı,
+- maintainer review olmadan write token almamalı.
+
+---
+
+## 10. GitHub güvenlik özellikleri — POST-PUBLIC HARDENING
+
+Doğrulanması/etkinleştirilmesi gerekenler:
+
+- [ ] Secret scanning / Secret Protection
+- [ ] Push protection
+- [ ] Dependabot alerts
+- [ ] Dependency graph
+- [ ] uygun code scanning
+- [ ] Private Vulnerability Reporting
+- [x] `SECURITY.md` görünür
+- [x] Actions token permissions minimum
+- [ ] default branch korunuyor
+- [ ] force push kapalı
+- [ ] zorunlu CI check'leri tanımlı
+- [x] supply-chain update config (`.github/dependabot.yml`)
+- [x] PR IP/security checklist
+- [x] FEniCSx image digest pin
+
+---
+
+## 11. `main` branch protection — ACİL
+
+Public sonrası kontrolde:
+
+```text
+main protected = false
 required status checks = off
 ```
 
-Bu durum düzeltilmelidir.
+Minimum `main` politikası `docs/legal/GITHUB_PUBLIC_SECURITY_CONFIGURATION.md` içinde tanımlanmıştır.
 
-Minimum politika:
+Özet:
 
-- PR üzerinden değişiklik,
-- CODEOWNERS review veya owner-controlled merge,
-- gerekli CI check'leri,
-- force-push yasağı,
-- branch deletion yasağı,
-- mümkünse signed commit/tag doğrulaması.
+- PR üzerinden merge,
+- V0.3 CI status context'leri zorunlu,
+- conversation resolution,
+- force push kapalı,
+- branch deletion kapalı.
 
-GitHub visibility değişiminde push ruleset'leri devre dışı bırakabileceğinden her visibility değişiminden sonra bu kontrol tekrarlanır.
-
----
-
-## 12. Actions geçmişi ve artifactler
-
-Public repository'nin geçmiş Actions history/logları görülebilir. Bu nedenle eski run'lar ayrıca denetlenir:
-
-- credential / secret,
-- internal path / host,
-- müşteri veya kişisel veri,
-- hassas artifact.
-
-Şüpheli credential bulunursa revoke/rotate edilir.
+Solo-owner yapı nedeniyle bağımsız ikinci reviewer olmadan Code Owner approval zorunlu hale getirilmez.
 
 ---
 
-## 13. GitHub Archive Program ve kalıcı kopyalar
+## 12. Actions geçmişi ve artifact görünürlüğü
 
-Public repository fork, clone ve üçüncü taraf arşivlerine kopyalanabilir. Sonradan private yapmak geçmişte oluşturulmuş kopyaların tamamını geri alamaz.
+Public repository'de Actions history ve logları görünür olabilir.
 
-GitHub Archive Program kapsamındaki uzun süreli arşivleme açısından opt-out seçeneği ayrıca değerlendirilir.
+Kontrol:
+
+- eski workflow run logları incelenir,
+- secret veya internal path sızıntıları aranır,
+- hassas artifactler silinir,
+- gerekli credentiallar rotate edilir.
 
 ---
 
-## 14. Public README hak bildirimi
+## 13. GitHub Archive Program
 
-README üst bölümünde aşağıdaki anlam görünür tutulur:
+Public repository'nin uzun süreli üçüncü taraf arşivlerine alınabileceği dikkate alınır.
+
+Maksimum kontrol isteniyorsa Archive Program opt-out seçeneği ayrıca değerlendirilir.
+
+**Not:** Public'e çıktıktan sonra fork, clone veya üçüncü taraf arşiv kopyalarının tamamen geri alınabileceği varsayılmaz.
+
+---
+
+## 14. Public README lisans uyarısı
+
+README içinde görünür biçimde şu anlam korunmalıdır:
 
 ```text
-SOURCE-AVAILABLE — NOT OPEN SOURCE
-Copyright © 2026 Fatih KAVAK. All Rights Reserved.
+This repository is source-available, not open source.
+All Rights Reserved.
 See LICENSE and THIRD_PARTY_NOTICES.md.
 ```
 
-Bu kontrol tamamlandı. ✅
-
 ---
 
-## 15. Release bütünlüğü
+## 15. Release ve bütünlük
 
-Public release için önerilen minimum katman:
+Public binary/release üretildiğinde önerilen minimum bütünlük katmanı:
 
 - versioned release,
 - immutable tag,
@@ -286,36 +294,33 @@ Public release için önerilen minimum katman:
 
 ---
 
-## 16. Güncel GO / REMEDIATION durumu
+## 16. Post-public hardening durum özeti
 
-### Tamamlanan IP / policy katmanı
+Tamamlananlar:
 
-- [x] Proprietary `LICENSE`
-- [x] `NOTICE.md`
-- [x] `THIRD_PARTY_NOTICES.md`
-- [x] `CONTRIBUTING.md`
-- [x] `SECURITY.md`
-- [x] `.github/CODEOWNERS`
-- [x] README proprietary/source-available banner
+- proprietary/source-available LICENSE
+- NOTICE / SECURITY / CONTRIBUTING
+- third-party notices
+- CODEOWNERS
+- README rights banner
+- PR IP/security template
+- GitHub Actions Dependabot update config
+- minimum workflow permissions
+- SHA-pinned GitHub Actions
+- FEniCSx image digest pin
+- current-tree hızlı secret keyword kontrolü
 
-### Açık acil maddeler
+Açık kalanlar:
 
-- [ ] Hak sahipliği / işveren / contributor provenance final incelemesi
-- [ ] Patent/public-disclosure hukuki incelemesi
-- [ ] Ticari sır review
-- [ ] Full-history secret scan
-- [ ] Historical Actions logs/artifacts audit
-- [ ] Gerekli credential rotation
-- [ ] Private Vulnerability Reporting
-- [ ] Secret scanning / push protection doğrulaması
-- [ ] `main` branch protection/ruleset
-- [ ] FEniCSx container digest pinleme
-- [ ] GitHub Archive Program kararı
+- full-history secret audit
+- historical Actions logs/artifacts audit
+- `main` branch protection
+- required CI status checks
+- Private Vulnerability Reporting
+- Secret scanning / Push protection / Dependabot alerts / code scanning UI teyidi
+- patent/public-disclosure review
+- ticari sır/NDA/provenance review
+- Archive Program kararı
+- hak sahibinin tam hukuki adının tüm telif metinlerinde tek biçime geçirilmesi
 
-Bu maddeler açıkken repository public kalacaksa durum **PUBLIC / REMEDIATION REQUIRED** olarak kabul edilir.
-
----
-
-## 17. Temel ilke
-
-> Public görünürlük mülkiyet devri değildir; ancak GitHub Terms kaynaklı platform hakları, patentte kamuya açıklama, ticari sır kaybı ve kalıcı fork/clone riskleri yaratır. Dyna'nın özgün kodu için verilmeyen haklar saklıdır; buna rağmen public GitHub kullanımı mutlak kontrol sağlamaz.
+Takip issue: `#2 — Security: Public repository hardening`.
