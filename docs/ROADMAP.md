@@ -121,6 +121,11 @@ Pressure stability diagnostics:
 - [x] pressure-RMS normalized neighbor jump
 - [x] mean-free `neighbor_jump_to_std`
 - [x] `graph_roughness = (jump_rms/std)^2`
+- [x] **manufactured homojen zero-roughness benchmark**
+  - exact `J = 1.0316`
+  - exact `p = 0.5911089`
+  - max pressure residual ≈ `1.11e-16`
+  - graph roughness = `0`
 - [ ] mesh-refinement roughness trendini gerçek Cook sonuçlarıyla sabitle
 - [ ] independent pressure-field reference comparison
 
@@ -178,13 +183,13 @@ Bu nedenle mevcut hata build/CTest seviyesine ulaşmamaktadır. GitHub Actions a
 
 ### Güncel test sayısı
 
-**32 CTest tanımı**.
+**33 CTest tanımı**.
 
 ### Sıradaki V0.3 işleri
 
 - [ ] GitHub-hosted Actions pre-step engelini çöz
 - [ ] önce Windows + macOS birincil compiler matrix'i kapat
-- [ ] F-bar analitik tangent'i üç birincil compiler hattında doğrula
+- [ ] F-bar analitik tangent ve mixed pressure uniformity testini üç birincil compiler hattında doğrula
 - [ ] displacement / mixed / F-bar Cook gerçek Fortran değerlerini JSON olarak sabitle
 - [ ] FEniCSx Q2 2/4/8/16 dış referans artifactini al
 - [ ] Dyna tip displacement mesh trendini Q2 16x16 referansına göre değerlendir
