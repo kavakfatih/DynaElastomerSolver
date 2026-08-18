@@ -15,7 +15,14 @@ module des_pressure_diagnostics
     real(dp) :: rms = 0.0_dp
     real(dp) :: neighbor_jump_rms = 0.0_dp
     real(dp) :: maximum_neighbor_jump = 0.0_dp
+    ! Toplam pressure RMS ile normalize edilmiş eski ölçek-bağımsız ölçü.
     real(dp) :: normalized_neighbor_jump_rms = 0.0_dp
+    ! Ortalama pressure bileşenini çıkardıktan sonra alan roughness'ını ölçer.
+    ! Smooth bir pressure alanında mesh inceldikçe küçülmesi beklenir.
+    real(dp) :: neighbor_jump_to_std = 0.0_dp
+    ! (jump_rms/std)^2. Q4 eleman-komşuluk grafiği üzerinde boyutsuz
+    ! yüksek-frekans roughness göstergesi olarak saklanır.
+    real(dp) :: graph_roughness = 0.0_dp
     logical :: valid = .false.
   end type pressure_diagnostics_t
 
@@ -30,7 +37,7 @@ contains
     ! Komşuluk iki Q4 elemanın tam bir kenarı, yani iki ortak düğümü paylaşmasıyla
     ! tanımlanır. Neighbor jump tek başına "checkerboard" kararı değildir; fiziksel
     ! pressure gradient de jump üretebilir. V0.3'te mesh-refinement ve bağımsız
-    ! referans ile birlikte yorumlanması için ham ölçü olarak saklanır.
+    ! referans ile birlikte yorumlanması için ham ve normalize ölçüler saklanır.
     integer, intent(in) :: connectivity(:,:)
     real(dp), intent(in) :: pressure(:)
     type(pressure_diagnostics_t), intent(out) :: diagnostics
@@ -96,6 +103,17 @@ contains
 
     diagnostics%normalized_neighbor_jump_rms = &
       diagnostics%neighbor_jump_rms/max(diagnostics%rms,scale_floor)
+
+    if (diagnostics%standard_deviation > scale_floor) then
+      diagnostics%neighbor_jump_to_std = &
+        diagnostics%neighbor_jump_rms/diagnostics%standard_deviation
+      diagnostics%graph_roughness = diagnostics%neighbor_jump_to_std**2
+    else
+      ! Sabit pressure alanı high-frequency roughness içermez.
+      diagnostics%neighbor_jump_to_std = 0.0_dp
+      diagnostics%graph_roughness = 0.0_dp
+    end if
+
     diagnostics%valid = .true.
   end subroutine evaluate_q4_pressure_diagnostics
 
