@@ -141,6 +141,19 @@ jobs:
             echo "compiler=${{ matrix.compiler }}-${{ matrix.compiler_version }}"
           } > ci-artifacts/V0.3_CI_METADATA.txt
 
+      - name: V0.3 Cook sonuç JSON'unu üret
+        if: steps.ctest.outcome == 'success' && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          python tools/verification/parse_v03_bakeoff_log.py \
+            --log ci-artifacts/V0.3_CTEST_LASTTEST.log \
+            --output ci-artifacts/V0.3_COOK_BAKEOFF_RESULTS.json \
+            --source-commit "${{ github.sha }}" \
+            --run-id "${{ github.run_id }}" \
+            --runner "${{ matrix.os }}" \
+            --compiler "gfortran-${{ matrix.compiler_version }}"
+          cat ci-artifacts/V0.3_COOK_BAKEOFF_RESULTS.json
+
       # actions/upload-artifact v7.0.1
       - name: V0.3 benchmark artifactini sakla
         if: always() && matrix.compiler == 'gcc' && matrix.os == 'ubuntu-24.04'
