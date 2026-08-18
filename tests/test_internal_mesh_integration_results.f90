@@ -3,7 +3,8 @@ program test_internal_mesh_integration_results
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONNECTIVITY
   use des_material_types, only : neo_hookean_parameters_t
   use des_internal_mesh, only : internal_mesh_t, initialize_q4_internal_mesh
-  use des_integration_point_results, only : integration_point_results_t
+  use des_integration_point_results, only : integration_point_results_t, &
+      DES_PRESSURE_SOURCE_DERIVED_CONSTITUTIVE, DES_PRESSURE_MEASURE_LOGJ_CONJUGATE
   use des_q4_plane_strain_mesh_neo_hookean, only : assemble_q4_plane_strain_mesh
   implicit none
 
@@ -11,7 +12,7 @@ program test_internal_mesh_integration_results
   integer :: connectivity(1,4), invalid_connectivity(1,4)
   real(dp) :: residual_mesh(8), residual_arrays(8)
   real(dp) :: tangent_mesh(8,8), tangent_arrays(8,8)
-  real(dp) :: min_j_mesh, min_j_arrays, expected_j
+  real(dp) :: min_j_mesh, min_j_arrays, expected_j, expected_pressure
   integer :: status, status_arrays, g
   type(internal_mesh_t) :: mesh, invalid_mesh
   type(integration_point_results_t) :: results
@@ -35,6 +36,7 @@ program test_internal_mesh_integration_results
 
   parameters%mu = 2.3_dp
   parameters%lambda = 19.0_dp
+  expected_pressure = parameters%lambda*log(expected_j)
 
   call assemble_q4_plane_strain_mesh( &
        mesh, u, parameters, residual_mesh, tangent_mesh, status, min_j_mesh, results)
@@ -49,6 +51,23 @@ program test_internal_mesh_integration_results
     if (abs(results%points(g)%F(1,1)-1.10_dp) > 1.0e-12_dp) error stop 'Gauss F11 yanlis.'
     if (abs(results%points(g)%F(2,2)-0.95_dp) > 1.0e-12_dp) error stop 'Gauss F22 yanlis.'
     if (results%points(g)%strain_energy_density <= 0.0_dp) error stop 'Gauss enerji sonucu beklenmedik.'
+
+    if (maxval(abs(results%points(g)%constitutive_F-results%points(g)%F)) > 1.0e-12_dp) then
+      error stop 'Standart Q4 constitutive_F ile kinematic F ayni olmali.'
+    end if
+    if (abs(results%points(g)%constitutive_J-results%points(g)%J) > 1.0e-12_dp) then
+      error stop 'Standart Q4 constitutive_J ile kinematic J ayni olmali.'
+    end if
+    if (.not. results%points(g)%pressure_valid) error stop 'Derived pressure sonucu gecersiz.'
+    if (results%points(g)%pressure_source /= DES_PRESSURE_SOURCE_DERIVED_CONSTITUTIVE) then
+      error stop 'Standart Q4 pressure source derived constitutive olmali.'
+    end if
+    if (results%points(g)%pressure_measure /= DES_PRESSURE_MEASURE_LOGJ_CONJUGATE) then
+      error stop 'Standart Q4 pressure measure logJ-conjugate olmali.'
+    end if
+    if (abs(results%points(g)%pressure_value-expected_pressure) > 1.0e-12_dp) then
+      error stop 'Standart Q4 derived pressure degeri yanlis.'
+    end if
   end do
 
   ! Yeni InternalMesh yolu, mevcut dizi tabanlı assembly ile aynı fizik sonucunu vermeli.
@@ -73,6 +92,7 @@ program test_internal_mesh_integration_results
   end if
 
   write(*,'(A,ES12.4)') 'InternalMesh min(J) = ', min_j_mesh
+  write(*,'(A,ES12.4)') 'Derived logJ pressure = ', expected_pressure
   write(*,'(A,I0)') 'Ham Gauss sonucu sayisi = ', results%count()
   write(*,'(A)') 'InternalMesh + integration-point result testi BASARILI.'
 end program test_internal_mesh_integration_results
