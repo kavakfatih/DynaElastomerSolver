@@ -2,7 +2,8 @@
 
 DynaElastomerSolver **açık kaynak bir proje değildir**. Repository public olabilir; ancak public görünürlük, kodun serbestçe kullanılabileceği, değiştirilebileceği veya dağıtılabileceği anlamına gelmez.
 
-Ana lisans: `LICENSE`
+**Proje sahibi / hak sahibi:** Muhammet Fatih Kavak  
+**Ana lisans:** `LICENSE`
 
 ## 1. Varsayılan katkı politikası
 
@@ -11,7 +12,7 @@ Dışarıdan gönderilen unsolicited code contribution / pull request'ler varsay
 Bir pull request, patch, source file, test, algoritma implementasyonu, dokümantasyon veya başka bir yaratıcı içerik göndermeniz:
 
 - katkının DynaElastomerSolver'a merge edileceği anlamına gelmez,
-- fikrî mülkiyet haklarının otomatik olarak Fatih KAVAK'a devredildiği anlamına gelmez,
+- fikrî mülkiyet haklarının otomatik olarak Muhammet Fatih Kavak'a devredildiği anlamına gelmez,
 - size DynaElastomerSolver üzerinde herhangi bir lisans, ortak sahiplik veya dağıtım hakkı vermez.
 
 ## 2. Önceden yazılı onay gereklidir
@@ -28,7 +29,7 @@ Merge öncesinde proje sahibi, katkının niteliğine göre ayrıca:
 
 isteyebilir.
 
-Gerekli sözleşme tamamlanmadan katkı production branch'e merge edilmez.
+Gerekli sözleşme veya yazılı izin tamamlanmadan katkı production branch'e merge edilmez. GitHub üzerinde pull request açılması veya katkının teknik olarak incelenmesi tek başına hak devri, lisans kabulü veya kullanım izni oluşturmaz.
 
 ## 3. Katkıda bulunanın beyanları
 

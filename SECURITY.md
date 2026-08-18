@@ -1,5 +1,7 @@
 # DynaElastomerSolver Güvenlik Politikası
 
+**Güvenlik koordinatörü / hak sahibi:** Muhammet Fatih Kavak
+
 Bu belge DynaElastomerSolver için güvenlik açığı bildirim, değerlendirme ve koordineli düzeltme politikasını tanımlar.
 
 > Güvenlik açığı ayrıntılarını public issue, discussion, pull request, commit mesajı veya herkese açık başka bir kanalda paylaşmayın.
@@ -32,35 +34,13 @@ Private Vulnerability Reporting geçici olarak kullanılamıyorsa:
 
 ## Bildirimde bulunması yararlı bilgiler
 
-Mümkünse aşağıdakileri ekleyin:
-
-- etkilenen commit / sürüm / branch,
-- etkilenen işletim sistemi ve compiler,
-- açığın sınıfı ve olası etkisi,
-- tekrar üretme adımları,
-- minimum PoC,
-- saldırının yerel mi uzaktan mı olduğu,
-- kimlik doğrulama veya özel erişim gerekip gerekmediği,
-- varsa geçici azaltım önerisi.
-
-Gerçek credential, müşteri verisi, kişisel veri veya üretim sistemi bilgisi göndermeyin. Gerekliyse örnekleri sentetik veriyle yeniden üretin.
+Mümkünse etkilenen commit/sürüm/branch, işletim sistemi ve compiler, açığın sınıfı ve olası etkisi, tekrar üretme adımları, minimum PoC ve varsa geçici azaltım önerisini ekleyin. Gerçek credential, müşteri verisi, kişisel veri veya üretim sistemi bilgisi göndermeyin; gerektiğinde sentetik veri kullanın.
 
 ## Kapsam
 
-Güvenlik kapsamında özellikle şunlar değerlendirilir:
+Güvenlik kapsamında özellikle bellek güvenliği ve native-code kusurları, kontrolsüz dosya/mesh/veri girdileri, command injection, path traversal, dependency/supply-chain sorunları, CI/CD credential sızıntıları, GitHub Actions izin hataları, kötü amaçlı artifact/dependency ve güvenlik sınırını aşan adapter/external-tool çağrıları değerlendirilir.
 
-- bellek güvenliği ve native-code kusurları,
-- kontrolsüz dosya / mesh / veri girdilerinden kaynaklanan güvenlik sorunları,
-- command injection veya shell invocation sorunları,
-- path traversal ve yetkisiz dosya erişimi,
-- dependency / supply-chain sorunları,
-- CI/CD credential veya token sızıntıları,
-- GitHub Actions izin hataları,
-- kötü amaçlı artifact veya dependency kullanımı,
-- beklenmeyen remote-code-execution yolları,
-- güvenlik sınırını aşan plugin / adapter / external-tool çağrıları.
-
-Yalnızca bilimsel doğruluk farkları, yakınsama sorunları veya sayısal sonuç uyuşmazlıkları tek başına güvenlik açığı değildir; ancak bu davranış güvenlik sınırını etkiliyorsa güvenlik bildirimi olarak değerlendirilebilir.
+Yalnızca bilimsel doğruluk farkları, yakınsama sorunları veya sayısal sonuç uyuşmazlıkları tek başına güvenlik açığı değildir; ancak bu davranış güvenlik sınırını etkiliyorsa güvenlik bildirimi olarak değerlendirilir.
 
 ## Koordineli açıklama politikası
 
@@ -95,7 +75,7 @@ Public görünürlük sonrası hardening tamamlanmış sayılmadan önce:
 3. varsa sızmış credentiallar yalnız silinmemeli, **iptal edilip yenilenmeli**,
 4. müşteri/şirket içi/kişisel veri bulunmadığı doğrulanmalı,
 5. patent ve ticari sır değerlendirmesi tamamlanmalı,
-6. `LICENSE`, `THIRD_PARTY_NOTICES.md` ve `CONTRIBUTING.md` güncel tutulmalı,
+6. `LICENSE`, `COPYRIGHT.md`, `THIRD_PARTY_NOTICES.md` ve `CONTRIBUTING.md` güncel tutulmalı,
 7. Private Vulnerability Reporting etkinleştirilmeli,
 8. `main` branch protection/ruleset ve required CI zorunlu hale getirilmelidir.
 

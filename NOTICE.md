@@ -2,11 +2,11 @@
 
 > **SOURCE-AVAILABLE — NOT OPEN SOURCE**
 
-Copyright © 2026 **Fatih KAVAK**. All Rights Reserved.
+Copyright © 2026 **Muhammet Fatih Kavak**. All Rights Reserved.
 
-Bu repository public olarak görüntülenebilir hâle getirilebilir; ancak DynaElastomerSolver'ın özgün kaynak kodu açık kaynak olarak lisanslanmamıştır.
+DynaElastomerSolver repository'si public durumdadır; ancak özgün kaynak kod açık kaynak olarak lisanslanmamıştır. Hak sahibi kaydı `COPYRIGHT.md`, bağlayıcı kullanım koşulları `LICENSE` içindedir.
 
-GitHub Terms of Service kapsamında GitHub'a ve GitHub kullanıcılarına doğrudan verilen platform hakları dışında, `LICENSE` dosyasında açıkça verilmeyen hiçbir kullanım hakkı verilmez.
+GitHub Terms of Service kapsamında GitHub'a ve GitHub kullanıcılarına doğrudan verilen platform hakları ile emredici hukuk hükümleri dışında, `LICENSE` dosyasında açıkça verilmeyen hiçbir kullanım hakkı verilmez.
 
 Özellikle ayrı yazılı izin olmadan genel olarak:
 
@@ -22,10 +22,8 @@ GitHub Terms of Service kapsamında GitHub'a ve GitHub kullanıcılarına doğru
 
 için izin verilmemektedir; ayrıntılı ve bağlayıcı koşullar `LICENSE` içindedir.
 
-Üçüncü taraf bileşenler bu bildirimin dışında kendi lisanslarına tabidir. Ayrıntı: `THIRD_PARTY_NOTICES.md`.
+Üçüncü taraf bileşenler bu bildirimin dışında kendi telif sahipleri ve kendi lisanslarına tabidir. Ayrıntı: `THIRD_PARTY_NOTICES.md`.
 
-Güvenlik açığı bildirimleri için: `SECURITY.md`.
-
-Katkı ve fikrî mülkiyet kuralları için: `CONTRIBUTING.md`.
-
-Public repository yayın kapısı için: `docs/legal/PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md`.
+Güvenlik açığı bildirimleri için: `SECURITY.md`.  
+Katkı ve fikrî mülkiyet kuralları için: `CONTRIBUTING.md`.  
+Public repository IP ve güvenlik politikası için: `docs/legal/PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md`.
