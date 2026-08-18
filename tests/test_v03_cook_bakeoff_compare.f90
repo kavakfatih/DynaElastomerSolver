@@ -1,4 +1,5 @@
 program test_v03_cook_bakeoff_compare
+  use, intrinsic :: iso_fortran_env, only : output_unit
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
   use des_material_types, only : neo_hookean_parameters_t
@@ -14,7 +15,8 @@ program test_v03_cook_bakeoff_compare
   use des_q4_plane_strain_force_solver, only : solve_q4_plane_strain_force_control
   use des_q4_plane_strain_mixed_up_force_solver, only : &
       solve_q4_plane_strain_mixed_up_force_control
-  use des_q4_plane_strain_fbar_force_solver, only : solve_q4_plane_strain_fbar_force_control
+  use des_q4_plane_strain_fbar_force_solver, only : &
+      solve_q4_plane_strain_fbar_force_control
   implicit none
 
   type :: cook_result_t
@@ -53,15 +55,18 @@ program test_v03_cook_bakeoff_compare
   write(*,'(A)') 'V0.3 Cook formulation bake-off karşılaştırması'
   write(*,'(A)') 'mesh       displacement          mixed Q4/P0              F-bar'
   do k = 1,3
-    write(*,'(I2,A,3(3X,ES18.10))') mesh_sizes(k),'x'//trim(to_string(mesh_sizes(k))), &
+    write(*,'(I2,A,3(3X,ES18.10))') mesh_sizes(k), &
+      'x'//trim(to_string(mesh_sizes(k))), &
       displacement(k)%tip,mixed(k)%tip,fbar(k)%tip
   end do
   write(*,'(A,3(3X,F10.4,A))') 'coarse-to-8x8 gap:', &
-      100.0_dp*gap_displacement,' %',100.0_dp*gap_mixed,' %',100.0_dp*gap_fbar,' %'
+      100.0_dp*gap_displacement,' %',100.0_dp*gap_mixed,' %', &
+      100.0_dp*gap_fbar,' %'
 
   write(*,'(A)') '--- Mixed pressure roughness ---'
   do k = 1,3
-    write(*,'(I0,A,3(A,ES14.6))') mesh_sizes(k),'x'//trim(to_string(mesh_sizes(k))), &
+    write(*,'(I0,A,3(A,ES14.6))') mesh_sizes(k), &
+      'x'//trim(to_string(mesh_sizes(k))), &
       ' mean=',mixed(k)%pressure_mean, &
       ' std=',mixed(k)%pressure_std, &
       ' graph=',mixed(k)%pressure_graph_roughness
@@ -69,7 +74,8 @@ program test_v03_cook_bakeoff_compare
 
   write(*,'(A)') '--- Solver equation counts ---'
   do k = 1,3
-    write(*,'(I0,A,3(A,I0))') mesh_sizes(k),'x'//trim(to_string(mesh_sizes(k))), &
+    write(*,'(I0,A,3(A,I0))') mesh_sizes(k), &
+      'x'//trim(to_string(mesh_sizes(k))), &
       ' displacement=',displacement(k)%equation_count, &
       ' mixed=',mixed(k)%equation_count, &
       ' fbar=',fbar(k)%equation_count
@@ -78,13 +84,15 @@ program test_v03_cook_bakeoff_compare
   ! CTest stdout'u makine-okunur bir JSON bloğu taşır. Aynı içerik build
   ! dizinine de yazılır; CI artifact toplama açıldığında doğrudan alınabilir.
   write(*,'(A)') 'V03_BAKEOFF_JSON_BEGIN'
-  call write_json(6,displacement,mixed,fbar,gap_displacement,gap_mixed,gap_fbar)
+  call write_json(output_unit,displacement,mixed,fbar, &
+                  gap_displacement,gap_mixed,gap_fbar)
   write(*,'(A)') 'V03_BAKEOFF_JSON_END'
 
   open(newunit=json_unit,file='V0.3_COOK_BAKEOFF_RESULTS.json', &
        status='replace',action='write',iostat=ios)
   if (ios /= 0) error stop 'V0.3 bake-off JSON dosyası açılamadı.'
-  call write_json(json_unit,displacement,mixed,fbar,gap_displacement,gap_mixed,gap_fbar)
+  call write_json(json_unit,displacement,mixed,fbar, &
+                  gap_displacement,gap_mixed,gap_fbar)
   close(json_unit)
 
   write(*,'(A)') 'V0.3 birleşik Cook bake-off testi BASARILI.'
@@ -153,7 +161,8 @@ contains
     p%lambda = 1000.0_dp
 
     call solve_q4_plane_strain_force_control( &
-        X,connectivity,p,fixed_dofs,external_force,5,30,1.0e-9_dp,u,residual,report)
+        X,connectivity,p,fixed_dofs,external_force, &
+        5,30,1.0e-9_dp,u,residual,report)
     if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
       error stop 'Birleşik bake-off displacement Q4 yakınsamadı.'
     end if
@@ -170,7 +179,8 @@ contains
   subroutine run_mixed_case(n,result)
     integer, intent(in) :: n
     type(cook_result_t), intent(out) :: result
-    real(dp), allocatable :: X(:,:),u(:,:),pressure(:),residual(:),external_force(:),tangent(:,:)
+    real(dp), allocatable :: X(:,:),u(:,:),pressure(:),residual(:)
+    real(dp), allocatable :: external_force(:),tangent(:,:)
     integer, allocatable :: connectivity(:,:),fixed_dofs(:)
     type(neo_hookean_parameters_t) :: p
     type(newton_report_t) :: report
@@ -231,7 +241,8 @@ contains
     p%lambda = 1000.0_dp
 
     call solve_q4_plane_strain_fbar_force_control( &
-        X,connectivity,p,fixed_dofs,external_force,5,35,2.0e-8_dp,u,residual,report)
+        X,connectivity,p,fixed_dofs,external_force, &
+        5,35,2.0e-8_dp,u,residual,report)
     if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
       error stop 'Birleşik bake-off F-bar yakınsamadı.'
     end if
@@ -283,7 +294,8 @@ contains
     do j = 0,n-1
       element_id = j*n+n
       call add_q4_reference_edge_traction( &
-          mesh,element_id,Q4_EDGE_RIGHT,traction,external_force,status,edge_length)
+          mesh,element_id,Q4_EDGE_RIGHT,traction, &
+          external_force,status,edge_length)
       if (status /= DES_STATUS_OK .or. edge_length <= 0.0_dp) then
         error stop 'Birleşik Cook sağ sınır traction assembly başarısız.'
       end if
@@ -364,18 +376,29 @@ contains
       write(unit,'(A)') '        {'
       write(unit,'(A,I0,A)') '          "n": ',r(i)%mesh_n,','
       write(unit,'(A,ES24.16E3,A)') '          "tip": ',r(i)%tip,','
-      write(unit,'(A,ES24.16E3,A)') '          "final_min_j": ',r(i)%final_min_j,','
-      write(unit,'(A,I0,A)') '          "iterations": ',r(i)%total_iterations,','
-      write(unit,'(A,I0,A)') '          "linear_solves": ',r(i)%linear_solves,','
-      write(unit,'(A,I0,A)') '          "equations": ',r(i)%equation_count,','
-      write(unit,'(A,ES24.16E3,A)') '          "pressure_mean": ',r(i)%pressure_mean,','
-      write(unit,'(A,ES24.16E3,A)') '          "pressure_std": ',r(i)%pressure_std,','
-      write(unit,'(A,ES24.16E3,A)') '          "pressure_rms": ',r(i)%pressure_rms,','
-      write(unit,'(A,ES24.16E3,A)') '          "pressure_jump_rms": ',r(i)%pressure_jump_rms,','
-      write(unit,'(A,ES24.16E3,A)') '          "pressure_graph_roughness": ', &
-          r(i)%pressure_graph_roughness,','
-      write(unit,'(A,ES24.16E3,A)') '          "min_j_bar": ',r(i)%min_j_bar,','
-      write(unit,'(A,ES24.16E3)') '          "max_j_bar": ',r(i)%max_j_bar
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "final_min_j": ',r(i)%final_min_j,','
+      write(unit,'(A,I0,A)') &
+        '          "iterations": ',r(i)%total_iterations,','
+      write(unit,'(A,I0,A)') &
+        '          "linear_solves": ',r(i)%linear_solves,','
+      write(unit,'(A,I0,A)') &
+        '          "equations": ',r(i)%equation_count,','
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "pressure_mean": ',r(i)%pressure_mean,','
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "pressure_std": ',r(i)%pressure_std,','
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "pressure_rms": ',r(i)%pressure_rms,','
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "pressure_jump_rms": ',r(i)%pressure_jump_rms,','
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "pressure_graph_roughness": ', &
+        r(i)%pressure_graph_roughness,','
+      write(unit,'(A,ES24.16E3,A)') &
+        '          "min_j_bar": ',r(i)%min_j_bar,','
+      write(unit,'(A,ES24.16E3)') &
+        '          "max_j_bar": ',r(i)%max_j_bar
       if (i < 3) then
         write(unit,'(A)') '        },'
       else
