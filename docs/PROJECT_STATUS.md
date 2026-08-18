@@ -46,7 +46,8 @@ Karar ADR-0007 ile **F-bar Q4** lehine sabitlendi.
 - F-bar mevcut dış Q2 referansa göre en düşük 8x8 displacement hatasını veriyor,
 - F-bar bağımsız pressure DOF eklemeden mixed'e göre daha küçük global sistem oluşturuyor,
 - F-bar residual/tangent zinciri energy-consistent ve analytic consistent tangent ile doğrulandı,
-- dedicated severe-distortion affine force-control benchmarkı F-bar production yolunu ciddi mesh distorsiyonu altında ayrıca doğruladı.
+- dedicated severe-distortion affine force-control benchmarkı F-bar production yolunu ciddi mesh distorsiyonu altında ayrıca doğruladı,
+- büyük-mesh performans baseline'ı ayrı Linux CI artifacti olarak ölçülüyor; wall-clock sonucu correctness eşiği olarak kullanılmıyor.
 
 ---
 
@@ -61,11 +62,11 @@ V0.3 güncel CTest sayısı: **37**.
 | macOS ARM64 / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
 | Linux / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
 
-Doğrulanan code head:
+Performans altyapısı dahil doğrulanan code head:
 
-`9e4e19af8feaeb50aeedd148980b0dc439205dab`
+`d89a352f4be4d833bf11aa5b9e953ed8e64805c1`
 
-FEniCSx/DOLFINx V0.3 Cook Q2 dış referans workflow'u da aynı head üzerinde yeniden geçti. ✅
+FEniCSx/DOLFINx V0.3 Cook Q2 dış referans workflow'u da aynı geliştirme hattında yeniden geçti. ✅
 
 Platform numerical reproducibility:
 
@@ -205,7 +206,7 @@ GNU symmetry     ≈ 2.45e-16
 | Mixed Q4/P0 | 208 | 10 / 10 |
 | F-bar Q4 | 144 | 15 / 15 |
 
-F-bar daha fazla Newton iterasyonu gerektiriyor; ancak mixed'e göre yaklaşık `%30.8` daha az equation içeriyor. Gerçek wall-clock/bellek maliyeti sparse solver ve büyük mesh aşamasında ayrıca ölçülecek.
+F-bar daha fazla Newton iterasyonu gerektiriyor; ancak mixed'e göre yaklaşık `%30.8` daha az equation içeriyor.
 
 ---
 
@@ -260,6 +261,73 @@ Bu madde ile F-bar production yolunun dedicated distortion/robustness exit crite
 
 ---
 
+## F-bar büyük-mesh performans baseline'ı
+
+Benchmark executable:
+
+`benchmark_v03_fbar_performance`
+
+Kaynak:
+
+`tests/benchmark_v03_fbar_performance.f90`
+
+Politika:
+
+- normal 37-test CTest correctness paketine dahil değildir,
+- executable dört compiler hattında derlenir,
+- gerçek performans ölçümü yalnız Linux/gfortran14 CI hattında çalışır,
+- wall-clock süreleri **rapor amaçlıdır**, pass/fail eşiği değildir,
+- solver yakınsaması ve artifact üretimi zorunludur,
+- proses peak RSS `/usr/bin/time -v` ile ayrıca kaydedilir.
+
+Dense backend için benchmarkın raporladığı analitik minimum matris çalışma-seti:
+
+```text
+K(ndof,ndof) + Kff(nfree,nfree) + Awork(nfree,nfree)
+```
+
+Bu değer stdlib/LAPACK iç workspace, allocator metadata ve diğer proses overhead'lerini içermez.
+
+Resmi Linux/gfortran14 Debug CI baseline'ı:
+
+| Cook mesh | Serbest denklem | Wall-clock | CPU | Bilinen dense matris alt sınırı |
+|---:|---:|---:|---:|---:|
+| 4x4 | 40 | 0.090 s | 0.090 s | 0.043 MiB |
+| 8x8 | 144 | 0.375 s | 0.375 s | 0.517 MiB |
+| 12x12 | 312 | 1.129 s | 1.129 s | 2.357 MiB |
+| 16x16 | 544 | 3.242 s | 3.241 s | 7.064 MiB |
+
+Tüm meshlerde:
+
+```text
+Newton iterations = 15
+linear solves      = 15
+minimum J          > 0
+```
+
+Benchmark prosesinin toplam peak RSS'i:
+
+```text
+11760 KiB ≈ 11.48 MiB
+```
+
+16x16 solve sonucu:
+
+```text
+tip_y = 0.0200139139424
+final residual inf-norm ≈ 1.43e-9
+minimum J ≈ 0.991933
+```
+
+Yorum:
+
+- V0.3 dense backend için ilk tekrar üretilebilir süre/bellek baseline'ı artık CI artifactidir,
+- sonuçlar runner donanımına bağlı olduğundan performans regresyonu için sabit süre eşiği konulmadı,
+- analitik dense çalışma-seti mesh büyüdükçe hızlı artıyor; sparse backend gereksinimi ileriki büyük-model ölçeklenmesinde ölçülebilir hale geldi,
+- bu madde ile V0.3 **wall-clock / bellek ölçüm altyapısı exit criterion'u kapatıldı**.
+
+---
+
 ## Axisymmetric / torsion geçiş kuralı
 
 ADR-0007 yalnız V0.3 **plane-strain** production baseline kararıdır.
@@ -301,12 +369,11 @@ Dördüncü madde yalnız string mesajı düzeltilerek kapatıldı; benchmark fi
 
 ## Güncel sıradaki V0.3 adımları
 
-1. Daha büyük meshlerde wall-clock ve bellek ölçüm altyapısını hazırla.
-2. F-bar Results pressure semantiğini derived diagnostic olarak kod/contract seviyesinde netleştir.
-3. PR #1 V0.3 exit criteria listesini güncelle ve kalan maddeleri kapat.
-4. V0.3 release hazırlığına geç.
-5. Sonraki geliştirme dalgasında axisymmetric F-bar türetimini başlat.
-6. Axisymmetric doğrulanmadan axisymmetric torsion / 2.5D production implementasyonuna geçme.
+1. F-bar Results pressure semantiğini derived diagnostic olarak kod/contract seviyesinde netleştir.
+2. PR #1 V0.3 exit criteria listesini son kez gözden geçir ve kalan maddeleri kapat.
+3. V0.3 release hazırlığına geç.
+4. Sonraki geliştirme dalgasında axisymmetric F-bar türetimini başlat.
+5. Axisymmetric doğrulanmadan axisymmetric torsion / 2.5D production implementasyonuna geçme.
 
 ## Branch kuralı
 
