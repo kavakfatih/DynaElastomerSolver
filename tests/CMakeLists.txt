@@ -98,6 +98,12 @@ des_add_fortran_test(
 )
 
 des_add_fortran_test(
+  test_q4_force_control_solver
+  solver.q4.plane_strain.force_control
+  test_q4_force_control_solver.f90
+)
+
+des_add_fortran_test(
   test_q4_nonlinear_patch
   fem.q4.plane_strain.nonlinear_patch
   test_q4_nonlinear_patch.f90
