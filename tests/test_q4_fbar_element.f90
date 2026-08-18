@@ -8,8 +8,8 @@ program test_q4_fbar_element
   implicit none
 
   real(dp), parameter :: residual_tol = 2.0e-10_dp
-  real(dp), parameter :: tangent_tol = 8.0e-6_dp
-  real(dp), parameter :: symmetry_tol = 8.0e-6_dp
+  real(dp), parameter :: tangent_tol = 2.0e-6_dp
+  real(dp), parameter :: symmetry_tol = 2.0e-10_dp
   real(dp), parameter :: h_test = 8.0e-7_dp
   real(dp) :: X(4,2), u(4,2), up(4,2), um(4,2)
   real(dp) :: r_fbar(8), K_fbar(8,8), rp(8), rm(8), Kdummy(8,8)
@@ -43,13 +43,15 @@ program test_q4_fbar_element
       X,u,p,r_standard,K_standard,status,min_j_dummy)
   if (status /= DES_STATUS_OK) error stop 'Standart Q4 referansı başarısız.'
 
-  if (abs(jbar-F11*F22) > residual_tol) error stop 'F-bar J_bar homojen referansla uyuşmuyor.'
+  if (abs(jbar-F11*F22) > residual_tol) then
+    error stop 'F-bar J_bar homojen referansla uyuşmuyor.'
+  end if
   if (maxval(abs(r_fbar-r_standard)) > residual_tol) then
     error stop 'Homojen F-bar residualı standart Q4 ile eşleşmiyor.'
   end if
 
-  ! Non-affine durumda ilk prototip tangent'i bağımsız daha geniş adımlı FD ile
-  ! regression kontrolünden geçirilir.
+  ! Non-affine durumda üretim adayına taşınan analitik consistent tangent,
+  ! bağımsız merkezi finite-difference türeviyle karşılaştırılır.
   u(1,:) = [ 0.00_dp, 0.00_dp]
   u(2,:) = [ 0.08_dp,-0.01_dp]
   u(3,:) = [ 0.11_dp, 0.04_dp]
@@ -58,7 +60,9 @@ program test_q4_fbar_element
   call evaluate_q4_plane_strain_fbar_element( &
       X,u,p,r_fbar,K_fbar,status,min_j,jbar)
   if (status /= DES_STATUS_OK) error stop 'Non-affine F-bar element başarısız.'
-  if (min_j <= 0.0_dp .or. jbar <= 0.0_dp) error stop 'F-bar J ölçüleri pozitif değil.'
+  if (min_j <= 0.0_dp .or. jbar <= 0.0_dp) then
+    error stop 'F-bar J ölçüleri pozitif değil.'
+  end if
 
   do dof = 1,8
     node = (dof+1)/2
@@ -70,10 +74,14 @@ program test_q4_fbar_element
 
     call evaluate_q4_plane_strain_fbar_element( &
         X,up,p,rp,Kdummy,local_status,min_j_dummy,jbar_dummy)
-    if (local_status /= DES_STATUS_OK) error stop 'F-bar pozitif test perturbasyonu başarısız.'
+    if (local_status /= DES_STATUS_OK) then
+      error stop 'F-bar pozitif test perturbasyonu başarısız.'
+    end if
     call evaluate_q4_plane_strain_fbar_element( &
         X,um,p,rm,Kdummy,local_status,min_j_dummy,jbar_dummy)
-    if (local_status /= DES_STATUS_OK) error stop 'F-bar negatif test perturbasyonu başarısız.'
+    if (local_status /= DES_STATUS_OK) then
+      error stop 'F-bar negatif test perturbasyonu başarısız.'
+    end if
 
     tangent_fd(:,dof) = (rp-rm)/(2.0_dp*h_test)
   end do
@@ -83,16 +91,16 @@ program test_q4_fbar_element
   symmetry_error = maxval(abs(K_fbar-transpose(K_fbar)))/scale
 
   if (relative_error > tangent_tol) then
-    write(*,'(A,ES14.6)') 'F-bar tangent cross-FD error = ',relative_error
-    error stop 'F-bar prototype tangent bağımsız FD ile uyuşmuyor.'
+    write(*,'(A,ES14.6)') 'F-bar analytic tangent cross-FD error = ',relative_error
+    error stop 'F-bar analitik consistent tangent bağımsız FD ile uyuşmuyor.'
   end if
   if (symmetry_error > symmetry_tol) then
-    write(*,'(A,ES14.6)') 'F-bar tangent symmetry error = ',symmetry_error
-    error stop 'F-bar energy-consistent tangent beklenen simetriyi göstermiyor.'
+    write(*,'(A,ES14.6)') 'F-bar analytic tangent symmetry error = ',symmetry_error
+    error stop 'F-bar analitik energy tangent beklenen simetriyi göstermiyor.'
   end if
 
-  write(*,'(A,ES14.6)') 'F-bar tangent cross-FD relative error = ',relative_error
-  write(*,'(A,ES14.6)') 'F-bar tangent symmetry error = ',symmetry_error
+  write(*,'(A,ES14.6)') 'F-bar analytic tangent cross-FD relative error = ',relative_error
+  write(*,'(A,ES14.6)') 'F-bar analytic tangent symmetry error = ',symmetry_error
   write(*,'(A,ES14.6)') 'F-bar non-affine J_bar = ',jbar
-  write(*,'(A)') 'Q4 F-bar prototype element testi BASARILI.'
+  write(*,'(A)') 'Q4 F-bar analitik tangent element testi BASARILI.'
 end program test_q4_fbar_element
