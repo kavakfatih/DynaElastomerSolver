@@ -9,6 +9,7 @@ add_library(DynaElastomerCore STATIC
   results/des_integration_point_results.f90
   fem/des_q4_shape.f90
   fem/des_q4_edge_traction.f90
+  fem/des_q4_mesh_edge_traction.f90
   fem/des_q4_plane_strain_neo_hookean.f90
   fem/des_q4_plane_strain_mesh_neo_hookean.f90
   solvers/des_linear_solver.f90
