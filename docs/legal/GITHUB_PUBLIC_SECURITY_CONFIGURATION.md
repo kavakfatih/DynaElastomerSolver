@@ -18,7 +18,7 @@ GitHub → `Settings` → `Branches` veya `Rules` üzerinden `main` için koruma
 
 Solo-owner yapı nedeniyle bağımsız ikinci reviewer eklenene kadar required approval / Code Owner approval zorunluluğu recovery/merge akışını kilitlemeyecek şekilde seçilir.
 
-V0.3 için beklenen status context'leri:
+V0.3 için hedef required checks:
 
 ```text
 dyna/v0.3-linux-gfortran14
@@ -26,6 +26,7 @@ dyna/v0.3-macos-gfortran14
 dyna/v0.3-windows-gfortran14
 dyna/v0.3-windows-ifx2025.2
 dyna/v0.3-fenicsx-q2-reference
+Legal / Public IP Guard
 ```
 
 ## 2. Advanced Security / Code Security
@@ -53,20 +54,39 @@ Pinned FEniCSx image:
 dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
 ```
 
-## 4. Pull request kapısı
+## 4. Automated Legal / Public IP Guard
 
-`.github/pull_request_template.md` şu kontrolleri içerir:
+`.github/workflows/legal-public-ip-guard.yml` aşağıdakileri otomatik doğrular:
 
-- IP/provenance,
-- third-party license,
-- patent/ticari sır/NDA,
-- secret/credential,
-- kişisel/müşteri verisi,
-- supply-chain,
-- minimum workflow permission,
-- private vulnerability reporting.
+- `LICENSE v1.1` varlığı,
+- `Muhammet Fatih Kavak` hak sahibi kaydı,
+- `COPYRIGHT.md`, `NOTICE.md`, `SECURITY.md`, `CONTRIBUTING.md`, third-party ve IP gate dosyaları,
+- pinli stdlib provenance kaydı,
+- kritik private-key/token pattern sınıfları,
+- `.env`, private-key/certificate/credential benzeri yasaklı tracked dosyalar.
 
-## 5. Güvenlik açığı bildirimi
+Secret bulunduğunda değer loglanmaz; yalnız dosya ve risk sınıfı raporlanır.
+
+## 5. Pull request ve issue kapısı
+
+`.github/pull_request_template.md` IP/provenance, third-party license, patent/ticari sır/NDA, secret/credential, müşteri verisi, supply-chain ve minimum permission kontrollerini içerir.
+
+Public issue güvenliği:
+
+- blank issue kapalı ✅
+- bug formunda secret/security/NDA uyarısı ✅
+- feature formunda patent/ticari sır/public-disclosure uyarısı ✅
+
+## 6. Pre-Disclosure IP Gate
+
+Yeni patent adayı veya gizli teknikler public Dyna branch'lerinde geliştirilmez. Önce ayrı private çalışma alanında tutulur.
+
+İlgili belgeler:
+
+- `docs/legal/PRE_DISCLOSURE_IP_GATE.md`
+- `docs/legal/IP_PROVENANCE_REGISTER.md`
+
+## 7. Güvenlik açığı bildirimi
 
 Açık ayrıntılar public issue/PR'a yazılmaz. Tercih edilen kanal:
 
@@ -76,7 +96,7 @@ Security → Advisories → Report a vulnerability
 
 Private Vulnerability Reporting aktif değilse public hardening tamamlanmış sayılmaz.
 
-## 6. Geçmiş denetimi
+## 8. Geçmiş denetimi
 
 Current-tree hızlı keyword kontrolü temiz sonuç vermiştir; fakat aşağıdakiler ayrıca denetlenmelidir:
 
@@ -88,7 +108,7 @@ Current-tree hızlı keyword kontrolü temiz sonuç vermiştir; fakat aşağıda
 
 Bulunan credential yalnız silinmez; revoke/rotate edilir.
 
-## 7. Release bütünlüğü
+## 9. Release bütünlüğü
 
 Release üretiminde:
 
@@ -102,18 +122,18 @@ Release üretiminde:
 
 kullanılır.
 
-## 8. Güncel açık maddeler
+## 10. Güncel açık maddeler
 
 - `main` branch protection / ruleset
-- required V0.3 CI contexts
+- required CI + `Legal / Public IP Guard` check
 - Private Vulnerability Reporting
 - Secret scanning / Push Protection / Dependabot alerts / code scanning ayar teyidi
 - full-history secret audit
 - historical Actions log/artifact audit
-- patent/public-disclosure review
-- ticari sır/NDA/provenance review
+- patent/public-disclosure uzman review
+- ticari sır/NDA/provenance uzman review
 - GitHub Archive Program kararı
 
-**Tam hukuki hak sahibi adı doğrulandı ve uygulandı:** Muhammet Fatih Kavak. ✅
+**Tam hukuki hak sahibi adı:** Muhammet Fatih Kavak. ✅
 
 Takip: Issue `#2 — Security: Public repository hardening`.
