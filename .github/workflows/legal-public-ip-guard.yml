@@ -1,0 +1,135 @@
+name: Legal and Public IP Guard
+
+on:
+  push:
+    branches:
+      - main
+      - 'develop/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  legal-public-ip-guard:
+    name: Legal / Public IP Guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # actions/checkout v7.0.1 — immutable SHA pin
+      - name: Kaynak kodu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+
+      - name: Hukuki dosya bütünlüğünü doğrula
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            LICENSE
+            COPYRIGHT.md
+            NOTICE.md
+            SECURITY.md
+            CONTRIBUTING.md
+            THIRD_PARTY_NOTICES.md
+            docs/legal/PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md
+            docs/legal/PRE_DISCLOSURE_IP_GATE.md
+            docs/legal/IP_PROVENANCE_REGISTER.md
+          )
+
+          for file in "${required[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              echo "::error::Zorunlu hukuki/güvenlik dosyası eksik: $file"
+              exit 1
+            fi
+          done
+
+          grep -Fq 'Version 1.1' LICENSE || {
+            echo '::error file=LICENSE::Beklenen Dyna proprietary license sürümü bulunamadı.'
+            exit 1
+          }
+          grep -Fq 'Muhammet Fatih Kavak' LICENSE || {
+            echo '::error file=LICENSE::Hak sahibi adı LICENSE içinde bulunamadı.'
+            exit 1
+          }
+          grep -Fq 'NOT AN OPEN-SOURCE LICENSE' LICENSE || {
+            echo '::error file=LICENSE::Proprietary/open-source-dışı lisans bildirimi kaybolmuş.'
+            exit 1
+          }
+          grep -Fq 'Muhammet Fatih Kavak' COPYRIGHT.md || {
+            echo '::error file=COPYRIGHT.md::Hak sahibi kaydı bulunamadı.'
+            exit 1
+          }
+          grep -Fq 'Muhammet Fatih Kavak' README.md || {
+            echo '::error file=README.md::README hak sahibi bannerı bulunamadı.'
+            exit 1
+          }
+          grep -Fq '9a15c7772f1a76a6c497b9f3abb793841fc81f74' THIRD_PARTY_NOTICES.md || {
+            echo '::error file=THIRD_PARTY_NOTICES.md::Pinli stdlib provenance kaydı bulunamadı.'
+            exit 1
+          }
+
+      - name: Public repo secret ve yasaklı dosya guard
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib
+          import re
+          import subprocess
+          import sys
+
+          files = subprocess.check_output(['git', 'ls-files', '-z']).decode('utf-8').split('\0')
+          files = [f for f in files if f]
+
+          forbidden_name_patterns = [
+              re.compile(r'(^|/)\.env(?:\..*)?$'),
+              re.compile(r'(^|/)(credentials|secrets)\.json$', re.I),
+              re.compile(r'(^|/)id_(?:rsa|ed25519)(?:\..*)?$'),
+              re.compile(r'\.(?:pem|key|p12|pfx|jks|keystore)$', re.I),
+          ]
+
+          content_patterns = [
+              ('private-key-marker', re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----')),
+              ('github-classic-token', re.compile(rb'ghp_[A-Za-z0-9]{20,}')),
+              ('github-fine-grained-token', re.compile(rb'github_pat_[A-Za-z0-9_]{20,}')),
+              ('aws-access-key-id', re.compile(rb'AKIA[0-9A-Z]{16}')),
+          ]
+
+          failures = []
+
+          for name in files:
+              normalized = name.replace('\\', '/')
+              if any(pattern.search(normalized) for pattern in forbidden_name_patterns):
+                  failures.append((normalized, 'forbidden-sensitive-filename'))
+                  continue
+
+              path = pathlib.Path(name)
+              try:
+                  data = path.read_bytes()
+              except OSError:
+                  continue
+
+              # İkili dosyalarda rastlantısal eşleşmeleri azalt.
+              if b'\x00' in data[:8192]:
+                  continue
+
+              for kind, pattern in content_patterns:
+                  if pattern.search(data):
+                      failures.append((normalized, kind))
+
+          if failures:
+              for path, kind in sorted(set(failures)):
+                  # Secret değerini asla loglama; yalnız dosya ve sınıfı göster.
+                  print(f'::error file={path}::Public repo guard: {kind}')
+              sys.exit(1)
+
+          print('Public repo secret/file guard: PASS')
+          PY
+
+      - name: Hukuki guard sonucu
+        run: echo 'DynaElastomerSolver Legal / Public IP Guard PASS'
