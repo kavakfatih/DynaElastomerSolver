@@ -53,7 +53,7 @@ def parse_mixed(text: str) -> dict:
     cases: dict[str, dict] = {}
     for mesh in (2, 4, 8):
         case_pattern = re.compile(
-            rf"{mesh}x{mesh}:\s+tip=({NUMBER})\s*\n"
+            rf"{mesh}x{mesh}:\s+tip=\s*({NUMBER})\s*\n"
             rf"\s*p\(min/mean/max\)=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})\s*\n"
             rf"\s*p\(std/rms\)=\s*({NUMBER})\s+({NUMBER})\s*\n"
             rf"\s*jump\(rms/max/norm\)=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})",
@@ -90,7 +90,7 @@ def parse_fbar(text: str) -> dict:
     cases: dict[str, dict] = {}
     for mesh in (2, 4, 8):
         match = re.search(
-            rf"{mesh}x{mesh} F-bar tip=({NUMBER})\s+minJ=({NUMBER})",
+            rf"{mesh}x{mesh} F-bar tip=\s*({NUMBER})\s+minJ=\s*({NUMBER})",
             text,
             flags=re.MULTILINE,
         )
