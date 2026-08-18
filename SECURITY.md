@@ -4,6 +4,12 @@ Bu belge DynaElastomerSolver için güvenlik açığı bildirim, değerlendirme 
 
 > Güvenlik açığı ayrıntılarını public issue, discussion, pull request, commit mesajı veya herkese açık başka bir kanalda paylaşmayın.
 
+## Güncel repository durumu
+
+Repository şu anda **public** durumdadır. Public geçiş öncesi tamamlanması hedeflenen bir kontrol henüz doğrulanmadıysa, aşağıdaki maddeler **post-public acil iyileştirme** olarak ele alınır.
+
+Özellikle `main` branch koruması, Private Vulnerability Reporting, secret scanning/push protection, geçmiş Git/Actions taraması ve patent/ticari sır incelemesi açık bırakılmamalıdır.
+
 ## Desteklenen sürümler
 
 | Hat | Güvenlik desteği |
@@ -15,9 +21,9 @@ Bu belge DynaElastomerSolver için güvenlik açığı bildirim, değerlendirme 
 
 ## Güvenlik açığı nasıl bildirilir?
 
-Repository public olmadan önce **GitHub Private Vulnerability Reporting** etkinleştirilmelidir.
+Public repository için **GitHub Private Vulnerability Reporting** etkinleştirilmelidir.
 
-Public olduktan sonra tercih edilen ve resmi bildirim kanalı:
+Tercih edilen ve resmi bildirim kanalı:
 
 1. Repository içindeki **Security** bölümünü açın.
 2. **Report a vulnerability** / private vulnerability reporting seçeneğini kullanın.
@@ -71,7 +77,7 @@ Yalnızca bilimsel doğruluk farkları, yakınsama sorunları veya sayısal sonu
 
 ## Güvenli geliştirme kuralları
 
-Repository public olduğunda aşağıdaki kontroller etkin tutulmalıdır:
+Public repository için aşağıdaki kontroller etkin tutulmalıdır:
 
 - Secret scanning,
 - Push protection,
@@ -85,9 +91,9 @@ Repository public olduğunda aşağıdaki kontroller etkin tutulmalıdır:
 
 Workflow token izinleri varsayılan olarak en düşük yetkiyle tanımlanmalıdır. Bir workflow yalnız ihtiyaç duyduğu write yetkisini almalıdır.
 
-## Public repository geçiş güvenlik kapısı
+## Public repository güvenlik kapısı / post-public remediation
 
-Repository private → public yapılmadan önce mutlaka:
+Aşağıdaki kontrollerin tamamı doğrulanmalıdır:
 
 1. tüm Git geçmişi secret/credential açısından taranmalı,
 2. geçmiş Actions logları ve artifactleri incelenmeli,
@@ -96,7 +102,7 @@ Repository private → public yapılmadan önce mutlaka:
 5. patent ve ticari sır değerlendirmesi tamamlanmalı,
 6. `LICENSE`, `THIRD_PARTY_NOTICES.md` ve `CONTRIBUTING.md` güncel olmalı,
 7. Private Vulnerability Reporting etkinleştirilmeli,
-8. visibility değişiminden sonra branch ruleset / protection kuralları yeniden doğrulanmalıdır.
+8. branch ruleset / protection kuralları yeniden etkinleştirilmeli ve doğrulanmalıdır.
 
 ## Mühendislik güvenliği notu
 
