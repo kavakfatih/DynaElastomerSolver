@@ -1,123 +1,65 @@
 # ChatGPT Sohbet 1
 
 **Proje:** DynaElastomerSolver  
-**Ana kayıt branch'i:** `main`  
+**Sürekli kayıt branch'i:** `main`  
 **Başlangıç:** 2026-08-17  
-**Kural:** Her anlamlı proje adımından sonra teknik karar, gerçekleştirilen iş, doğrulama ve sıradaki plan bu dosyada güncellenir.
+**Kural:** Her anlamlı proje adımından sonra teknik karar, gerçekleştirilen iş, doğrulama, güncel sürüm ve sıradaki plan bu dosyada güncellenir.
 
 ---
 
-## 2026-08-17 — Ürün yönü
+## Ürün yönü ve geliştirme ilkesi
 
 - DynaElastomerSolver genel amaçlı CAE değil, **nonlineer elastomer solver** olarak konumlandırıldı.
 - Ana hedefler: finite strain, hyperelasticity, nearly-incompressible elastomer, plane strain, axisymmetric ve axisymmetric torsion/2.5D.
-- ANSYS/Marc feature parity yerine dar problem sınıfında doğruluk ve robustness hedeflendi.
-- V1.0 dışında: genel contact/self-contact, debonding, viscoelasticity, Mullins, fatigue/life, dynamics ve binary material plugin.
+- ANSYS/Marc feature parity yerine dar problem sınıfında doğruluk, robustness ve açıklanabilir diagnostics hedefleniyor.
+- ADR-0006 ile **implementation-first validation** kuralı sabitlendi: önce çalışan ve doğrulanan fizik, sonra yalnız gerçek ihtiyaçtan doğan mimari.
+- Production incompressibility formulation peşinen seçilmeyecek; displacement Q4 / mixed `u-p` / F-bar aynı benchmark setinde ölçülecek.
 
-## 2026-08-17 — Implementasyon öncelikli doğrulama
+## V0.1 — Material Core
 
-- Mimari genişleme donduruldu; çalışan fizik öne çekildi.
-- Production incompressibility formulation peşinen seçilmeyecek; displacement Q4 / mixed `u-p` / F-bar benchmark ile karşılaştırılacak.
-- ADR-0006 ile kapsam disiplini sabitlendi.
+- Modern Fortran 2018 + CMake çekirdeği oluşturuldu.
+- Neo-Hookean enerji, First Piola-Kirchhoff stress, Cauchy stress ve analitik consistent `dP/dF` tangent uygulandı.
+- Geçersiz parametre, singular `F` ve non-positive `J` kontrolleri eklendi.
+- Material tangent merkezi finite difference ile doğrulandı; normalize hata yaklaşık `1.26e-9`.
 
-## 2026-08-17 — V0.1 Material Core
+## V0.2 — İlk nonlinear FEM dikey dilimi
 
-- CMake + Modern Fortran çekirdeği oluşturuldu.
-- Neo-Hookean enerji, `P`, Cauchy stress ve analitik `dP/dF` tangent uygulandı.
-- Parametre, singular `F` ve non-positive `J` kontrolleri eklendi.
-- Material tangent merkezi FD ile doğrulandı; normalize hata yaklaşık `1.26e-9`.
-
-## 2026-08-17 — İlk Q4 nonlinear FEM
-
-- Q4 + 2×2 Gauss integration eklendi.
-- Total-Lagrangian plane-strain residual ve consistent tangent yazıldı.
-- Element tangent FD hatası yaklaşık `1.16e-9`.
-- Çok elemanlı assembly ve Full Newton geliştirildi.
+- Q4 plane-strain + 2×2 Gauss integration geliştirildi.
+- Total-Lagrangian residual ve consistent element tangent yazıldı.
+- Element tangent FD normalize hatası yaklaşık `1.16e-9`.
+- Çok elemanlı assembly, displacement-control Full Newton ve increment stepping eklendi.
 - İki elemanlı reaksiyon referans hatası yaklaşık `1e-15`; final free residual yaklaşık `5.4e-15`.
 - Distorsiyonlu nonlinear patch merkez displacement hatası yaklaşık `3.9e-17`.
 
-## 2026-08-17 — V0.2 robustness
+### V0.2 robustness
 
-- Adaptive displacement-control, rollback, cutback ve retry eklendi.
-- Gerçek `J<=0` failure senaryosunda state rollback ve `%50` cutback doğrulandı.
-- 1×1 / 2×2 / 4×4 mesh refinement reaksiyonları `1.605586` olarak eşleşti.
+- Adaptive displacement control, rollback, cutback ve retry eklendi.
+- Gerçek `J <= 0` failure senaryosunda `%100` trial reddedilip committed state'e dönüldü ve `%50 + %50` ile çözüm tamamlandı.
 - `solution_state_t`, trial/commit/revert ve `convergence_history_t` eklendi.
-- Cutback exhaustion ve okunabilir status mesajları eklendi.
+- Cutback exhaustion, minimum `J`, okunabilir status mesajları ve failure root-cause korunumu geliştirildi.
+- 1×1 / 2×2 / 4×4 homojen mesh refinement reaksiyonları `1.605586` olarak eşleşti.
 
-## 2026-08-17 — Branch ve sürekli kayıt kuralı
-
-- `Sistem-ve-Mimari` dokümantasyon branch'i oluşturuldu.
-- Son kullanıcı kararı: varsayılan sürekli güncelleme yalnız **`main`** üzerinde yapılacak.
-- `Sistem-ve-Mimari` kullanıcı ayrıca istemedikçe güncellenmeyecek.
-- `ChatGPT Sohbet 1`, `PROJECT_STATUS` ve `ROADMAP` main üzerinde sürekli güncel tutulacak.
-
-## 2026-08-17 — Açık kaynak Fortran kütüphaneleri
-
-Aktif dependency:
-- `https://github.com/kavakfatih/stdlib`
-- stdlib `0.8.1`
-- pinlenen commit `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
-- ilk kullanım `stdlib_linalg::solve` → LAPACK `*GESV`
-
-Planlanan/araştırılanlar:
-- Reference LAPACK
-- MUMPS
-- stdlib sparse / GMRES
-- MINPACK
-- PRIMA
-- PCHIP
-- HDF5
-- JSON-Fortran
-- FrontISTR
-
-Bilimsel constitutive/FEM/incompressibility/torsion/recovery fiziği Dyna'ya ait kalacak; harici kütüphaneler API/adapter sınırları arkasında tutulacak.
-
-## 2026-08-18 — Material Calibration araç planı
-
-V0.7 hedef zinciri:
-
-```text
-Raw Experimental Data
-→ PCHIP
-→ Objective + physical admissibility
-→ PRIMA BOBYQA / COBYLA
-→ MINPACK Levenberg–Marquardt
-→ Material validation
-```
-
-## 2026-08-18 — InternalMesh ve ham Results
+### InternalMesh ve Results
 
 - Minimal `internal_mesh_t`: 2B coordinates + Q4 connectivity + validation.
 - Duplicate-node ve invalid connectivity reddediliyor.
-- Eski `X + connectivity` regression için korundu.
+- Eski `X + connectivity` yolu regression için korundu.
 - InternalMesh ve eski assembly residual/tangent açısından eşdeğer doğrulandı.
-- `integration_point_result_t` ile `F`, `J`, `P`, Cauchy, strain-energy, element/point kimliği ve status saklanıyor.
-- `F=diag(1.10,0.95,1.0)` için dört Gauss noktasında `J=1.045` doğrulandı.
-- InternalMesh Newton adapteri final converged state'ten ham Gauss sonuçlarını topluyor.
+- Ham integration-point results: `F`, `J`, `P`, Cauchy, strain energy, element/point kimliği ve status.
+- `F = diag(1.10, 0.95, 1.0)` için dört Gauss noktasında `J = 1.045` doğrulandı.
 
-## 2026-08-18 — Backend-bağımsız lineer solver
+### Lineer solver sınırı
 
 - `des_linear_solver` eklendi.
-- `linear_solver_settings_t` ve `linear_solver_report_t` tanımlandı.
-- İlk backend `DES_LINEAR_BACKEND_STDLIB_DENSE`.
-- stdlib/LAPACK dense solve aktif.
-- equation count, backend, residual, status ve converged bilgileri raporlanıyor.
-- unsupported backend ayrı failure nedeni olarak korunuyor.
-- eski `des_dense_linear` compatibility wrapper oldu.
+- `linear_solver_settings_t` / `linear_solver_report_t` tanımlandı.
+- İlk backend `stdlib/LAPACK dense`.
+- Newton raporuna `linear_solve_count`, maksimum equation count, linear residual ve last linear report eklendi.
+- Unsupported backend terminal failure olarak korunuyor; adaptive cutback ile anlamsız tekrar yapılmıyor.
 
-## 2026-08-18 — Newton lineer diagnostics
+### Severe-distortion + kapalı-form benchmark
 
-- Fixed/adaptive Newton doğrudan `solve_linear_system(...)` kullanıyor.
-- `newton_report_t`: `linear_solve_count`, `max_linear_equation_count`, `max_linear_residual_inf_norm`, `last_linear_report`.
-- InternalMesh solver backend ayarı alabiliyor.
-- Unsupported backend adaptive cutback ile tekrar denenmiyor.
-
-## 2026-08-18 — Severe-distortion ve kapalı-form benchmark
-
-- `test_q4_severe_distortion_solver` eklendi.
-- 2×2 Q4 mesh merkez node `(1.45, 0.55)`.
-- Reference Gauss/Jacobian ağırlığı yaklaşık `0.07255 ... 0.42745`, min/max≈`0.1697`.
-- Affine deformation:
+- 2×2 Q4 mesh merkez node `(1.45, 0.55)` ile ciddi skew altında test edildi.
+- Exact affine deformation:
 
 ```text
 F = [1.35  0.28]
@@ -125,46 +67,52 @@ F = [1.35  0.28]
 J = 1.0194
 ```
 
-- Test merkez displacement, global denge, 16 Gauss `F/J`, lineer diagnostics, weighted `P`, reference area ve total energy kontrol ediyor.
-- Kapalı-form referans FEM assembly ve `des_neo_hookean` API'sinden bağımsız hesaplanıyor.
-- CTest tanımı 20 teste çıktı.
-- `docs/verification/V0.2_REFERENCE_BENCHMARKS.md` oluşturuldu.
+- FEM/material API'sinden bağımsız kapalı-form Neo-Hookean `J / P / W` referansı eklendi.
+- Merkez displacement, global force balance, 16 Gauss `F/J`, weighted `P`, reference area, total energy ve Newton/lineer diagnostics birlikte doğrulanıyor.
 
-## 2026-08-18 — GitHub Actions compiler matrix
+## Açık kaynak Fortran kütüphaneleri
 
-Fortran CI:
-- Ubuntu 24.04 / gfortran 14
-- macOS 26 ARM64 / gfortran 14
-- Windows 2025 / gfortran 14
-- Windows Intel ifx 2025.2
+Aktif zorunlu dependency:
 
-Gerçek GitHub-hosted 20-test sonuçları:
-- **Ubuntu / gfortran 14: başarılı**
-- **macOS ARM64 / gfortran 14: başarılı**
-- **Windows / gfortran 14: başarılı**
-- **Windows / Intel ifx: açık**
+- Dyna fork: `https://github.com/kavakfatih/stdlib`
+- upstream: `https://github.com/fortran-lang/stdlib`
+- stdlib `0.8.1`
+- pin: `9a15c7772f1a76a6c497b9f3abb793841fc81f74`
+- `stdlib_linalg::solve` üzerinden LAPACK dense çözüm
 
-ifx araştırması:
-1. Ninja + ifx 2025.2'de `ifx --version` çalıştı fakat CMake compiler ID `unknown` kaldı ve `CMAKE_Fortran_PREPROCESS_SOURCE` bulunamadı.
-2. Aynı durum CMake 4.4 ve 4.3.4 ile tekrarlandı; Dyna kaynak/test hatası olmadığı görüldü.
-3. Visual Studio 17 2022 generator denemesinde `windows-2025` runner'ın VS2026 imajına yönlendirildiği ve VS2022 instance bulunmadığı artifact logunda doğrulandı.
-4. GitHub'ın resmî runner politikası doğrultusunda Intel job `windows-2022` + Visual Studio 17 2022 + `-T fortran=ifx` kombinasyonuna taşındı.
+Araştırılan/planlanan:
 
-## 2026-08-18 — Bağımsız dış FEM doğrulaması
+- `Reference-LAPACK/lapack`
+- `fortran-lang/minpack`
+- `libprima/prima`
+- `jacobwilliams/PCHIP`
+- MUMPS
+- stdlib sparse / GMRES
+- HDF5
+- JSON-Fortran
+- FrontISTR
 
-FEniCSx / DOLFINx tabanlı ayrı referans workflow eklendi:
+Material calibration için hedef zincir:
 
-- script: `tools/reference/fenicsx_v02_homogeneous_extension.py`
-- workflow: `.github/workflows/fenicsx-reference.yml`
+```text
+Experimental Data
+→ PCHIP
+→ Objective + Physical Admissibility
+→ PRIMA BOBYQA / COBYLA
+→ MINPACK Levenberg–Marquardt
+→ Material Validation
+```
+
+Dyna'nın constitutive/FEM/incompressibility/torsion/recovery fiziği kendi kodumuz olarak kalacak; harici kütüphaneler API/adapter sınırları arkasında kullanılacak.
+
+## V0.2 bağımsız dış FEM doğrulaması
+
+FEniCSx / DOLFINx `0.11.0.post0` ile bağımsız reference workflow oluşturuldu.
+
 - container: `dolfinx/dolfinx:v0.11.0`
-- gerçek DOLFINx version: `0.11.0.post0`
+- residual/Jacobian: UFL automatic differentiation
 - nonlinear solver: PETSc SNES
 - lineer solver: PETSc LU/MUMPS
-- residual/Jacobian: UFL automatic differentiation
-
-İlk koşuda post-processing `dx` domain'i açık bağlanmadığı için failure oluştu. Artifact traceback ile gerçek neden bulunup `ufl.Measure("dx", domain=msh)` ile düzeltildi.
-
-Başarılı run: `32075320773`.
 
 Sonuç:
 
@@ -181,20 +129,106 @@ J vs closed-form fark            ≈ 4.88e-15
 total energy vs closed-form fark ≈ 5.72e-15
 ```
 
-Bağımsız dış FEM doğrulama kriteri **geçti**.
+Bağımsız dış FEM kriteri geçti.
 
-Kalıcı kayıtlar:
-- `docs/verification/V0.2_EXTERNAL_FEM_VALIDATION.md`
-- `docs/verification/results/FENICSX_V0.2_HOMOGENEOUS_EXTENSION.json`
+## V0.2 compiler matrix ve kapanış
 
-## Güncel kapanış durumu
+V0.2 test paketi 20 CTest içerir.
 
-V0.2 için artık tek büyük açık kriter:
+Başarılı GitHub-hosted platformlar:
 
-**Windows 2022 / Intel ifx 2025.2 configure + build + 20 CTest doğrulaması.**
+- Ubuntu 24.04 / gfortran 14
+- macOS 26 ARM64 / gfortran 14
+- Windows / gfortran 14
+- Windows 2022 / Intel ifx 2025.2
 
-Bu geçmeden V0.2 kapatılmayacak ve V0.3 production formulation geliştirmesi başlamış sayılmayacak.
+Intel tarafında ilk `windows-2025` denemeleri CMake compiler-ID/toolchain nedeniyle başarısız oldu. `fortran-lang/setup-fortran` uyumluluk matrisi doğrultusunda Intel job `windows-2022 + ifx 2025.2 + Ninja` yoluna alındı ve doğrudan ifx smoke compile eklendi.
 
-Sıradaki sürüm: **V0.3 — displacement Q4 vs mixed `u-p` vs F-bar formulation bake-off.**
+`eb30cd0997ff9329b508f43e8d5606af5ec5865a` commit'i için `dyna/ifx-v02` status context'i **success** oldu. Bu context yalnız setup-fortran, ifx smoke compile, CMake configure, build ve CTest adımlarının tamamı başarılıysa success üretiyor.
+
+### V0.2 sonucu
+
+**V0.2.0 TAMAMLANDI.**
+
+- release branch: `release/v0.2`
+- CMake version: `0.2.0`
+- release metadata commit: `d9a960fb2b8cd9aac0018deb5b099cf68ddc062f`
+
+## Sürüm / branch modeli
+
+Kullanıcı isteğiyle sürümler arasında geri dönüş için branch tabanlı sürümleme kuralı oluşturuldu:
+
+```text
+main
+├── release/v0.2   ← kararlı V0.2.0
+└── develop/v0.3   ← aktif V0.3.0 geliştirmesi
+```
+
+- `main`: doğrulanmış ana hat + sürekli proje kayıtları
+- `release/vX.Y`: korunmuş ve geri dönülebilir sürüm
+- `develop/vX.Y`: yeni sürümün aktif geliştirmesi
+- `Sistem-ve-Mimari`: kullanıcı ayrıca istemedikçe güncellenmez
+
+## V0.3 — Nearly-Incompressible Formulation Bake-off
+
+**Aktif branch:** `develop/v0.3`  
+**CMake version:** `0.3.0`
+
+Amaç:
+
+```text
+Displacement-only Q4
+        vs
+Mixed u-p
+        vs
+F-bar / eşdeğer locking azaltıcı formulation
+```
+
+### İlk V0.3 implementasyonu
+
+1. `des_q4_edge_traction.f90`
+   - Q4 dört yerel kenar
+   - 2-point Gauss edge integration
+   - reference-configuration nominal traction
+   - skew edge desteği
+   - total force conservation
+   - invalid edge / zero edge diagnostics
+
+2. `des_q4_mesh_edge_traction.f90`
+   - element edge load → global force vector scatter
+   - birden fazla boundary edge'in aynı global vektörde birikmesi
+
+3. `des_q4_plane_strain_force_solver.f90`
+   - V0.2 displacement solver'dan ayrı minimal force-control Full Newton driver
+   - fixed zero-displacement DOF
+   - reference external force vector
+   - fixed increments
+   - Dyna lineer solver API
+   - `newton_report_t` diagnostics
+
+4. Analitik force-control benchmark
+   - tek Q4 homojen Neo-Hookean traction problemi
+   - kapalı-form `P11`, lateral contraction ve reaction referansı
+
+5. Cook-benzeri displacement-Q4 locking baseline
+   - sol kenar ankastre
+   - sağ kenarda yukarı nominal traction
+   - `mu=1`, `lambda=1000`
+   - 2×2 / 4×4 / 8×8 Q4 mesh
+   - coarse-mesh stiffness / volumetric locking davranışı ölçülecek
+
+Yerel GNU Fortran 14.2 doğrulamasında element edge-traction ve InternalMesh global edge-load assembly testleri geçti.
+
+V0.3 test tanımı şu anda **24 CTest**. Tam dört-compiler CI sonucu bekleniyor.
+
+## Sıradaki adım
+
+1. `develop/v0.3` 24-test compiler matrix sonucunu kesinleştir.
+2. Cook displacement-Q4 baseline sayısal değerlerini kalıcı benchmark kaydına yaz.
+3. Minimum mixed displacement-pressure (`u-p`) prototipini oluştur.
+4. Pressure DOF / block residual-tangent ve pressure stability diagnostics ekle.
+5. Aynı Cook benchmarkında mixed `u-p` sonucunu ölç.
+6. F-bar Q4 prototipini aynı benchmarka bağla.
+7. Production formulation kararını yalnız ortak benchmark sonuçlarından sonra ver.
 
 `Sistem-ve-Mimari` branch'ine bu geliştirmelerde dokunulmadı.
