@@ -45,22 +45,27 @@ Karar ADR-0007 ile **F-bar Q4** lehine sabitlendi.
 - mixed Q4/P0 displacement doğruluğu güçlü olmasına rağmen düzenli quadrilateral mesh üzerinde checkerboard pressure null-mode riski taşıyor,
 - F-bar mevcut dış Q2 referansa göre en düşük 8x8 displacement hatasını veriyor,
 - F-bar bağımsız pressure DOF eklemeden mixed'e göre daha küçük global sistem oluşturuyor,
-- F-bar residual/tangent zinciri energy-consistent ve analytic consistent tangent ile doğrulandı.
+- F-bar residual/tangent zinciri energy-consistent ve analytic consistent tangent ile doğrulandı,
+- dedicated severe-distortion affine force-control benchmarkı F-bar production yolunu ciddi mesh distorsiyonu altında ayrıca doğruladı.
 
 ---
 
 ## Resmi compiler matrix
 
-V0.3 güncel CTest sayısı: **36**.
+V0.3 güncel CTest sayısı: **37**.
 
-| Platform | Configure | Build | 36 CTest | Benchmark artifacts |
+| Platform | Configure | Build | 37 CTest | Benchmark artifacts |
 |---|---|---|---|---|
 | Windows 2022 / Intel ifx 2025.2 | ✅ | ✅ | ✅ | ✅ |
 | Windows / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
 | macOS ARM64 / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
 | Linux / gfortran 14 | ✅ | ✅ | ✅ | ✅ |
 
-FEniCSx/DOLFINx V0.3 Cook Q2 dış referans workflow'u da aynı code head üzerinde yeniden geçti. ✅
+Doğrulanan code head:
+
+`9e4e19af8feaeb50aeedd148980b0dc439205dab`
+
+FEniCSx/DOLFINx V0.3 Cook Q2 dış referans workflow'u da aynı head üzerinde yeniden geçti. ✅
 
 Platform numerical reproducibility:
 
@@ -152,7 +157,7 @@ Bu sweep displacement-only Q4 locking davranışını açık biçimde ayırıyor
 
 ## Mixed Q4/P0 pressure stability sonucu
 
-Yeni regression/decision testi:
+Regression/decision testi:
 
 `benchmark.v0.3.mixed_up.checkerboard_null_mode`
 
@@ -204,6 +209,57 @@ F-bar daha fazla Newton iterasyonu gerektiriyor; ancak mixed'e göre yaklaşık 
 
 ---
 
+## F-bar dedicated severe-distortion robustness benchmarkı
+
+Test:
+
+`benchmark.v0.3.fbar.severe_distortion_affine`
+
+Kaynak:
+
+`tests/test_v03_fbar_severe_distortion_affine.f90`
+
+Benchmark, V0.2 severe-distortion geometrisi ile aynı 2x2 Q4 mesh üzerinde çalışıyor. Merkez düğüm belirgin biçimde kaydırılmış durumda ve referans Gauss-Jacobian ağırlık oranı yaklaşık `0.1697`.
+
+Hedef deformation tam izokorik büyük affine finite strain olarak seçildi:
+
+```text
+F11 = 1.20
+F12 = 0.25
+F21 = 0.00
+F22 = 0.8333333333
+J   = 1.0
+mu  = 2.7
+lambda = 1000
+```
+
+Nominal boundary traction test içinde bağımsız kapalı-form Neo-Hookean `P*N0` ile oluşturuluyor. Böylece traction assembly, F-bar global assembly ve force-control Full Newton aynı testte sınanıyor.
+
+Resmi macOS/gfortran CTest sonucu:
+
+```text
+Reference min weight        = 7.254809e-02
+Reference weight ratio      = 1.697222e-01
+Exact affine free residual  = 1.518785e-13
+Recovered displacement err  = 1.267320e-12
+Final minimum J             = 1.000000
+Final minimum J_bar         = 1.000000
+Final maximum J_bar         = 1.000000
+Newton linear solve count   = 32
+```
+
+Sonuç:
+
+- severe-distorted mesh geçerli referans Jacobian ile korunuyor,
+- bağımsız kapalı-form traction altında exact affine equilibrium makine hassasiyetine yakın kapanıyor,
+- sıfır başlangıçtan 8 load increment Full Newton hedef affine alanı yaklaşık `1.27e-12` maksimum displacement hatasıyla geri kazanıyor,
+- final `J` ve `J_bar` tam izokorik referansla uyuşuyor,
+- aynı test Windows/ifx, Windows/gfortran, macOS/gfortran ve Linux/gfortran platformlarının tamamında geçti. ✅
+
+Bu madde ile F-bar production yolunun dedicated distortion/robustness exit criterion'u **kapatıldı**.
+
+---
+
 ## Axisymmetric / torsion geçiş kuralı
 
 ADR-0007 yalnız V0.3 **plane-strain** production baseline kararıdır.
@@ -236,21 +292,21 @@ Bütçe sonrası ayrıştırılıp düzeltilen gerçek CI problemleri:
 
 1. mixed testte Fortran `J/j` isim çakışması,
 2. FEniCSx Cook Q2 için 5 kademeli load continuation gereksinimi,
-3. DOLFINx v0.11 tek-nokta vector eval şekli uyumluluğu.
+3. DOLFINx v0.11 tek-nokta vector eval şekli uyumluluğu,
+4. yeni F-bar distortion testinde yalnız test mesajına ait Fortran tek-tırnak sözdizimi hatası.
 
-Bu düzeltmelerden sonra resmi matrix yeşildir.
+Dördüncü madde yalnız string mesajı düzeltilerek kapatıldı; benchmark fiziği ve toleransları değiştirilmedi.
 
 ---
 
 ## Güncel sıradaki V0.3 adımları
 
-1. ADR-0007 kararını V0.3 status/roadmap ve PR kayıtlarıyla tamamen senkronla.
-2. F-bar production yolu için dedicated distortion/robustness benchmarkını ekle.
-3. Daha büyük meshlerde wall-clock ve bellek ölçüm altyapısını hazırla.
-4. F-bar Results pressure semantiğini derived diagnostic olarak netleştir.
-5. V0.3 exit criteria listesini kapat ve release hazırlığını yap.
-6. V0.4 / sonraki geliştirme dalgasında axisymmetric F-bar türetimine geç.
-7. Axisymmetric doğrulanmadan axisymmetric torsion / 2.5D production implementasyonuna geçme.
+1. Daha büyük meshlerde wall-clock ve bellek ölçüm altyapısını hazırla.
+2. F-bar Results pressure semantiğini derived diagnostic olarak kod/contract seviyesinde netleştir.
+3. PR #1 V0.3 exit criteria listesini güncelle ve kalan maddeleri kapat.
+4. V0.3 release hazırlığına geç.
+5. Sonraki geliştirme dalgasında axisymmetric F-bar türetimini başlat.
+6. Axisymmetric doğrulanmadan axisymmetric torsion / 2.5D production implementasyonuna geçme.
 
 ## Branch kuralı
 
