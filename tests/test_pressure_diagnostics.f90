@@ -34,6 +34,12 @@ program test_pressure_diagnostics
   if (d%normalized_neighbor_jump_rms <= 0.0_dp) then
     error stop 'Normalize pressure jump pozitif değil.'
   end if
+  if (abs(d%neighbor_jump_to_std-sqrt(2.0_dp)) > tol) then
+    error stop 'Pressure jump/std roughness hatalı.'
+  end if
+  if (abs(d%graph_roughness-2.0_dp) > tol) then
+    error stop 'Pressure graph roughness hatalı.'
+  end if
 
   constant_pressure = 7.0_dp
   call evaluate_q4_pressure_diagnostics(connectivity,constant_pressure,d,status)
@@ -41,6 +47,8 @@ program test_pressure_diagnostics
   if (abs(d%standard_deviation) > tol) error stop 'Constant pressure std sıfır değil.'
   if (abs(d%neighbor_jump_rms) > tol) error stop 'Constant pressure jump sıfır değil.'
   if (abs(d%normalized_neighbor_jump_rms) > tol) error stop 'Constant pressure normalized jump sıfır değil.'
+  if (abs(d%neighbor_jump_to_std) > tol) error stop 'Constant pressure jump/std sıfır değil.'
+  if (abs(d%graph_roughness) > tol) error stop 'Constant pressure graph roughness sıfır değil.'
 
   call check_wrong_pressure_size(connectivity)
 
