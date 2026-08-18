@@ -1,31 +1,31 @@
 DynaElastomerSolver Proprietary Source-Available License
-Version 1.0 — 18 August 2026
+Version 1.1 — 18 August 2026
 
-Copyright (c) 2026 Fatih KAVAK. All Rights Reserved.
+Copyright (c) 2026 Muhammet Fatih Kavak. All Rights Reserved.
 
 IMPORTANT: THIS IS NOT AN OPEN-SOURCE LICENSE.
 
 This license applies to the original DynaElastomerSolver source code, tests,
 documentation, workflows, project-specific designs and other copyrightable
-material owned by Fatih KAVAK (the “Licensor”), except for Third-Party
+material owned by Muhammet Fatih Kavak (the “Licensor”), except for Third-Party
 Components identified below or in THIRD_PARTY_NOTICES.md.
 
 1. OWNERSHIP AND RESERVATION OF RIGHTS
 
 The Licensor retains all copyright and other intellectual-property rights in
 and to the DynaElastomerSolver materials to the extent such rights are owned
-by the Licensor. Publication or public visibility of the repository does not
-dedicate the materials to the public domain and does not make the project open
-source.
+by the Licensor. Publication, public visibility, access, download, cloning,
+indexing, referencing or discussion of the repository does not dedicate the
+materials to the public domain and does not make the project open source.
 
-Except for rights that must be provided under applicable law, the GitHub Terms
-of Service, or a separate written agreement signed by the Licensor, no rights
-are granted by implication, estoppel, exhaustion, publication, access, or
-otherwise.
+Except for rights that must be provided under applicable law, rights arising
+directly under the GitHub Terms of Service, or a separate written agreement
+signed by the Licensor, no rights are granted by implication, estoppel,
+exhaustion, publication, access, silence, course of dealing or otherwise.
 
 2. GITHUB PLATFORM RIGHTS
 
-If this repository is made public on GitHub, GitHub and GitHub users may receive
+Because this repository is public on GitHub, GitHub and GitHub users may receive
 limited rights directly under the then-current GitHub Terms of Service,
 including rights required for GitHub to host, display, process and provide the
 repository and rights that GitHub grants users to view or fork public
@@ -67,7 +67,8 @@ artificial-intelligence or machine-learning models or systems.
 
 No patent license is granted. All patent and patent-application rights, if any,
 are expressly reserved. Public availability of source code must not be
-interpreted as a covenant not to assert patent rights.
+interpreted as a covenant not to assert patent rights or as an authorization
+to practice any patented invention.
 
 6. TRADEMARKS AND PROJECT IDENTITY
 
@@ -96,8 +97,8 @@ grants with respect to a Third-Party Component.
 
 Unsolicited code contributions are not accepted as transferring ownership to
 the Licensor. Contribution requirements are governed by CONTRIBUTING.md.
-A contribution may be merged only after any intellectual-property assignment
-or other written agreement required by the Licensor has been completed.
+A contribution may be merged only after any intellectual-property assignment,
+license or other written agreement required by the Licensor has been completed.
 
 9. NO WARRANTY
 
@@ -125,14 +126,28 @@ Any permission for commercial use, internal organizational use, redistribution,
 integration, modification, OEM use, consulting use, hosted use or other use may
 be granted only under a separate written license signed by the Licensor.
 
-12. SEVERABILITY AND MANDATORY LAW
+12. NO WAIVER
+
+Failure or delay by the Licensor to exercise or enforce any right does not waive
+that right. Permission given for one person, version, purpose, transaction or
+use does not create permission for any other person, version, purpose,
+transaction or use.
+
+13. SEVERABILITY AND MANDATORY LAW
 
 If any provision of this License is held unenforceable, the remaining
 provisions remain effective to the maximum extent permitted by applicable law.
 Nothing in this License limits rights that cannot lawfully be waived or
 restricted.
 
-13. COMPLETE NOTICE
+14. AUTHORITATIVE RIGHTS-HOLDER RECORD
+
+The rights-holder record for the original DynaElastomerSolver materials is
+maintained in COPYRIGHT.md. If a third-party notice identifies a different
+rights holder for a Third-Party Component, that third-party notice controls for
+that component.
+
+15. COMPLETE NOTICE
 
 For the avoidance of doubt:
 
