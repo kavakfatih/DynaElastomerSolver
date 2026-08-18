@@ -56,7 +56,8 @@ def parse_mixed(text: str) -> dict:
             rf"{mesh}x{mesh}:\s+tip=\s*({NUMBER})\s*\n"
             rf"\s*p\(min/mean/max\)=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})\s*\n"
             rf"\s*p\(std/rms\)=\s*({NUMBER})\s+({NUMBER})\s*\n"
-            rf"\s*jump\(rms/max/norm\)=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})",
+            rf"\s*jump\(rms/max/norm\)=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})\s*\n"
+            rf"\s*roughness\(jump/std,graph\)=\s*({NUMBER})\s+({NUMBER})",
             flags=re.MULTILINE,
         )
         match = case_pattern.search(text)
@@ -77,6 +78,8 @@ def parse_mixed(text: str) -> dict:
                 "neighbor_jump_rms": values[6],
                 "maximum_neighbor_jump": values[7],
                 "normalized_neighbor_jump_rms": values[8],
+                "neighbor_jump_to_std": values[9],
+                "graph_roughness": values[10],
             },
         }
 
