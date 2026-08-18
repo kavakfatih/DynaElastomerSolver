@@ -117,6 +117,8 @@ contains
     write(*,'(A,2(ES14.6,1X))') '  p(std/rms)=      ',pd%standard_deviation,pd%rms
     write(*,'(A,3(ES14.6,1X))') '  jump(rms/max/norm)= ',pd%neighbor_jump_rms, &
       pd%maximum_neighbor_jump,pd%normalized_neighbor_jump_rms
+    write(*,'(A,2(ES14.6,1X))') '  roughness(jump/std,graph)= ', &
+      pd%neighbor_jump_to_std,pd%graph_roughness
   end subroutine print_case
 
   subroutine build_cook_mesh(nx,ny,X,connectivity)
