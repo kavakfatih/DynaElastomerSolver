@@ -85,19 +85,20 @@ Production formulation henüz seçilmemiştir.
 - [x] Cook-benzeri 2×2 / 4×4 / 8×8 benchmark
 - [x] final-state `J` / historical Newton minimum `J` ayrımı
 - [x] Newton / lineer solve / equation-count diagnostics
-- [x] **birleşik üçlü Cook benchmark executable'ı**
+- [x] birleşik üçlü Cook benchmark executable'ı
 - [x] doğrudan `V0.3_COOK_BAKEOFF_RESULTS.json` üretimi
 - [x] JSON schema v3
 - [x] her compiler job'unda doğrudan benchmark artifact'i
 - [x] platform sonuç karşılaştırıcısı: `compare_v03_platform_results.py`
-
-`LastTest.log` parser artık ana sonuç üretim yolu değildir; birleşik Fortran testi JSON'u doğrudan üretir.
+- [x] parser F-bar metadata'sı analitik tangent ile güncellendi
+- [x] **4×4 Cook `lambda/mu = 10/100/1000` incompressibility sweep**
 
 ### Displacement-only baseline
 
 - [x] near-incompressible Cook baseline
 - [x] coarse-to-fine convergence trendi test yolu
 - [x] bağımsız precheck'te güçlü locking sinyali
+- [x] incompressibility sweep'te güçlü `lambda/mu` rijitleşme sinyali
 - [ ] converged dış Q2/FEniCSx referansına göre gerçek relative error
 
 **Karar kuralı:** coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 Q4 çözümü de locked olabilir.
@@ -117,6 +118,7 @@ Psi(F,p) = mu/2(I1-3) - mu ln(J) + p ln(J) - p^2/(2 lambda)
 - [x] mixed Full Newton force solver
 - [x] analytic homogeneous traction benchmark
 - [x] mixed Cook 2×2 / 4×4 / 8×8
+- [x] Cook element pressure stationarity consistency: `p_e = lambda <ln J>_e`
 
 Pressure stability diagnostics:
 
@@ -132,6 +134,7 @@ Pressure stability diagnostics:
   - max pressure residual ≈ `1.11e-16`
   - graph roughness = `0`
 - [x] bağımsız precheck'te roughness trendi `2.874 -> 0.976 -> 0.321`
+- [x] incompressibility sweep precheck: `lambda/mu 10→1000` tip drop ≈ `8.45%`
 - [ ] independent continuum pressure-field reference comparison
 
 Q4/P0 hâlâ production formulation seçimi değildir.
@@ -156,6 +159,7 @@ F_bar_g = alpha_g F_g
 - [x] homogeneous analytic traction benchmark
 - [x] F-bar Cook 2×2 / 4×4 / 8×8
 - [x] bağımsız precheck'te mixed ile mesh-refinement yakınsaması
+- [x] incompressibility sweep precheck: `lambda/mu 10→1000` tip drop ≈ `8.38%`
 - [ ] Windows/ifx platform doğrulaması
 - [ ] Windows/gfortran platform doğrulaması
 - [ ] macOS ARM64/gfortran platform doğrulaması
@@ -186,11 +190,34 @@ Mixed–F-bar relative tip farkı:
 
 8x8 displacement/F-bar oranı ≈ `%33.8`.
 
-Bu precheck resmi Fortran/CTest sonucu değildir; formulation kararını tek başına belirlemez.
+Geçici ikinci cross-check'te Q4 gradient dönüşüm yönü yanlış uygulanmış ve bu geçici dosyalar repodan kaldırılmıştır. Doğru `J^{-T}` dönüşümü mevcut bağımsız precheck sonuçlarını yeniden üretmiştir.
+
+### Incompressibility sweep precheck
+
+Kayıt:
+
+`docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_PRECHECK.json`
+
+4×4 Cook:
+
+| lambda/mu | Displacement | Mixed | F-bar |
+|---:|---:|---:|---:|
+| 10 | 0.01326101 | 0.01841319 | 0.01911670 |
+| 100 | 0.00744673 | 0.01702588 | 0.01768588 |
+| 1000 | 0.00595658 | 0.01685744 | 0.01751507 |
+
+```text
+Displacement drop 10→1000 ≈ 55.08%
+Mixed drop        10→1000 ≈  8.45%
+F-bar drop        10→1000 ≈  8.38%
+Mixed/F-bar farkı @1000   ≈  3.75%
+```
+
+Bu precheck resmi platform CTest kanıtı değildir; yeni regression testinin beklenen trendini doğrular.
 
 ### Platform numerical reproducibility
 
-Her compiler job'u artık kendi birleşik bake-off JSON artifactini saklar:
+Her compiler job'u kendi birleşik bake-off JSON artifactini saklar:
 
 - Windows / ifx
 - Windows / gfortran
@@ -202,8 +229,6 @@ Her compiler job'u artık kendi birleşik bake-off JSON artifactini saklar:
 - tip/final `J`/pressure/`J_bar` sonuçlarını tolerans içinde karşılaştırır,
 - equation count'u exact kontrol eder,
 - iteration/linear solve farklarını bilgi olarak raporlar.
-
-Böylece platform doğrulaması yalnız “derlendi/test geçti” değil, **aynı sayısal çözümü verdi** kriterini de içerir.
 
 ### Bağımsız V0.3 dış referans
 
@@ -230,12 +255,13 @@ Bu nedenle mevcut hata build/CTest seviyesine ulaşmamaktadır. GitHub Actions a
 
 ### Güncel test sayısı
 
-**34 CTest tanımı**.
+**35 CTest tanımı**.
 
 ### Sıradaki V0.3 işleri
 
 - [ ] GitHub-hosted Actions pre-step engelini çöz
-- [ ] Windows/ifx + Windows/gfortran + macOS ARM64/gfortran 34-test matrix'i kapat
+- [ ] Windows/ifx + Windows/gfortran + macOS ARM64/gfortran 35-test matrix'i kapat
+- [ ] incompressibility sweep regressionını üç birincil platformda doğrula
 - [ ] üç birincil platform bake-off JSON'larını numerical reproducibility açısından karşılaştır
 - [ ] FEniCSx Q2 2/4/8/16 dış referans artifactini al
 - [ ] Dyna üçlü sonuçlarını converged Q2 referansına göre relative error ile değerlendir
@@ -248,6 +274,7 @@ Karar ölçütleri:
 
 - dış referansa göre displacement hatası
 - volumetric locking
+- `lambda/mu` duyarlılığı
 - pressure stability / oscillation
 - mesh convergence
 - nonlinear convergence
