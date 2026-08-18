@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Docker Hub v0.11.0 linux/amd64 immutable image digest.
+  FENICSX_IMAGE: dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
+
 jobs:
   homogeneous-extension:
     name: DOLFINx v0.11.0 / homojen extension
@@ -28,7 +32,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: FEniCSx referans imajını al
-        run: docker pull dolfinx/dolfinx:v0.11.0
+        run: docker pull "$FENICSX_IMAGE"
 
       - name: Bağımsız FEM referansını çalıştır
         shell: bash
@@ -38,7 +42,7 @@ jobs:
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
             -w /work \
-            dolfinx/dolfinx:v0.11.0 \
+            "$FENICSX_IMAGE" \
             python3 tools/reference/fenicsx_v02_homogeneous_extension.py \
             > reference-results/fenicsx-run.log 2>&1
           status=$?
