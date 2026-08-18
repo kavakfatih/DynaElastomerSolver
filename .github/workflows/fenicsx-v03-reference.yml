@@ -1,0 +1,98 @@
+name: FEniCSx V0.3 Cook Q2 Reference
+
+on:
+  push:
+    branches: ['develop/v0.3']
+    paths:
+      - 'tools/reference/fenicsx_v03_cook_q2_reference.py'
+      - '.github/workflows/fenicsx-v03-reference.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/reference/fenicsx_v03_cook_q2_reference.py'
+      - '.github/workflows/fenicsx-v03-reference.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dyna-v03-fenicsx-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  cook-q2-reference:
+    name: DOLFINx v0.11.0 / Cook Q2 external reference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      # actions/checkout v7.0.1
+      - name: Kaynak kodu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: FEniCSx referans imajını al
+        run: docker pull dolfinx/dolfinx:v0.11.0
+
+      - name: Bağımsız V0.3 Cook Q2 referansını çalıştır
+        id: reference
+        shell: bash
+        run: |
+          mkdir -p reference-results
+          set +e
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            dolfinx/dolfinx:v0.11.0 \
+            python3 tools/reference/fenicsx_v03_cook_q2_reference.py \
+            > reference-results/fenicsx-v03-cook-q2.log 2>&1
+          status=$?
+          set -e
+
+          cat reference-results/fenicsx-v03-cook-q2.log
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 60 reference-results/fenicsx-v03-cook-q2.log | tr '\n' ' ' | cut -c1-4000)
+            echo "::error file=tools/reference/fenicsx_v03_cook_q2_reference.py::FEniCSx V0.3 Cook referansı başarısız: ${message}"
+            exit "$status"
+          fi
+
+      - name: Referans sonucunu göster
+        if: steps.reference.outcome == 'success'
+        run: cat reference-results/fenicsx_v03_cook_q2_reference.json
+
+      # actions/upload-artifact v7.0.1
+      - name: Referans artifactini sakla
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fenicsx-v03-cook-q2-reference
+          path: reference-results/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: FEniCSx V0.3 commit status yayınla
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REFERENCE_OUTCOME: ${{ steps.reference.outcome }}
+        run: |
+          $passed = ($env:REFERENCE_OUTCOME -eq 'success')
+          $state = if ($passed) { 'success' } else { 'failure' }
+          $description = if ($passed) { 'DOLFINx Q2 Cook external reference passed' } else { "DOLFINx Q2 reference outcome=$($env:REFERENCE_OUTCOME)" }
+
+          $body = @{
+            state = $state
+            context = 'dyna/v0.3-fenicsx-q2-reference'
+            description = $description
+            target_url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          } | ConvertTo-Json -Compress
+
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          Invoke-RestMethod -Method Post -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
