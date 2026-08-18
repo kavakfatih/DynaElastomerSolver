@@ -17,7 +17,7 @@ program test_v03_incompressibility_sweep
   real(dp) :: tip_disp(3),tip_mixed(3),tip_fbar(3)
   real(dp) :: displacement_drop,mixed_drop,fbar_drop
   real(dp) :: mixed_fbar_gap
-  integer :: k
+  integer :: k,json_unit,ios
 
   do k = 1,3
     call solve_displacement_case(lambdas(k),tip_disp(k))
@@ -64,9 +64,64 @@ program test_v03_incompressibility_sweep
   write(*,'(A,F8.3,A)') '  mixed lambda10->1000 drop        = ',100.0_dp*mixed_drop,' %'
   write(*,'(A,F8.3,A)') '  F-bar lambda10->1000 drop        = ',100.0_dp*fbar_drop,' %'
   write(*,'(A,F8.3,A)') '  mixed/F-bar lambda1000 tip farkı = ',100.0_dp*mixed_fbar_gap,' %'
+
+  ! Sweep sonucu log parse edilmeden doğrudan test executable'ı tarafından yazılır.
+  open(newunit=json_unit,file='V0.3_INCOMPRESSIBILITY_SWEEP_RESULTS.json', &
+       status='replace',action='write',iostat=ios)
+  if (ios /= 0) error stop 'V0.3 incompressibility sweep JSON dosyası açılamadı.'
+  call write_sweep_json(json_unit,tip_disp,tip_mixed,tip_fbar, &
+                        displacement_drop,mixed_drop,fbar_drop,mixed_fbar_gap)
+  close(json_unit)
+
   write(*,'(A)') 'V0.3 incompressibility sweep testi BASARILI.'
 
 contains
+
+  subroutine write_sweep_json(unit,displacement,mixed,fbar, &
+                              drop_displacement,drop_mixed,drop_fbar,mixed_fbar_gap_value)
+    integer, intent(in) :: unit
+    real(dp), intent(in) :: displacement(3),mixed(3),fbar(3)
+    real(dp), intent(in) :: drop_displacement,drop_mixed,drop_fbar,mixed_fbar_gap_value
+
+    write(unit,'(A)') '{'
+    write(unit,'(A)') '  "schema_version": 1,'
+    write(unit,'(A)') '  "status": "fortran_ctest_measurement",'
+    write(unit,'(A)') '  "benchmark": "cook_4x4_incompressibility_lambda_mu_sweep",'
+    write(unit,'(A)') '  "plane_condition": "plane_strain",'
+    write(unit,'(A)') '  "mu": 1.0,'
+    write(unit,'(A)') '  "reference_nominal_traction_y": 0.01,'
+    write(unit,'(A)') '  "load_increments": 5,'
+    write(unit,'(A,3(ES24.16E3,A))') &
+      '  "lambda_over_mu": [',lambdas(1),',',lambdas(2),',',lambdas(3),'],'
+    write(unit,'(A)') '  "tip_displacement": {'
+    call write_three_values(unit,'displacement_q4',displacement,.true.)
+    call write_three_values(unit,'mixed_q4_p0',mixed,.true.)
+    call write_three_values(unit,'fbar_q4',fbar,.false.)
+    write(unit,'(A)') '  },'
+    write(unit,'(A)') '  "lambda10_to_1000_drop": {'
+    write(unit,'(A,ES24.16E3,A)') '    "displacement_q4": ',drop_displacement,','
+    write(unit,'(A,ES24.16E3,A)') '    "mixed_q4_p0": ',drop_mixed,','
+    write(unit,'(A,ES24.16E3)')   '    "fbar_q4": ',drop_fbar
+    write(unit,'(A)') '  },'
+    write(unit,'(A,ES24.16E3)') &
+      '  "mixed_fbar_relative_tip_difference_at_lambda1000": ',mixed_fbar_gap_value
+    write(unit,'(A)') '}'
+  end subroutine write_sweep_json
+
+  subroutine write_three_values(unit,name,values,with_comma)
+    integer, intent(in) :: unit
+    character(len=*), intent(in) :: name
+    real(dp), intent(in) :: values(3)
+    logical, intent(in) :: with_comma
+
+    if (with_comma) then
+      write(unit,'(A,3(ES24.16E3,A))') &
+        '    "'//trim(name)//'": [',values(1),',',values(2),',',values(3),'],'
+    else
+      write(unit,'(A,3(ES24.16E3,A))') &
+        '    "'//trim(name)//'": [',values(1),',',values(2),',',values(3),']'
+    end if
+  end subroutine write_three_values
 
   subroutine solve_displacement_case(lame_lambda,tip)
     real(dp), intent(in) :: lame_lambda
