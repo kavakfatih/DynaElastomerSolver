@@ -90,15 +90,14 @@ Production formulation henüz seçilmemiştir.
 - [x] JSON schema v3
 - [x] her compiler job'unda doğrudan benchmark artifact'i
 - [x] platform sonuç karşılaştırıcısı: `compare_v03_platform_results.py`
-- [x] parser F-bar metadata'sı analitik tangent ile güncellendi
-- [x] **4×4 Cook `lambda/mu = 10/100/1000` incompressibility sweep**
+- [x] 4x4 Cook incompressibility sweep: `lambda/mu = 10/100/1000`
 
 ### Displacement-only baseline
 
 - [x] near-incompressible Cook baseline
 - [x] coarse-to-fine convergence trendi test yolu
 - [x] bağımsız precheck'te güçlü locking sinyali
-- [x] incompressibility sweep'te güçlü `lambda/mu` rijitleşme sinyali
+- [x] incompressibility sweep precheck: lambda10→1000 tip drop ≈ `55.08%`
 - [ ] converged dış Q2/FEniCSx referansına göre gerçek relative error
 
 **Karar kuralı:** coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 Q4 çözümü de locked olabilir.
@@ -118,7 +117,7 @@ Psi(F,p) = mu/2(I1-3) - mu ln(J) + p ln(J) - p^2/(2 lambda)
 - [x] mixed Full Newton force solver
 - [x] analytic homogeneous traction benchmark
 - [x] mixed Cook 2×2 / 4×4 / 8×8
-- [x] Cook element pressure stationarity consistency: `p_e = lambda <ln J>_e`
+- [x] incompressibility sweep precheck: lambda10→1000 tip drop ≈ `8.45%`
 
 Pressure stability diagnostics:
 
@@ -129,15 +128,8 @@ Pressure stability diagnostics:
 - [x] mean-free `neighbor_jump_to_std`
 - [x] `graph_roughness = (jump_rms/std)^2`
 - [x] manufactured homojen zero-roughness benchmark
-  - exact `J = 1.0316`
-  - exact `p = 0.5911089`
-  - max pressure residual ≈ `1.11e-16`
-  - graph roughness = `0`
 - [x] bağımsız precheck'te roughness trendi `2.874 -> 0.976 -> 0.321`
-- [x] incompressibility sweep precheck: `lambda/mu 10→1000` tip drop ≈ `8.45%`
 - [ ] independent continuum pressure-field reference comparison
-
-Q4/P0 hâlâ production formulation seçimi değildir.
 
 ### F-bar Q4
 
@@ -149,7 +141,7 @@ F_bar_g = alpha_g F_g
 
 - [x] energy-consistent element residual
 - [x] `J_bar` Gauss coupling'i residualda
-- [x] **analitik consistent tangent**
+- [x] analitik consistent tangent
 - [x] homogeneous residual-equivalence test
 - [x] independent cross-FD tangent doğrulaması
 - [x] local GNU Fortran cross-FD error ≈ `1.20e-9`
@@ -158,23 +150,23 @@ F_bar_g = alpha_g F_g
 - [x] F-bar force-control Newton solver
 - [x] homogeneous analytic traction benchmark
 - [x] F-bar Cook 2×2 / 4×4 / 8×8
-- [x] bağımsız precheck'te mixed ile mesh-refinement yakınsaması
-- [x] incompressibility sweep precheck: `lambda/mu 10→1000` tip drop ≈ `8.38%`
+- [x] incompressibility sweep precheck: lambda10→1000 tip drop ≈ `8.38%`
+- [x] lambda/mu=1000 mixed–F-bar relative tip farkı ≈ `3.75%`
 - [ ] Windows/ifx platform doğrulaması
 - [ ] Windows/gfortran platform doğrulaması
 - [ ] macOS ARM64/gfortran platform doğrulaması
 
-### Bağımsız Cook precheck
+### Bağımsız Cook ve sweep precheck
 
 Kayıtlar:
 
 - `docs/verification/results/V0.3_COOK_INDEPENDENT_PRECHECK.json`
 - `docs/verification/V0.3_COOK_PRECHECK_ANALYSIS.md`
+- `docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_INDEPENDENT_PRECHECK.json`
 
-İlk sinyaller:
+8x8 tip displacement precheck:
 
 ```text
-8x8 tip displacement:
 Displacement Q4 = 0.00656453
 Mixed Q4/P0    = 0.01915555
 F-bar Q4       = 0.01940549
@@ -188,32 +180,7 @@ Mixed–F-bar relative tip farkı:
 8x8 -> 1.29%
 ```
 
-8x8 displacement/F-bar oranı ≈ `%33.8`.
-
-Geçici ikinci cross-check'te Q4 gradient dönüşüm yönü yanlış uygulanmış ve bu geçici dosyalar repodan kaldırılmıştır. Doğru `J^{-T}` dönüşümü mevcut bağımsız precheck sonuçlarını yeniden üretmiştir.
-
-### Incompressibility sweep precheck
-
-Kayıt:
-
-`docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_PRECHECK.json`
-
-4×4 Cook:
-
-| lambda/mu | Displacement | Mixed | F-bar |
-|---:|---:|---:|---:|
-| 10 | 0.01326101 | 0.01841319 | 0.01911670 |
-| 100 | 0.00744673 | 0.01702588 | 0.01768588 |
-| 1000 | 0.00595658 | 0.01685744 | 0.01751507 |
-
-```text
-Displacement drop 10→1000 ≈ 55.08%
-Mixed drop        10→1000 ≈  8.45%
-F-bar drop        10→1000 ≈  8.38%
-Mixed/F-bar farkı @1000   ≈  3.75%
-```
-
-Bu precheck resmi platform CTest kanıtı değildir; yeni regression testinin beklenen trendini doğrular.
+Bu precheck'ler resmi Fortran/CTest sonucu değildir; regression tasarımı ve beklenen fiziksel trend için bağımsız kanıttır.
 
 ### Platform numerical reproducibility
 
@@ -226,9 +193,9 @@ Her compiler job'u kendi birleşik bake-off JSON artifactini saklar:
 
 `tools/verification/compare_v03_platform_results.py`:
 
-- tip/final `J`/pressure/`J_bar` sonuçlarını tolerans içinde karşılaştırır,
-- equation count'u exact kontrol eder,
-- iteration/linear solve farklarını bilgi olarak raporlar.
+- tip/final `J`/pressure/`J_bar` sonuçlarını tolerans içinde karşılaştırır
+- equation count'u exact kontrol eder
+- iteration/linear solve farklarını bilgi olarak raporlar
 
 ### Bağımsız V0.3 dış referans
 
@@ -261,22 +228,20 @@ Bu nedenle mevcut hata build/CTest seviyesine ulaşmamaktadır. GitHub Actions a
 
 - [ ] GitHub-hosted Actions pre-step engelini çöz
 - [ ] Windows/ifx + Windows/gfortran + macOS ARM64/gfortran 35-test matrix'i kapat
-- [ ] incompressibility sweep regressionını üç birincil platformda doğrula
 - [ ] üç birincil platform bake-off JSON'larını numerical reproducibility açısından karşılaştır
 - [ ] FEniCSx Q2 2/4/8/16 dış referans artifactini al
 - [ ] Dyna üçlü sonuçlarını converged Q2 referansına göre relative error ile değerlendir
 - [ ] mixed pressure mean/std/RMS + graph roughness davranışını dış continuum pressure ile kıyasla
 - [ ] üç formulation ortak mesh/convergence/robustness/maliyet tablosunu tamamla
-- [ ] seçilen aday için bağımsız dış solver doğrulaması
 - [ ] production formulation ADR kararı
 
 Karar ölçütleri:
 
 - dış referansa göre displacement hatası
 - volumetric locking
-- `lambda/mu` duyarlılığı
 - pressure stability / oscillation
 - mesh convergence
+- incompressibility-sweep sensitivity
 - nonlinear convergence
 - distortion sensitivity
 - minimum final-state `J`
