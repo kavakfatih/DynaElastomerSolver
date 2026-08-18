@@ -17,24 +17,52 @@ from pathlib import Path
 NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?"
 
 
+def finite_float(value: str, label: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"Benchmark alanı sonlu değil: {label}={result}")
+    return result
+
+
 def find_float(text: str, pattern: str, label: str) -> float:
     match = re.search(pattern, text, flags=re.MULTILINE)
     if not match:
         raise ValueError(f"Beklenen benchmark alanı bulunamadı: {label}")
-    value = float(match.group(1))
-    if not math.isfinite(value):
-        raise ValueError(f"Benchmark alanı sonlu değil: {label}={value}")
-    return value
+    return finite_float(match.group(1), label)
+
+
+def find_solver_metrics(text: str, pattern: str, label: str) -> dict:
+    match = re.search(pattern, text, flags=re.MULTILINE)
+    if not match:
+        raise ValueError(f"Beklenen solver metriği bulunamadı: {label}")
+    final_min_j = finite_float(match.group(1), f"{label} finalMinJ")
+    iterations = int(match.group(2))
+    linear_solves = int(match.group(3))
+    equations = int(match.group(4))
+    if min(iterations, linear_solves, equations) < 0:
+        raise ValueError(f"Negatif solver metriği: {label}")
+    return {
+        "final_minimum_j": final_min_j,
+        "newton_iterations": iterations,
+        "linear_solve_count": linear_solves,
+        "max_linear_equation_count": equations,
+    }
 
 
 def parse_displacement(text: str) -> dict:
-    tips = {}
+    cases: dict[str, dict] = {}
     for mesh in (2, 4, 8):
-        tips[str(mesh)] = find_float(
+        tip = find_float(
             text,
             rf"Cook {mesh}x{mesh} tip displacement\s*=\s*({NUMBER})",
             f"displacement {mesh}x{mesh} tip",
         )
+        solver = find_solver_metrics(
+            text,
+            rf"{mesh}x{mesh}:\s+finalMinJ=\s*({NUMBER})\s+iterations=(\d+)\s+linearSolves=(\d+)\s+equations=(\d+)",
+            f"displacement {mesh}x{mesh}",
+        )
+        cases[str(mesh)] = {"tip_displacement": tip, **solver}
 
     gap_percent = find_float(
         text,
@@ -44,7 +72,7 @@ def parse_displacement(text: str) -> dict:
 
     return {
         "formulation": "displacement_q4_full_integration",
-        "mesh_tip_displacement": tips,
+        "mesh_results": cases,
         "coarse_to_8x8_gap_percent": gap_percent,
     }
 
@@ -52,7 +80,7 @@ def parse_displacement(text: str) -> dict:
 def parse_mixed(text: str) -> dict:
     cases: dict[str, dict] = {}
     for mesh in (2, 4, 8):
-        case_pattern = re.compile(
+        pressure_pattern = re.compile(
             rf"{mesh}x{mesh}:\s+tip=\s*({NUMBER})\s*\n"
             rf"\s*p\(min/mean/max\)=\s*({NUMBER})\s+({NUMBER})\s+({NUMBER})\s*\n"
             rf"\s*p\(std/rms\)=\s*({NUMBER})\s+({NUMBER})\s*\n"
@@ -60,15 +88,35 @@ def parse_mixed(text: str) -> dict:
             rf"\s*roughness\(jump/std,graph\)=\s*({NUMBER})\s+({NUMBER})",
             flags=re.MULTILINE,
         )
-        match = case_pattern.search(text)
+        match = pressure_pattern.search(text)
         if not match:
             raise ValueError(f"Mixed {mesh}x{mesh} benchmark bloğu bulunamadı")
-        values = [float(value) for value in match.groups()]
-        if not all(math.isfinite(value) for value in values):
-            raise ValueError(f"Mixed {mesh}x{mesh} benchmarkında sonlu olmayan değer var")
+        values = [finite_float(value, f"mixed {mesh}x{mesh}") for value in match.groups()]
+
+        solver = find_solver_metrics(
+            text,
+            rf"solver\(finalMinJ\)=\s*({NUMBER})\s+iterations=(\d+)\s+linearSolves=(\d+)\s+equations=(\d+)",
+            f"mixed {mesh}x{mesh}",
+        )
+
+        # Aynı solver etiketi her mesh için tekrarlandığından yukarıdaki genel arama
+        # ilk eşleşmeyi döndürür. Mesh bloğu içindeki solver satırını seçmek için
+        # ilgili case başlangıcından sonraki bölge yeniden aranır.
+        case_start = match.start()
+        next_mesh_label = f"{mesh * 2}x{mesh * 2}:" if mesh < 8 else "V0.3 Q4-P0"
+        case_end = text.find(next_mesh_label, match.end())
+        if case_end < 0:
+            case_end = len(text)
+        local_text = text[case_start:case_end]
+        solver = find_solver_metrics(
+            local_text,
+            rf"solver\(finalMinJ\)=\s*({NUMBER})\s+iterations=(\d+)\s+linearSolves=(\d+)\s+equations=(\d+)",
+            f"mixed {mesh}x{mesh}",
+        )
 
         cases[str(mesh)] = {
             "tip_displacement": values[0],
+            **solver,
             "pressure": {
                 "minimum": values[1],
                 "mean": values[2],
@@ -92,19 +140,28 @@ def parse_mixed(text: str) -> dict:
 def parse_fbar(text: str) -> dict:
     cases: dict[str, dict] = {}
     for mesh in (2, 4, 8):
-        match = re.search(
-            rf"{mesh}x{mesh} F-bar tip=\s*({NUMBER})\s+minJ=\s*({NUMBER})",
-            text,
+        case_pattern = re.compile(
+            rf"{mesh}x{mesh}:\s+F-bar tip=\s*({NUMBER})\s+finalMinJ=\s*({NUMBER})\s*\n"
+            rf"\s*Jbar\(min/max\)=\s*({NUMBER})\s+({NUMBER})\s*\n"
+            rf"\s*solver\s+iterations=(\d+)\s+linearSolves=(\d+)\s+equations=(\d+)",
             flags=re.MULTILINE,
         )
+        match = case_pattern.search(text)
         if not match:
-            raise ValueError(f"F-bar {mesh}x{mesh} benchmark satırı bulunamadı")
-        tip, min_j = (float(match.group(1)), float(match.group(2)))
-        if not math.isfinite(tip) or not math.isfinite(min_j):
-            raise ValueError(f"F-bar {mesh}x{mesh} benchmarkında sonlu olmayan değer var")
+            raise ValueError(f"F-bar {mesh}x{mesh} benchmark bloğu bulunamadı")
+        tip = finite_float(match.group(1), f"F-bar {mesh}x{mesh} tip")
+        final_min_j = finite_float(match.group(2), f"F-bar {mesh}x{mesh} finalMinJ")
+        jbar_min = finite_float(match.group(3), f"F-bar {mesh}x{mesh} Jbar min")
+        jbar_max = finite_float(match.group(4), f"F-bar {mesh}x{mesh} Jbar max")
+
         cases[str(mesh)] = {
             "tip_displacement": tip,
-            "minimum_j": min_j,
+            "final_minimum_j": final_min_j,
+            "minimum_j_bar": jbar_min,
+            "maximum_j_bar": jbar_max,
+            "newton_iterations": int(match.group(5)),
+            "linear_solve_count": int(match.group(6)),
+            "max_linear_equation_count": int(match.group(7)),
         }
 
     gap_percent = find_float(
@@ -134,7 +191,7 @@ def main() -> None:
     text = args.log.read_text(encoding="utf-8", errors="replace")
 
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "milestone": "V0.3",
         "benchmark": "normalized_cook_membrane_nearly_incompressible",
         "provenance": {
@@ -151,6 +208,12 @@ def main() -> None:
             "lambda": 1000.0,
             "reference_nominal_traction_y": 0.01,
             "meshes": ["2x2", "4x4", "8x8"],
+        },
+        "metric_semantics": {
+            "final_minimum_j": "minimum J recomputed from the converged final state",
+            "historical_newton_minimum_j": "not used in the formulation comparison JSON",
+            "newton_iterations": "total nonlinear correction iterations over all load increments",
+            "max_linear_equation_count": "largest reduced linear system solved by the formulation",
         },
         "formulations": {
             "displacement": parse_displacement(text),
