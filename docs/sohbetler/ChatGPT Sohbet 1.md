@@ -237,15 +237,7 @@ Yeni test:
 
 `tests/test_v03_cook_bakeoff_compare.f90`
 
-Üç formulation artık aynı executable içinde aynı:
-
-- mesh
-- material
-- traction
-- boundary condition
-- ölçüm sözleşmesi
-
-ile çözülüyor.
+Üç formulation artık aynı executable içinde aynı mesh, material, traction, boundary condition ve ölçüm sözleşmesi ile çözülüyor.
 
 Test doğrudan:
 
