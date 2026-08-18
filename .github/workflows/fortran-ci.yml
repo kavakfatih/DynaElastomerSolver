@@ -2,7 +2,7 @@ name: Fortran CI
 
 on:
   push:
-    branches: [main]
+    branches: ['develop/v0.3']
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -35,25 +35,28 @@ jobs:
             os: ubuntu-24.04
             compiler: gcc
             compiler_version: '14'
+            status_context: dyna/v0.3-linux-gfortran14
           - name: macOS ARM64 / gfortran 14
             os: macos-26
             compiler: gcc
             compiler_version: '14'
+            status_context: dyna/v0.3-macos-gfortran14
           - name: Windows / gfortran 14
             os: windows-2025
             compiler: gcc
             compiler_version: '14'
+            status_context: dyna/v0.3-windows-gfortran14
           - name: Windows 2022 / Intel ifx 2025.2
             os: windows-2022
             compiler: intel
             compiler_version: '2025.2'
+            status_context: dyna/v0.3-windows-ifx2025.2
 
     steps:
       # actions/checkout v7.0.1
       - name: Kaynak kodu al
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      # Python yalnız stdlib'in fypp önişlemcisi için kullanılır.
       # actions/setup-python v6.2.0
       - name: Python 3.12 kur
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -117,8 +120,8 @@ jobs:
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
 
-      - name: Intel ifx V0.2 commit status yayınla
-        if: always() && matrix.compiler == 'intel'
+      - name: Compiler matrix status yayınla
+        if: always()
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -128,14 +131,19 @@ jobs:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CTEST_OUTCOME: ${{ steps.ctest.outcome }}
         run: |
-          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $env:SMOKE_OUTCOME -eq 'success' -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success')
+          $smokeOk = $true
+          if ('${{ matrix.compiler }}' -eq 'intel') {
+            $smokeOk = ($env:SMOKE_OUTCOME -eq 'success')
+          }
+
+          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $smokeOk -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success')
           $state = if ($passed) { 'success' } else { 'failure' }
           $description = "setup=$($env:SETUP_OUTCOME); smoke=$($env:SMOKE_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
           if ($description.Length -gt 140) { $description = $description.Substring(0, 140) }
 
           $body = @{
             state = $state
-            context = 'dyna/ifx-v02'
+            context = '${{ matrix.status_context }}'
             description = $description
           } | ConvertTo-Json -Compress
 
