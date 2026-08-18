@@ -11,33 +11,50 @@ program test_v03_fbar_cook_baseline
       solve_q4_plane_strain_fbar_force_control
   implicit none
 
-  real(dp) :: tip_2,tip_4,tip_8
-  real(dp) :: minj_2,minj_4,minj_8
-  real(dp) :: minjbar_2,minjbar_4,minjbar_8,maxjbar_2,maxjbar_4,maxjbar_8
-  integer :: iter_2,iter_4,iter_8
-  integer :: linear_2,linear_4,linear_8
-  integer :: eq_2,eq_4,eq_8
+  real(dp), parameter :: fenics_q2_32_tip = 0.0201973648361_dp
+  real(dp) :: tip_2,tip_4,tip_8,tip_16
+  real(dp) :: minj_2,minj_4,minj_8,minj_16
+  real(dp) :: minjbar_2,minjbar_4,minjbar_8,minjbar_16
+  real(dp) :: maxjbar_2,maxjbar_4,maxjbar_8,maxjbar_16
+  real(dp) :: error_8,error_16
+  integer :: iter_2,iter_4,iter_8,iter_16
+  integer :: linear_2,linear_4,linear_8,linear_16
+  integer :: eq_2,eq_4,eq_8,eq_16
 
   call run_fbar_cook_case(2,tip_2,minj_2,minjbar_2,maxjbar_2,iter_2,linear_2,eq_2)
   call run_fbar_cook_case(4,tip_4,minj_4,minjbar_4,maxjbar_4,iter_4,linear_4,eq_4)
   call run_fbar_cook_case(8,tip_8,minj_8,minjbar_8,maxjbar_8,iter_8,linear_8,eq_8)
+  call run_fbar_cook_case(16,tip_16,minj_16,minjbar_16,maxjbar_16, &
+                          iter_16,linear_16,eq_16)
 
-  if (.not. (tip_2 < tip_4 .and. tip_4 < tip_8)) then
+  if (.not. (tip_2 < tip_4 .and. tip_4 < tip_8 .and. tip_8 < tip_16)) then
     error stop 'F-bar Cook mesh-refinement displacement sıralaması bozuldu.'
   end if
-  if (tip_2 <= 0.0_dp .or. min(minj_2,min(minj_4,minj_8)) <= 0.0_dp) then
+  if (tip_2 <= 0.0_dp .or. &
+      min(minj_2,min(minj_4,min(minj_8,minj_16))) <= 0.0_dp) then
     error stop 'F-bar Cook fiziksel pozitiflik kontrolü başarısız.'
   end if
-  if (min(minjbar_2,min(minjbar_4,minjbar_8)) <= 0.0_dp) then
+  if (min(minjbar_2,min(minjbar_4,min(minjbar_8,minjbar_16))) <= 0.0_dp) then
     error stop 'F-bar Cook final J_bar pozitiflik kontrolü başarısız.'
+  end if
+
+  error_8 = abs(tip_8-fenics_q2_32_tip)/abs(fenics_q2_32_tip)
+  error_16 = abs(tip_16-fenics_q2_32_tip)/abs(fenics_q2_32_tip)
+  if (error_16 >= error_8) then
+    error stop 'F-bar 16x16 dış Q2 referansa 8x8 sonucundan daha fazla yaklaşmadı.'
   end if
 
   call print_case('2x2',tip_2,minj_2,minjbar_2,maxjbar_2,iter_2,linear_2,eq_2)
   call print_case('4x4',tip_4,minj_4,minjbar_4,maxjbar_4,iter_4,linear_4,eq_4)
   call print_case('8x8',tip_8,minj_8,minjbar_8,maxjbar_8,iter_8,linear_8,eq_8)
-  write(*,'(A,F8.3,A)') 'F-bar coarse-to-8x8 gap = ', &
-    100.0_dp*(1.0_dp-tip_2/tip_8),' %'
-  write(*,'(A)') 'V0.3 F-bar Cook baseline testi BASARILI.'
+  call print_case('16x16',tip_16,minj_16,minjbar_16,maxjbar_16, &
+                  iter_16,linear_16,eq_16)
+  write(*,'(A,ES14.6)') 'FEniCSx Q2 32x32 reference tip = ',fenics_q2_32_tip
+  write(*,'(A,F8.3,A)') 'F-bar 8x8 relative reference error = ',100.0_dp*error_8,' %'
+  write(*,'(A,F8.3,A)') 'F-bar 16x16 relative reference error = ',100.0_dp*error_16,' %'
+  write(*,'(A,F8.3,A)') 'F-bar coarse-to-16x16 gap = ', &
+    100.0_dp*(1.0_dp-tip_2/tip_16),' %'
+  write(*,'(A)') 'V0.3 F-bar Cook mesh-convergence testi BASARILI.'
 
 contains
 
