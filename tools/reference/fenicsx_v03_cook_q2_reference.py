@@ -9,7 +9,11 @@ Amaç:
 - displacement-only Q4 locking baseline için bağımsız tip displacement referansı,
 - mixed Q4/P0 pressure alanının ölçeğini karşılaştırmak için p=lambda*ln(J)
   continuum alanının mean/std/RMS değerleri,
-- 2x2/4x4/8x8/16x16 Q2 mesh-refinement trendi.
+- Q2 mesh-refinement convergence trendi.
+
+Bağımsız NumPy/SciPy Q2 precheck 8x8 -> 16x16 tip değişimini yaklaşık %2.40
+bulduğu için 16x16 artık otomatik converged reference kabul edilmez. FEniCSx planı
+32x32 Q2 seviyesine genişletilmiştir.
 
 Q2 çözümü V0.3 production formulation seçimi değildir; yalnız bağımsız benchmarktır.
 """
@@ -39,7 +43,8 @@ Y_RIGHT_TOP = 60.0 / 48.0
 Y_LEFT_TOP = 44.0 / 48.0
 Y_RIGHT_MID = 0.5 * (Y_RIGHT_BOTTOM + Y_RIGHT_TOP)
 
-MESH_LEVELS = (2, 4, 8, 16)
+MESH_LEVELS = (2, 4, 8, 16, 32)
+REFERENCE_CONVERGENCE_THRESHOLD = 0.01
 
 
 def global_scalar(msh: mesh.Mesh, expression) -> float:
@@ -73,7 +78,7 @@ def evaluate_tip_y(msh: mesh.Mesh, uh: fem.Function) -> float:
     tree = geometry.bb_tree(msh, tdim)
 
     # Tam sınır noktası bazı geometry toleranslarında hücre aramasına düşmeyebilir.
-    # Önce tam nokta, gerekirse reference domain içine çok küçük kaydırılmış nokta denenir.
+    # Önce tam nokta, gerekirse domain içine çok küçük kaydırılmış nokta denenir.
     candidates_to_try = (1.0, 1.0 - 1.0e-11)
     for xcoord in candidates_to_try:
         point = np.array([[xcoord, Y_RIGHT_MID, 0.0]], dtype=msh.geometry.x.dtype)
@@ -188,7 +193,10 @@ def solve_case(n: int) -> dict:
 
     if tip_y <= 0.0:
         raise AssertionError(f"Q2 Cook tip displacement pozitif değil: n={n}")
-    if not all(math.isfinite(x) for x in (tip_y, p_mean, p_std, p_rms, j_mean, total_energy)):
+    if not all(
+        math.isfinite(x)
+        for x in (tip_y, p_mean, p_std, p_rms, j_mean, total_energy)
+    ):
         raise AssertionError(f"Q2 Cook sonlu olmayan sonuç üretti: n={n}")
 
     return {
@@ -216,8 +224,13 @@ def main() -> None:
         return
 
     tip_by_n = {case["n"]: case["tip_y_displacement"] for case in cases}
-    relative_8_to_16 = abs(tip_by_n[16] - tip_by_n[8]) / max(
-        abs(tip_by_n[16]), 1.0e-15
+    previous_mesh = MESH_LEVELS[-2]
+    finest_mesh = MESH_LEVELS[-1]
+    relative_previous_to_finest = abs(
+        tip_by_n[finest_mesh] - tip_by_n[previous_mesh]
+    ) / max(abs(tip_by_n[finest_mesh]), 1.0e-15)
+    candidate_converged = (
+        relative_previous_to_finest <= REFERENCE_CONVERGENCE_THRESHOLD
     )
 
     result = {
@@ -229,7 +242,8 @@ def main() -> None:
             "model": "compressible Neo-Hookean",
             "mu": MU,
             "lambda": LAMBDA,
-            "equivalent_small_strain_poisson_ratio": LAMBDA / (2.0 * (LAMBDA + MU)),
+            "equivalent_small_strain_poisson_ratio": LAMBDA
+            / (2.0 * (LAMBDA + MU)),
         },
         "load": {
             "reference_nominal_traction": [0.0, TRACTION_Y],
@@ -244,13 +258,20 @@ def main() -> None:
         },
         "mesh_cases": cases,
         "refinement": {
-            "relative_tip_change_8_to_16": relative_8_to_16,
-            "finest_mesh": "16x16 Q2",
-            "finest_tip_y_displacement": tip_by_n[16],
+            "previous_mesh": f"{previous_mesh}x{previous_mesh} Q2",
+            "finest_mesh": f"{finest_mesh}x{finest_mesh} Q2",
+            "relative_tip_change_previous_to_finest": relative_previous_to_finest,
+            "finest_tip_y_displacement": tip_by_n[finest_mesh],
+            "candidate_convergence_threshold": REFERENCE_CONVERGENCE_THRESHOLD,
+            "candidate_converged": candidate_converged,
+            # Tarihsel 8->16 metriği de provenance için saklanır.
+            "relative_tip_change_8_to_16": abs(tip_by_n[16] - tip_by_n[8])
+            / max(abs(tip_by_n[16]), 1.0e-15),
         },
         "notes": [
             "Pressure is the continuum field p=lambda*ln(J), not an independent mixed unknown.",
             "This result is an external benchmark, not a production formulation selection.",
+            "A reference is not accepted as converged unless the final two Q2 mesh levels satisfy the configured convergence threshold.",
         ],
     }
 
