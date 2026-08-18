@@ -18,7 +18,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  statuses: write
 
 jobs:
   build-test:
@@ -116,42 +117,39 @@ jobs:
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
 
-      - name: Intel ifx V0.2 sonucunu kaydet
+      - name: Intel ifx V0.2 commit status yayınla
         if: always() && matrix.compiler == 'intel'
         shell: pwsh
         env:
+          GH_TOKEN: ${{ github.token }}
           SETUP_OUTCOME: ${{ steps.setup_fortran.outcome }}
           SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
           CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CTEST_OUTCOME: ${{ steps.ctest.outcome }}
         run: |
-          $result = [ordered]@{
-            schema_version = 1
-            milestone = 'V0.2'
-            branch = '${{ github.ref_name }}'
-            source_commit = '${{ github.sha }}'
-            runner = 'windows-2022'
-            compiler = 'Intel ifx 2025.2'
-            setup_fortran = $env:SETUP_OUTCOME
-            smoke_compile = $env:SMOKE_OUTCOME
-            cmake_configure = $env:CONFIGURE_OUTCOME
-            build = $env:BUILD_OUTCOME
-            ctest = $env:CTEST_OUTCOME
-            all_passed = ($env:SETUP_OUTCOME -eq 'success' -and $env:SMOKE_OUTCOME -eq 'success' -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success')
-            recorded_at_utc = (Get-Date).ToUniversalTime().ToString('o')
+          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $env:SMOKE_OUTCOME -eq 'success' -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success')
+          $state = if ($passed) { 'success' } else { 'failure' }
+          $description = "setup=$($env:SETUP_OUTCOME); smoke=$($env:SMOKE_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
+          if ($description.Length -gt 140) { $description = $description.Substring(0, 140) }
+
+          $body = @{
+            state = $state
+            context = 'dyna/ifx-v02'
+            description = $description
+          } | ConvertTo-Json -Compress
+
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
           }
 
-          New-Item -ItemType Directory -Force -Path 'docs/verification/results' | Out-Null
-          $result | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 'docs/verification/results/IFX_V0.2_CI.json'
-
-          git config user.name 'DynaElastomerSolver CI'
-          git config user.email 'actions@users.noreply.github.com'
-          git add docs/verification/results/IFX_V0.2_CI.json
-          git commit -m 'CI: V0.2 ifx doğrulama sonucunu kaydet'
-          if ($LASTEXITCODE -eq 0) {
-            git push origin HEAD:main
-          }
+          Invoke-RestMethod -Method Post \
+            -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' \
+            -Headers $headers \
+            -ContentType 'application/json' \
+            -Body $body | Out-Null
 
       # actions/upload-artifact v7.0.1
       - name: Configure logunu sakla
