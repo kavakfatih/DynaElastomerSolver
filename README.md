@@ -3,8 +3,8 @@
 DynaElastomerSolver; kauçuk/elastomer malzemeler ve elastomer tabanlı ürünler için doğrusal olmayan sonlu eleman analizi, malzeme karakterizasyonu ve doğrulama odaklı bilimsel bir mühendislik platformudur.
 
 > **SOURCE-AVAILABLE — NOT OPEN SOURCE**  
-> Copyright © 2026 **Fatih KAVAK**. All Rights Reserved.  
-> Public repository görünürlüğü genel kullanım, değiştirme, dağıtım veya ticari kullanım izni vermez. Bağlayıcı koşullar için `LICENSE`; üçüncü taraf lisansları için `THIRD_PARTY_NOTICES.md`; güvenlik bildirimi için `SECURITY.md` dosyalarına bakın.
+> Copyright © 2026 **Muhammet Fatih Kavak**. All Rights Reserved.  
+> Public repository görünürlüğü genel kullanım, değiştirme, dağıtım veya ticari kullanım izni vermez. Hak sahibi kaydı için `COPYRIGHT.md`; bağlayıcı koşullar için `LICENSE`; üçüncü taraf lisansları için `THIRD_PARTY_NOTICES.md`; güvenlik bildirimi için `SECURITY.md` dosyalarına bakın.
 
 **Ana ürün yönü:** nonlineer elastomer solver uzmanlaşması  
 **Geliştirme disiplini:** implementation-first validation — ADR-0006  
