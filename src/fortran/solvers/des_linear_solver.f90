@@ -12,14 +12,16 @@ module des_linear_solver
 
   integer, parameter, public :: DES_LINEAR_BACKEND_STDLIB_DENSE = 1
   integer, parameter, public :: DES_LINEAR_BACKEND_STDLIB_CSR_GMRES = 2
+  integer, parameter, public :: DES_LINEAR_BACKEND_MUMPS_DIRECT = 3
 
   public :: linear_solver_settings_t, linear_solver_report_t
   public :: solve_linear_system, solve_sparse_linear_system, linear_backend_name
+  public :: linear_backend_is_sparse
 
   type :: linear_solver_settings_t
     ! Dense LAPACK küçük doğrulama problemleri için reference/fallback olarak kalır.
-    ! CSR GMRES yolu backend sınırını ve sparse nonlinear entegrasyonu doğrulayan
-    ! bootstrap backend'dir; nihai sparse-direct / block production backend'i değildir.
+    ! CSR GMRES yolu sparse mimariyi doğrulayan portable bootstrap backend'dir.
+    ! MUMPS direct backend yalnız stateful sparse context arkasından çağrılır.
     integer :: backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     real(dp) :: relative_tolerance = 1.0e-10_dp
     real(dp) :: absolute_tolerance = 1.0e-12_dp
@@ -35,9 +37,8 @@ module des_linear_solver
     real(dp) :: residual_inf_norm = huge(1.0_dp)
     logical :: converged = .false.
 
-    ! B4 stateful sparse context sayaçları additive metadata'dır. Stateless
-    ! dense/sparse çağrılarda sıfır kalır; context üzerinden yapılan çözümde
-    ! yaşam döngüsünün gerçek sayıları bu rapora kopyalanır.
+    ! Stateful sparse context sayaçları additive metadata'dır. Stateless
+    ! dense/sparse çağrılarda sıfır kalır.
     integer :: pattern_analysis_count = 0
     integer :: reorder_count = 0
     integer :: factorization_count = 0
@@ -45,6 +46,11 @@ module des_linear_solver
     integer :: iterative_refinement_count = 0
     integer :: symbolic_reuse_count = 0
     logical :: direct_factorization_performed = .false.
+
+    ! Vendor ham durum kodları generic raporda ayrı tutulur. Dyna status kodu
+    ! kullanıcı-facing kontrol akışını yönetir; bu iki alan backend teşhisidir.
+    integer :: backend_info_primary = 0
+    integer :: backend_info_secondary = 0
   end type linear_solver_report_t
 
 contains
@@ -80,9 +86,9 @@ contains
   end subroutine solve_linear_system
 
   subroutine solve_sparse_linear_system(A, b, x, settings, report)
-    ! Sparse solver sözleşmesi Dyna'nın kendi CSR tipini kabul eder. Harici veya
-    ! vendor backend dönüşümü yalnız bu sınırın arkasında yapılır; FEM assembly
-    ! katmanı stdlib/PETSc/MUMPS/PARDISO tiplerine bağımlı hale getirilmez.
+    ! Stateless sparse sözleşme bugün yalnız portable GMRES bootstrap yoludur.
+    ! Production MUMPS lifecycle'ı pattern/symbolic reuse gerektirdiği için
+    ! des_sparse_solver_context üzerinden çağrılır.
     type(csr_matrix_t), intent(in) :: A
     real(dp), intent(in) :: b(:)
     real(dp), intent(out) :: x(:)
@@ -135,8 +141,6 @@ contains
     allocate(Awork(size(A,1), size(A,2)))
     Awork = A
 
-    ! Dyna'nın dense reference backend'i stdlib_linalg::solve'dur.
-    ! stdlib bu sistemi LAPACK *GESV ailesi üzerinden çözer.
     solution = solve(Awork, b, overwrite_a=.true., err=state)
 
     if (.not. state%ok()) then
@@ -166,9 +170,6 @@ contains
     real(dp) :: residual_limit, rhs_scale
     integer :: matvec_status, kdim
 
-    ! Pinned stdlib CSR tipi de 1-based CSR kullandığı için yapısal graph kopyası
-    ! indeks yeniden numaralandırması gerektirmez. Dyna'nın kendi CSR tipi yine
-    ! kanonik veri sözleşmesi olarak kalır.
     call A_stdlib%malloc( &
         int(A%nrows,i32),int(A%ncols,i32),int(A%nnz(),i32))
     A_stdlib%rowptr = int(A%row_ptr,i32)
@@ -179,8 +180,7 @@ contains
     kdim = min(settings%krylov_dimension,size(b))
 
     ! Herrmann fully-incompressible limitinde pressure diagonal blokları sıfır
-    ! olabilir. Bu nedenle bootstrap aşamasında Jacobi preconditioner seçilmez.
-    ! Daha sonra gerçek block/Schur preconditioner ayrı backend olarak eklenecektir.
+    ! olabilir. Bootstrap aşamasında Jacobi preconditioner bu yüzden seçilmez.
     call stdlib_solve_gmres( &
         A_stdlib,b,x, &
         rtol=settings%relative_tolerance, &
@@ -212,6 +212,14 @@ contains
     end if
   end subroutine solve_stdlib_csr_gmres
 
+  pure logical function linear_backend_is_sparse(backend)
+    integer, intent(in) :: backend
+
+    linear_backend_is_sparse = &
+        backend == DES_LINEAR_BACKEND_STDLIB_CSR_GMRES .or. &
+        backend == DES_LINEAR_BACKEND_MUMPS_DIRECT
+  end function linear_backend_is_sparse
+
   pure function linear_backend_name(backend) result(name)
     integer, intent(in) :: backend
     character(len=48) :: name
@@ -221,6 +229,8 @@ contains
       name = 'stdlib/LAPACK dense'
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
       name = 'stdlib CSR GMRES (bootstrap)'
+    case (DES_LINEAR_BACKEND_MUMPS_DIRECT)
+      name = 'MUMPS sparse direct'
     case default
       name = 'desteklenmeyen lineer solver backend'
     end select

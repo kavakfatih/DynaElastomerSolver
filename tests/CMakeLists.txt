@@ -78,6 +78,15 @@ des_add_fortran_test(test_dense_linear solver.dense_linear test_dense_linear.f90
 des_add_fortran_test(test_linear_solver_interface solver.linear.interface test_linear_solver_interface.f90)
 des_add_fortran_test(test_sparse_linear_solver solver.sparse.csr_gmres_indefinite test_sparse_linear_solver.f90)
 des_add_fortran_test(test_sparse_solver_context solver.sparse.context_lifecycle test_sparse_solver_context.f90)
+
+if(DES_ENABLE_MUMPS)
+  des_add_fortran_test(
+    test_mumps_sparse_solver_context
+    solver.sparse.mumps_direct_context
+    test_mumps_sparse_solver_context.f90
+  )
+endif()
+
 des_add_fortran_test(test_q4_plane_strain_mesh_newton fem.q4.plane_strain.mesh_incremental_newton test_q4_plane_strain_mesh_newton.f90)
 des_add_fortran_test(test_q4_solver_api solver.q4.plane_strain.displacement_control test_q4_solver_api.f90)
 des_add_fortran_test(test_q4_force_control_solver solver.q4.plane_strain.force_control test_q4_force_control_solver.f90)

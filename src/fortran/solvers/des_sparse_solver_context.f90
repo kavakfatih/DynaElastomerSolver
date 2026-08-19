@@ -7,7 +7,15 @@ module des_sparse_solver_context
   use des_linear_solver, only : linear_solver_settings_t, &
                                 linear_solver_report_t, &
                                 solve_sparse_linear_system, &
-                                DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+                                DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
+                                DES_LINEAR_BACKEND_MUMPS_DIRECT
+  use des_mumps_backend, only : DES_MUMPS_AVAILABLE, mumps_backend_handle_t, &
+                                mumps_backend_create, &
+                                mumps_backend_set_pattern, &
+                                mumps_backend_analyze, &
+                                mumps_backend_factorize, &
+                                mumps_backend_solve, &
+                                mumps_backend_destroy
   implicit none
   private
 
@@ -36,6 +44,8 @@ module des_sparse_solver_context
     integer :: solve_count = 0
     integer :: iterative_refinement_count = 0
     integer :: symbolic_reuse_count = 0
+    integer :: backend_info_primary = 0
+    integer :: backend_info_secondary = 0
     logical :: active = .false.
     logical :: pattern_analyzed = .false.
     logical :: ordering_ready = .false.
@@ -59,15 +69,19 @@ module des_sparse_solver_context
     integer :: solve_count = 0
     integer :: iterative_refinement_count = 0
     integer :: symbolic_reuse_count = 0
+    integer :: backend_info_primary = 0
+    integer :: backend_info_secondary = 0
     logical :: active = .false.
     logical :: pattern_analyzed = .false.
     logical :: ordering_ready = .false.
+    logical :: backend_analysis_ready = .false.
     logical :: numeric_ready = .false.
     logical :: direct_factorization_performed = .false.
     logical :: supports_int64 = .false.
     logical :: released = .false.
     integer, allocatable :: pattern_row_ptr(:)
     integer, allocatable :: pattern_col_ind(:)
+    type(mumps_backend_handle_t) :: mumps_handle
     type(linear_solver_report_t) :: last_linear_report
   end type sparse_solver_context_t
 
@@ -107,10 +121,20 @@ contains
 
     select case (settings%backend)
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
-      ! Mevcut stdlib CSR köprüsü indeksleri açıkça int32'ye dönüştürür.
-      ! B4 metadata sözleşmesi int64 sınıfını tanır; gerçek int64 backend B9
-      ! kapsamında eklenene kadar bu backend int64 desteği iddia etmez.
+      ! stdlib CSR köprüsü bugün int32 ile sınırlıdır.
       context%supports_int64 = .false.
+    case (DES_LINEAR_BACKEND_MUMPS_DIRECT)
+      ! B6 ilk production profili int32 Dyna CSR ile başlar.
+      ! MUMPS 64-bit genişlemesi B9'da Dyna CSR int64 dönüşümüyle açılacaktır.
+      context%supports_int64 = .false.
+      if (.not. DES_MUMPS_AVAILABLE) then
+        status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+        return
+      end if
+      call mumps_backend_create( &
+          context%mumps_handle,mumps_symmetry_mode(matrix_class),status, &
+          context%backend_info_primary,context%backend_info_secondary)
+      if (status /= DES_STATUS_OK) return
     case default
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
       return
@@ -118,6 +142,9 @@ contains
 
     if (index_class == DES_INDEX_CLASS_INT64 .and. &
         .not. context%supports_int64) then
+      if (settings%backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+        call mumps_backend_destroy(context%mumps_handle)
+      end if
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
       return
     end if
@@ -159,8 +186,18 @@ contains
     context%pattern_analysis_count = context%pattern_analysis_count + 1
     context%pattern_analyzed = .true.
     context%ordering_ready = .false.
+    context%backend_analysis_ready = .false.
     context%numeric_ready = .false.
     context%direct_factorization_performed = .false.
+
+    if (context%settings%backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+      ! CSR -> MUMPS structural mapping yalnız graph değiştiğinde kurulur.
+      ! MUMPS job=1 burada çalıştırılmaz; ilk assembled Newton değerleri gelene
+      ! kadar analysis/matching bilinçli olarak ertelenir.
+      call mumps_backend_set_pattern( &
+          context%mumps_handle,matrix,status, &
+          context%backend_info_primary,context%backend_info_secondary)
+    end if
   end subroutine analyze_sparse_pattern
 
   subroutine reuse_sparse_pattern(context, matrix, reused, status)
@@ -198,9 +235,9 @@ contains
 
     if (context%ordering_ready) return
 
-    ! Bootstrap GMRES backend'inde ayrı bir fill-reducing ordering yoktur.
-    ! Bu çağrı lifecycle sınırını kurar; gerçek ordering B5/B6 backend'i
-    ! tarafından bu abstraction arkasında uygulanacaktır.
+    ! GMRES'te ayrı fill-reducing ordering yoktur. MUMPS'ta ise gerçek symbolic
+    ! analysis/ordering ilk assembled values setiyle factorize çağrısında yapılır.
+    ! Bu flag lifecycle'da ordering aşamasının bir kez talep edildiğini gösterir.
     context%ordering_ready = .true.
     context%reorder_count = context%reorder_count + 1
   end subroutine reorder_sparse_pattern
@@ -223,10 +260,31 @@ contains
 
     select case (context%settings%backend)
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
-      ! Iterative bootstrap backend gerçek sparse-direct numeric factorization
-      ! yapmaz. Yine de Newton lifecycle'ındaki "numeric values hazır" aşaması
-      ! explicit tutulur; direct factorization yapılmış gibi raporlanmaz.
       context%direct_factorization_performed = .false.
+
+    case (DES_LINEAR_BACKEND_MUMPS_DIRECT)
+      if (.not. context%backend_analysis_ready) then
+        call mumps_backend_analyze( &
+            context%mumps_handle,matrix,status, &
+            context%backend_info_primary,context%backend_info_secondary)
+        if (status /= DES_STATUS_OK) then
+          context%numeric_ready = .false.
+          context%direct_factorization_performed = .false.
+          return
+        end if
+        context%backend_analysis_ready = .true.
+      end if
+
+      call mumps_backend_factorize( &
+          context%mumps_handle,matrix,status, &
+          context%backend_info_primary,context%backend_info_secondary)
+      if (status /= DES_STATUS_OK) then
+        context%numeric_ready = .false.
+        context%direct_factorization_performed = .false.
+        return
+      end if
+      context%direct_factorization_performed = .true.
+
     case default
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
       return
@@ -243,6 +301,10 @@ contains
     real(dp), intent(out) :: x(:)
     type(linear_solver_report_t), intent(out) :: report
 
+    real(dp), allocatable :: ax(:)
+    real(dp) :: rhs_scale, residual_limit
+    integer :: matvec_status, backend_status
+
     report = linear_solver_report_t()
     report%backend = context%settings%backend
     report%equation_count = size(b)
@@ -250,14 +312,52 @@ contains
 
     if (.not. context%active .or. context%released .or. &
         .not. context%numeric_ready .or. &
-        .not. same_sparse_pattern(context,matrix)) then
+        .not. same_sparse_pattern(context,matrix) .or. &
+        size(b) /= matrix%nrows .or. size(x) /= size(b)) then
       report%status = DES_ERROR_INVALID_CONSTRAINT
       call attach_context_counters(context,report)
       context%last_linear_report = report
       return
     end if
 
-    call solve_sparse_linear_system(matrix,b,x,context%settings,report)
+    select case (context%settings%backend)
+    case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
+      call solve_sparse_linear_system(matrix,b,x,context%settings,report)
+
+    case (DES_LINEAR_BACKEND_MUMPS_DIRECT)
+      call mumps_backend_solve( &
+          context%mumps_handle,b,x,backend_status, &
+          context%backend_info_primary,context%backend_info_secondary)
+      if (backend_status /= DES_STATUS_OK) then
+        report%status = backend_status
+        report%converged = .false.
+      else
+        allocate(ax(size(b)))
+        call csr_matvec(matrix,x,ax,matvec_status)
+        if (matvec_status /= DES_STATUS_OK) then
+          report%status = matvec_status
+          report%converged = .false.
+        else
+          report%residual_inf_norm = maxval(abs(ax-b))
+          rhs_scale = max(1.0_dp,maxval(abs(b)))
+          residual_limit = max( &
+              context%settings%absolute_tolerance, &
+              context%settings%relative_tolerance*rhs_scale)
+          if (report%residual_inf_norm <= residual_limit) then
+            report%status = DES_STATUS_OK
+            report%converged = .true.
+          else
+            report%status = DES_ERROR_LINEAR_SOLVE
+            report%converged = .false.
+          end if
+        end if
+      end if
+
+    case default
+      report%status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+      report%converged = .false.
+    end select
+
     context%solve_count = context%solve_count + 1
     call attach_context_counters(context,report)
     context%last_linear_report = report
@@ -348,6 +448,8 @@ contains
     diagnostics%iterative_refinement_count = &
         context%iterative_refinement_count
     diagnostics%symbolic_reuse_count = context%symbolic_reuse_count
+    diagnostics%backend_info_primary = context%backend_info_primary
+    diagnostics%backend_info_secondary = context%backend_info_secondary
     diagnostics%active = context%active
     diagnostics%pattern_analyzed = context%pattern_analyzed
     diagnostics%ordering_ready = context%ordering_ready
@@ -362,11 +464,16 @@ contains
   subroutine release_sparse_solver_context(context)
     type(sparse_solver_context_t), intent(inout) :: context
 
+    if (context%settings%backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+      call mumps_backend_destroy(context%mumps_handle)
+    end if
+
     if (allocated(context%pattern_row_ptr)) deallocate(context%pattern_row_ptr)
     if (allocated(context%pattern_col_ind)) deallocate(context%pattern_col_ind)
     context%active = .false.
     context%pattern_analyzed = .false.
     context%ordering_ready = .false.
+    context%backend_analysis_ready = .false.
     context%numeric_ready = .false.
     context%released = .true.
   end subroutine release_sparse_solver_context
@@ -383,6 +490,8 @@ contains
     report%symbolic_reuse_count = context%symbolic_reuse_count
     report%direct_factorization_performed = &
         context%direct_factorization_performed
+    report%backend_info_primary = context%backend_info_primary
+    report%backend_info_secondary = context%backend_info_secondary
   end subroutine attach_context_counters
 
   logical function same_sparse_pattern(context, matrix)
@@ -446,5 +555,20 @@ contains
     valid_index_class = index_class == DES_INDEX_CLASS_INT32 .or. &
                         index_class == DES_INDEX_CLASS_INT64
   end function valid_index_class
+
+  integer function mumps_symmetry_mode(matrix_class)
+    integer, intent(in) :: matrix_class
+
+    select case (matrix_class)
+    case (DES_MATRIX_CLASS_SPD)
+      mumps_symmetry_mode = 1
+    case (DES_MATRIX_CLASS_SYMMETRIC_INDEFINITE)
+      mumps_symmetry_mode = 2
+    case (DES_MATRIX_CLASS_UNSYMMETRIC)
+      mumps_symmetry_mode = 0
+    case default
+      mumps_symmetry_mode = -1
+    end select
+  end function mumps_symmetry_mode
 
 end module des_sparse_solver_context

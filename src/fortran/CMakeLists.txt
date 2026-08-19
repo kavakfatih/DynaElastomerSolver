@@ -1,3 +1,8 @@
+set(DES_MUMPS_BACKEND_SOURCE solvers/des_mumps_backend_stub.f90)
+if(DES_ENABLE_MUMPS)
+  set(DES_MUMPS_BACKEND_SOURCE solvers/des_mumps_backend.f90)
+endif()
+
 add_library(DynaElastomerCore STATIC
   core/des_kinds.f90
   core/des_status.f90
@@ -33,6 +38,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q4_plane_strain_mixed_up_mesh.f90
   fem/des_q4_plane_strain_fbar_mesh.f90
   solvers/des_linear_solver.f90
+  ${DES_MUMPS_BACKEND_SOURCE}
   solvers/des_sparse_solver_context.f90
   solvers/des_dense_linear.f90
   solvers/des_solution_state.f90
@@ -46,6 +52,12 @@ add_library(DynaElastomerCore STATIC
   solvers/des_q4_internal_mesh_solver.f90
 )
 
+if(DES_ENABLE_MUMPS)
+  target_sources(DynaElastomerCore PRIVATE
+    solvers/des_mumps_adapter.c
+  )
+endif()
+
 set_target_properties(DynaElastomerCore PROPERTIES
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules"
 )
@@ -55,15 +67,21 @@ target_include_directories(DynaElastomerCore PUBLIC
 )
 
 # stdlib Dyna bilimsel çekirdeğinin aktif bağımlılığıdır.
-# Lineer cebir erişimi doğrudan FEM/Newton kodundan değil des_linear_solver sınırından yapılır.
+# Lineer cebir erişimi FEM/Newton kodundan değil solver abstraction sınırından yapılır.
 target_link_libraries(DynaElastomerCore PUBLIC ${DES_STDLIB_TARGET})
+
+if(DES_ENABLE_MUMPS)
+  # MUMPS tipleri Dyna public Fortran API'sine taşınmaz; ancak static core'u
+  # kullanan executable'ların MUMPS link bağımlılığını alması gerekir.
+  target_link_libraries(DynaElastomerCore PUBLIC ${DES_MUMPS_TARGET})
+endif()
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   target_compile_options(DynaElastomerCore PRIVATE
-    -Wall -Wextra -Wimplicit-interface -Werror=implicit-interface
+    "$<$<COMPILE_LANGUAGE:Fortran>:-Wall;-Wextra;-Wimplicit-interface;-Werror=implicit-interface>"
   )
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   target_compile_options(DynaElastomerCore PRIVATE
-    -warn all
+    "$<$<COMPILE_LANGUAGE:Fortran>:-warn;all>"
   )
 endif()
