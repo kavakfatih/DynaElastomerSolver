@@ -38,6 +38,7 @@ add_library(DynaElastomerCore STATIC
   solvers/des_q4_plane_strain_force_solver.f90
   solvers/des_q4_plane_strain_mixed_up_force_solver.f90
   solvers/des_q4_plane_strain_fbar_force_solver.f90
+  solvers/des_q9_plane_strain_herrmann_force_solver.f90
   solvers/des_q4_internal_mesh_solver.f90
 )
 
