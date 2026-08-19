@@ -412,3 +412,36 @@ mevcut kod + ROADMAP + PROJECT_STATUS + PR + açık issue kayıtlarını karşı
 ```
 
 Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya release işlemi yapılmayacaktır.
+
+---
+
+## 14. 2026-08-19 sparse solver devam turu başlangıç kaydı
+
+Kullanıcı `Devam edelim` diyerek V0.3 geliştirme hattının sürdürülmesini istedi. Teknik geliştirme ve yeni solver seçimi yapılmadan önce bu kayıt güncellendi.
+
+Önceki turda raporlanan son durum:
+
+```text
+primary formulation = Q9/P1 Herrmann mixed u-P plane strain
+CTest                = 70/70 PASS
+CSR foundation       = eklendi
+Q9 dense↔CSR parity  = PASS
+H3 LEVEL 2           = PASS
+H3 LEVEL 3           = OPEN
+```
+
+Sparse geliştirme paketinde genel CSR matrix altyapısı ile Q9/P1 Herrmann sparse assembly yolu eklenmiş; finite-compliance ve fully-incompressible saddle-point durumlarında dense/sparse assembly parity kapısı oluşturulmuştur.
+
+Bu devam turunun teknik hedefi:
+
+```text
+mevcut linear-solver interface ve CMake bağımlılıklarını doğrula
+→ symmetric-indefinite / saddle-point yapıya uygun sparse backend seçeneklerini resmi kaynaklardan karşılaştır
+→ platform ve lisans bağımlılığını minimumda tutan backend sınırını seç
+→ mümkün olan en küçük production sparse solve paketini uygula
+→ dense/sparse nonlinear parity ve CI regression kapılarıyla doğrula
+```
+
+Dense stdlib/LAPACK backend küçük doğrulama modelleri için reference/fallback olarak korunacaktır. Production yönünde CG gibi yalnız SPD sistemlere uygun çözücüler kullanılmayacaktır.
+
+Kullanıcı açıkça istemeden PR #1 merge, release branch, tag veya GitHub Release oluşturulmayacaktır.
