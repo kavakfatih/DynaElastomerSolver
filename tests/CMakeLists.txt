@@ -35,6 +35,8 @@ des_add_fortran_test(test_neo_hookean_isochoric material.neo_hookean.isochoric_t
 des_add_fortran_test(test_q4_shape fem.q4.shape test_q4_shape.f90)
 des_add_fortran_test(test_q8_herrmann_interpolation fem.q8.herrmann.interpolation test_q8_herrmann_interpolation.f90)
 des_add_fortran_test(test_q8_herrmann_geometry fem.q8.herrmann.geometry test_q8_herrmann_geometry.f90)
+des_add_fortran_test(test_q9_herrmann_interpolation fem.q9.herrmann.interpolation test_q9_herrmann_interpolation.f90)
+des_add_fortran_test(test_q9_herrmann_geometry fem.q9.herrmann.geometry test_q9_herrmann_geometry.f90)
 des_add_fortran_test(test_mixed_dof_layout fem.mixed.dof_layout test_mixed_dof_layout.f90)
 des_add_fortran_test(test_mixed_precheck fem.mixed.nd_np_precheck test_mixed_precheck.f90)
 des_add_fortran_test(test_herrmann_pressure_constraint fem.herrmann.pressure_constraint test_herrmann_pressure_constraint.f90)
