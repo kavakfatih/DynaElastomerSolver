@@ -503,3 +503,36 @@ Bu paketlerin amacı ANSYS veya Marc'ın tüm ürün kapsamını kopyalamak değ
 **Bu turda hemen başlanacak paket: B3.** Adaptive Q9/P1 solverın CSR assembly ve sparse linear-solver interface üzerinden çalışması sağlanacak; başarısız incrementlerde displacement ve pressure birlikte rollback olacak, failed denemede commit yapılmayacak ve dense/sparse accepted-result parity testleri eklenecektir.
 
 Kullanıcı açıkça istemeden PR #1 merge, release branch, tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 16. 2026-08-19 B3 adaptive CSR çalışma başlangıç kaydı
+
+Bu yeni çalışma turunda B3 paketine geçilmeden önce repository'nin canlı durumu tekrar doğrulandı.
+
+Başlangıç durumu:
+
+```text
+main head                 = fac7425f680aa4c4041c57f7407fb8ee37a97552
+develop/v0.3 PR head      = a8ed5feef953a6997ba4d68786cf16e00708fac0
+PR #1                     = open / draft / merged=false / mergeable=true
+main↔develop chat blob    = f307840c3425deda04b3add792621a0df8e30ac1
+chat synchronization      = PASS
+branch relation           = diverged; develop ahead 236, behind main 3
+```
+
+Bu turda teknik geliştirmeden önce kayda alınan B3 kapsamı:
+
+- adaptive Q9/P1 force-control solver içine sparse backend desteği,
+- CSR graph'ın bir kez kurulup Newton iterasyonlarında yalnız values assembly yapılması,
+- CSR zero-Dirichlet + `solve_sparse_linear_system` ile mixed `Δu + Δp` çözümü,
+- mevcut dense reference/fallback yolunun korunması,
+- displacement ve pressure birlikte snapshot/rollback,
+- başarısız trial incrementlerde `commit_state` çağrılmaması,
+- deliberate cutback-exhaustion regression testi,
+- finite-compliance ve mümkünse `cp=0` fully-incompressible dense↔sparse parity,
+- CTest regression gate ve dört-platform CI doğrulaması.
+
+macOS Apple Silicon ARM64 desteği bu paketin zorunlu kabul kapısıdır. Tek-vendor bağımlılığı oluşturulmayacak; FEM assembly katmanı Dyna CSR veri sözleşmesi ve linear-solver abstraction arkasında kalacaktır.
+
+Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release işlemi yapılmayacaktır.
