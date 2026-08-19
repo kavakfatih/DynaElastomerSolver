@@ -445,3 +445,61 @@ mevcut linear-solver interface ve CMake bağımlılıklarını doğrula
 Dense stdlib/LAPACK backend küçük doğrulama modelleri için reference/fallback olarak korunacaktır. Production yönünde CG gibi yalnız SPD sistemlere uygun çözücüler kullanılmayacaktır.
 
 Kullanıcı açıkça istemeden PR #1 merge, release branch, tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 15. 2026-08-19 solver mimarisi, MacBook şartı ve geliştirme paketleri
+
+Kullanıcı solverın ANSYS ve Marc seviyesine göre durumunu, sparse-direct altyapısının bulunup bulunmadığını ve mimarinin ticari solverlarla kıyaslandığında nasıl geliştirilmesi gerektiğini sordu. Ardından geliştirme paketlerinin planlanmasını ve çalışmaya devam edilmesini istedi.
+
+Bu turda doğrulanan temel durum:
+
+```text
+primary formulation        = Q9/P1 Herrmann mixed u-P plane strain
+independent verification   = LEVEL 2 PASS
+commercial parity          = LEVEL 3 OPEN
+sparse assembly            = VAR
+sparse iterative backend   = stdlib CSR GMRES bootstrap
+sparse direct backend      = YOK
+dense reference backend    = stdlib/LAPACK
+fixed Q9 sparse Newton     = VAR
+adaptive Q9 sparse Newton  = YOK; adaptive yol halen dense
+```
+
+MacBook desteği bundan sonra solver mimarisinin **zorunlu ürün şartı** olarak tutulacaktır:
+
+```text
+Windows x64
+Linux x64
+macOS Apple Silicon ARM64
+```
+
+Mevcut CI matrisinde macOS ARM64 / gfortran 14 hattı başarıyla çalışmaktadır. Gelecek production sparse solver seçimi tek-vendor bağımlılığı yaratmayacak ve macOS ARM64 desteğini bozmayacaktır.
+
+Mevcut mimaride korunacak doğru kararlar:
+
+- FEM assembly katmanı backend'den bağımsız Dyna CSR veri sözleşmesi kullanır.
+- Dense LAPACK yalnız reference/fallback olarak korunur.
+- Mixed `u-P` unknown sırası ve pressure DOF'ları global Newton sisteminin parçasıdır.
+- Fully incompressible `Kpp = 0` saddle-point sistemi SPD varsayımıyla çözülmez.
+
+Ticari solver seviyesine yaklaşmak için planlanan paketler:
+
+```text
+B3  Adaptive Q9/P1 Newton → tam CSR sparse yol + u/p rollback/cutback parity
+B4  Stateful sparse solver context → analyze/reorder/factorize/solve/reuse/release API
+B5  Sparse-direct backend kararı → macOS ARM64 + Windows + Linux + lisans/dağıtım ADR
+B6  İlk production sparse-indefinite direct backend entegrasyonu
+B7  AUTO solver policy → matrix class + direct/iterative fallback + diagnostics
+B8  Nonlinear robustness → line search/predictor/divergence ve cutback politikaları
+B9  Large-scale altyapı → 64-bit CSR, ordering, symbolic reuse, memory/performance telemetri
+B10 Axisymmetric Q9/P1 mixed u-P
+B11 Axisymmetric-with-torsion / 2.5D
+B12 Commercial parity → aynı benchmarkların ANSYS ve Marc ile doğrudan karşılaştırılması
+```
+
+Bu paketlerin amacı ANSYS veya Marc'ın tüm ürün kapsamını kopyalamak değildir. Hedef, DynaElastomerSolver'ın desteklediği elastomer/hyperelastic mixed `u-P` problem sınıflarında doğruluk, nonlinear robustness ve performans açısından ölçülebilir parity sağlamaktır.
+
+**Bu turda hemen başlanacak paket: B3.** Adaptive Q9/P1 solverın CSR assembly ve sparse linear-solver interface üzerinden çalışması sağlanacak; başarısız incrementlerde displacement ve pressure birlikte rollback olacak, failed denemede commit yapılmayacak ve dense/sparse accepted-result parity testleri eklenecektir.
+
+Kullanıcı açıkça istemeden PR #1 merge, release branch, tag veya GitHub Release oluşturulmayacaktır.
