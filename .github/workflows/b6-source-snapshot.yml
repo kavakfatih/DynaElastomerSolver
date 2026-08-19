@@ -1,0 +1,30 @@
+name: B6 Source Snapshot
+
+on:
+  push:
+    branches: ['develop/v0.3']
+    paths:
+      - '.github/workflows/b6-source-snapshot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: B6b kaynaklarını sakla
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: b6-source-snapshot
+          path: |
+            src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90
+            tests/test_q9_herrmann_sparse_force_solver.f90
+            tests/test_q9_herrmann_sparse_adaptive_force_solver.f90
+            tests/CMakeLists.txt
+            .github/workflows/mumps-direct-ci.yml
+          if-no-files-found: error
+          retention-days: 1
