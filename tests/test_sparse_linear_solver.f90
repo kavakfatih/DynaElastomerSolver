@@ -13,7 +13,7 @@ program test_sparse_linear_solver
   type(linear_solver_settings_t) :: settings
   type(linear_solver_report_t) :: report
   integer :: maps(1,3), status
-  real(dp) :: A_dense(3,3), b(3), x(3), expected(3)
+  real(dp) :: A_dense(3,3), b(3), x(3), expected(3), sparse_residual
 
   ! Simetrik fakat indefinite ve sifir pressure-benzeri diagonale sahip kucuk
   ! saddle-point sistemi. Determinant -5'tir; dolayisiyla sistem tekil degildir.
@@ -41,7 +41,7 @@ program test_sparse_linear_solver
 
   call solve_sparse_linear_system(A,b,x,settings,report)
 
-  if (.not. report%converged) error stop 'CSR GMRES indefinite sistemde yakinşamadi.'
+  if (.not. report%converged) error stop 'CSR GMRES indefinite sistemde yakinsamadi.'
   if (report%status /= DES_STATUS_OK) error stop 'CSR GMRES status basarisiz.'
   if (report%backend /= DES_LINEAR_BACKEND_STDLIB_CSR_GMRES) then
     error stop 'CSR GMRES backend raporu yanlis.'
@@ -53,6 +53,7 @@ program test_sparse_linear_solver
   if (report%residual_inf_norm > 1.0e-11_dp) then
     error stop 'CSR GMRES true residual toleransi asildi.'
   end if
+  sparse_residual = report%residual_inf_norm
 
   ! Dense backend sparse API uzerinden sessizce kullanilmaz. Storage/backend
   ! uyumsuzlugu acik status ile raporlanir.
@@ -63,7 +64,6 @@ program test_sparse_linear_solver
     error stop 'Sparse API backend uyumsuzlugunu dogru status ile raporlamadi.'
   end if
 
-  write(*,'(A,ES12.4)') 'CSR GMRES indefinite true residual = ', &
-      report%residual_inf_norm
+  write(*,'(A,ES12.4)') 'CSR GMRES indefinite true residual = ',sparse_residual
   write(*,'(A)') 'Sparse linear solver bootstrap testi BASARILI.'
 end program test_sparse_linear_solver
