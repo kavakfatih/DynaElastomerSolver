@@ -33,17 +33,20 @@ contains
       matrix, nrows, ncols, element_dof_maps, status)
     ! Element-local equation map'lerinden tekrar etmeyen global CSR graph kurar.
     !
-    ! Dense logical adjacency matrisi kullanilmaz. Bellek maliyeti O(nrow+ncol+nnz)
-    ! mertebesinde tutulur; her global satir icin marker dizisi ile duplicate
-    ! kolonlar elenir. Kolon indeksleri deterministic binary-search assembly icin
-    ! her satirda artan siraya getirilir.
+    ! Dense logical adjacency matrisi kullanilmaz. Once her global satirin element
+    ! contribution adaylari compact scratch dizide toplanir; satir icinde sort +
+    ! unique yapildiktan sonra yalniz gercek structural nonzero'lar CSR'a yazilir.
+    ! Final matrix belleği O(nrow+nnz)'dir. Pattern-build scratch'i gecici olarak
+    ! O(nelem*nlocal^2) integer tutar ve graph tamamlaninca serbest birakilir.
     type(csr_matrix_t), intent(out) :: matrix
     integer, intent(in) :: nrows, ncols
     integer, intent(in) :: element_dof_maps(:,:)
     integer, intent(out) :: status
 
-    integer, allocatable :: row_counts(:), marker(:), next_position(:)
-    integer :: nelem, nlocal, e, lr, lc, row, col, i, total_nnz
+    integer, allocatable :: candidate_counts(:), candidate_ptr(:), candidates(:)
+    integer, allocatable :: next_position(:), row_counts(:)
+    integer :: nelem, nlocal, e, lr, lc, row, col
+    integer :: i, k, first, last, previous, total_candidates, total_nnz
 
     status = DES_STATUS_OK
 
@@ -59,32 +62,66 @@ contains
       return
     end if
 
-    if (any(element_dof_maps < 1) .or. any(element_dof_maps > max(nrows,ncols))) then
-      status = DES_ERROR_INVALID_CONSTRAINT
-      return
-    end if
-    if (any(element_dof_maps > nrows) .or. any(element_dof_maps > ncols)) then
+    if (any(element_dof_maps < 1) .or. any(element_dof_maps > nrows) .or. &
+        any(element_dof_maps > ncols)) then
       status = DES_ERROR_INVALID_CONSTRAINT
       return
     end if
 
     matrix%nrows = nrows
     matrix%ncols = ncols
-    allocate(row_counts(nrows),marker(ncols),next_position(nrows))
-    row_counts = 0
-    marker = 0
+    allocate(candidate_counts(nrows),candidate_ptr(nrows+1), &
+             next_position(nrows),row_counts(nrows))
+    candidate_counts = 0
 
-    ! Ilk gecis: her satirdaki unique structural kolon sayisini belirle.
+    ! Her local row, ayni elementin tum local kolonlarini structural aday yapar.
+    do e = 1,nelem
+      do lr = 1,nlocal
+        row = element_dof_maps(e,lr)
+        candidate_counts(row) = candidate_counts(row)+nlocal
+      end do
+    end do
+
+    candidate_ptr(1) = 1
+    do row = 1,nrows
+      candidate_ptr(row+1) = candidate_ptr(row)+candidate_counts(row)
+    end do
+    total_candidates = candidate_ptr(nrows+1)-1
+    if (total_candidates < 1) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    allocate(candidates(total_candidates))
+    candidates = 0
+    next_position = candidate_ptr(1:nrows)
+
     do e = 1,nelem
       do lr = 1,nlocal
         row = element_dof_maps(e,lr)
         do lc = 1,nlocal
-          col = element_dof_maps(e,lc)
-          if (marker(col) /= row) then
-            marker(col) = row
-            row_counts(row) = row_counts(row)+1
-          end if
+          candidates(next_position(row)) = element_dof_maps(e,lc)
+          next_position(row) = next_position(row)+1
         end do
+      end do
+    end do
+
+    ! Aynı global row komsu elementlerden birden cok kez gelebilir. Sort+unique
+    ! bu tekrarlarin CSR graph'ta duplicate structural entry yaratmasini engeller.
+    row_counts = 0
+    do row = 1,nrows
+      first = candidate_ptr(row)
+      last = candidate_ptr(row+1)-1
+      call sort_integer_range(candidates,first,last)
+      if (last < first) cycle
+
+      previous = 0
+      do k = first,last
+        col = candidates(k)
+        if (k == first .or. col /= previous) then
+          row_counts(row) = row_counts(row)+1
+          previous = col
+        end if
       end do
     end do
 
@@ -104,26 +141,21 @@ contains
     matrix%col_ind = 0
     matrix%values = 0.0_dp
 
-    ! Ikinci gecis: unique kolon indekslerini CSR satir araliklarina yaz.
-    marker = 0
     next_position = matrix%row_ptr(1:nrows)
-    do e = 1,nelem
-      do lr = 1,nlocal
-        row = element_dof_maps(e,lr)
-        do lc = 1,nlocal
-          col = element_dof_maps(e,lc)
-          if (marker(col) /= row) then
-            marker(col) = row
-            matrix%col_ind(next_position(row)) = col
-            next_position(row) = next_position(row)+1
-          end if
-        end do
-      end do
-    end do
-
     do row = 1,nrows
-      call sort_integer_range( &
-          matrix%col_ind,matrix%row_ptr(row),matrix%row_ptr(row+1)-1)
+      first = candidate_ptr(row)
+      last = candidate_ptr(row+1)-1
+      if (last < first) cycle
+
+      previous = 0
+      do k = first,last
+        col = candidates(k)
+        if (k == first .or. col /= previous) then
+          matrix%col_ind(next_position(row)) = col
+          next_position(row) = next_position(row)+1
+          previous = col
+        end if
+      end do
     end do
 
     if (any(matrix%col_ind < 1) .or. any(matrix%col_ind > ncols)) then
