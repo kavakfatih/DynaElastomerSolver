@@ -85,6 +85,18 @@ if(DES_ENABLE_MUMPS)
     solver.sparse.mumps_direct_context
     test_mumps_sparse_solver_context.f90
   )
+
+  # Aynı Q9/P1 parity executable'ları varsayılan olarak GMRES'i korur. MUMPS
+  # build'inde `mumps` argümanı ile direct backend'i aynı fizik ve lifecycle
+  # kabul kriterlerinden geçirerek test mantığının kopyalanmasını önlüyoruz.
+  add_test(
+    NAME solver.q9.plane_strain.herrmann.mumps_force_parity
+    COMMAND test_q9_herrmann_sparse_force_solver mumps
+  )
+  add_test(
+    NAME solver.q9.plane_strain.herrmann.mumps_adaptive_force_parity
+    COMMAND test_q9_herrmann_sparse_adaptive_force_solver mumps
+  )
 endif()
 
 des_add_fortran_test(test_q4_plane_strain_mesh_newton fem.q4.plane_strain.mesh_incremental_newton test_q4_plane_strain_mesh_newton.f90)

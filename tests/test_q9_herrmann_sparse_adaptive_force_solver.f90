@@ -4,15 +4,28 @@ program test_q9_herrmann_sparse_adaptive_force_solver
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_linear_solver, only : linear_solver_settings_t, &
-                                DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+                                DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
+                                DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
   use des_q9_plane_strain_herrmann_force_solver, only : &
       solve_q9_internal_mesh_herrmann_adaptive_force_control
   implicit none
 
   real(dp) :: X(9,2)
-  integer :: connectivity(1,9), status
+  integer :: connectivity(1,9), status, sparse_backend
+  character(len=32) :: backend_argument
   type(internal_mesh_t) :: mesh
+
+  sparse_backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+  if (command_argument_count() > 0) then
+    call get_command_argument(1,backend_argument)
+    select case (trim(backend_argument))
+    case ('mumps')
+      sparse_backend = DES_LINEAR_BACKEND_MUMPS_DIRECT
+    case default
+      error stop 'Q9 adaptive sparse parity bilinmeyen backend argumani.'
+    end select
+  end if
 
   X(1,:) = [0.0_dp,0.0_dp]
   X(2,:) = [1.0_dp,0.0_dp]
@@ -30,18 +43,20 @@ program test_q9_herrmann_sparse_adaptive_force_solver
     error stop 'Sparse adaptive Q9 nonlinear parity mesh kurulamadi.'
   end if
 
-  call run_adaptive_parity_case(mesh,5.0e-2_dp,.false.)
-  call run_adaptive_parity_case(mesh,0.0_dp,.true.)
-  call run_cutback_exhaustion_parity(mesh)
+  call run_adaptive_parity_case(mesh,5.0e-2_dp,.false.,sparse_backend)
+  call run_adaptive_parity_case(mesh,0.0_dp,.true.,sparse_backend)
+  call run_cutback_exhaustion_parity(mesh,sparse_backend)
 
   write(*,'(A)') 'Q9/P1 Herrmann sparse adaptive parity testi BASARILI.'
 
 contains
 
-  subroutine run_adaptive_parity_case(mesh,pressure_compliance,fully_incompressible)
+  subroutine run_adaptive_parity_case( &
+      mesh,pressure_compliance,fully_incompressible,sparse_backend)
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: pressure_compliance
     logical, intent(in) :: fully_incompressible
+    integer, intent(in) :: sparse_backend
 
     integer, parameter :: fixed_dofs(3) = [1,2,7]
     real(dp), parameter :: shear_modulus = 2.0_dp
@@ -98,7 +113,7 @@ contains
       error stop 'Q9 dense adaptive parity referansi yakinsamadi.'
     end if
 
-    call configure_sparse_settings(sparse_settings)
+    call configure_sparse_settings(sparse_settings,sparse_backend)
 
     u_sparse = 0.0_dp
     p_sparse = 0.0_dp
@@ -163,8 +178,17 @@ contains
         sparse_report%linear_solve_count) then
       error stop 'Q9 adaptive context solve sayaci Newton sayaciyla uyusmuyor.'
     end if
-    if (sparse_report%last_linear_report%direct_factorization_performed) then
-      error stop 'Q9 adaptive GMRES direct factorization iddia etti.'
+    if (sparse_report%last_linear_report%backend /= sparse_backend) then
+      error stop 'Q9 adaptive sparse backend raporu secimle uyusmuyor.'
+    end if
+    if (sparse_backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+      if (.not. sparse_report%last_linear_report%direct_factorization_performed) then
+        error stop 'Q9 adaptive MUMPS direct factorization raporlanmadi.'
+      end if
+    else
+      if (sparse_report%last_linear_report%direct_factorization_performed) then
+        error stop 'Q9 adaptive GMRES direct factorization iddia etti.'
+      end if
     end if
 
     if (fully_incompressible) then
@@ -182,8 +206,9 @@ contains
     end if
   end subroutine run_adaptive_parity_case
 
-  subroutine run_cutback_exhaustion_parity(mesh)
+  subroutine run_cutback_exhaustion_parity(mesh,sparse_backend)
     type(internal_mesh_t), intent(in) :: mesh
+    integer, intent(in) :: sparse_backend
 
     integer, parameter :: fixed_dofs(3) = [1,2,7]
     integer, parameter :: max_cutbacks = 2
@@ -223,7 +248,7 @@ contains
         1.0_dp,0.125_dp,0.5_dp,max_cutbacks,1,1.0e-12_dp, &
         u_dense,p_dense,residual_dense,dense_report)
 
-    call configure_sparse_settings(sparse_settings)
+    call configure_sparse_settings(sparse_settings,sparse_backend)
     u_sparse = 0.0_dp
     p_sparse = 0.0_dp
     call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
@@ -268,17 +293,25 @@ contains
     if (sparse_report%last_linear_report%reorder_count /= 1) then
       error stop 'Q9 exhaustion sparse context ordering tekrarlandi.'
     end if
+    if (sparse_report%last_linear_report%backend /= sparse_backend) then
+      error stop 'Q9 exhaustion sparse backend raporu secimle uyusmuyor.'
+    end if
+    if (sparse_backend == DES_LINEAR_BACKEND_MUMPS_DIRECT .and. &
+        .not. sparse_report%last_linear_report%direct_factorization_performed) then
+      error stop 'Q9 exhaustion MUMPS direct factorization raporlanmadi.'
+    end if
 
     write(*,'(A,I0,A,I0,A,I0)') &
         'Adaptive exhaustion cutback/commit/revert = ',sparse_report%cutback_count, &
         ' / ',sparse_report%state_commit_count,' / ',sparse_report%state_revert_count
   end subroutine run_cutback_exhaustion_parity
 
-  subroutine configure_sparse_settings(settings)
+  subroutine configure_sparse_settings(settings,sparse_backend)
     type(linear_solver_settings_t), intent(out) :: settings
+    integer, intent(in) :: sparse_backend
 
     settings = linear_solver_settings_t()
-    settings%backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+    settings%backend = sparse_backend
     settings%relative_tolerance = 1.0e-11_dp
     settings%absolute_tolerance = 1.0e-12_dp
     settings%max_iterations = 100

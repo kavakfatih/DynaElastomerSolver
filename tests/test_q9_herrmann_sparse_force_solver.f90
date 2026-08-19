@@ -4,15 +4,28 @@ program test_q9_herrmann_sparse_force_solver
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_linear_solver, only : linear_solver_settings_t, &
-                                DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+                                DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
+                                DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
   use des_q9_plane_strain_herrmann_force_solver, only : &
       solve_q9_internal_mesh_herrmann_force_control
   implicit none
 
   real(dp) :: X(9,2)
-  integer :: connectivity(1,9),status
+  integer :: connectivity(1,9),status,sparse_backend
+  character(len=32) :: backend_argument
   type(internal_mesh_t) :: mesh
+
+  sparse_backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+  if (command_argument_count() > 0) then
+    call get_command_argument(1,backend_argument)
+    select case (trim(backend_argument))
+    case ('mumps')
+      sparse_backend = DES_LINEAR_BACKEND_MUMPS_DIRECT
+    case default
+      error stop 'Q9 sparse parity bilinmeyen backend argumani.'
+    end select
+  end if
 
   X(1,:) = [0.0_dp,0.0_dp]
   X(2,:) = [1.0_dp,0.0_dp]
@@ -28,17 +41,18 @@ program test_q9_herrmann_sparse_force_solver
   call initialize_q9_internal_mesh(mesh,X,connectivity,status)
   if (status /= DES_STATUS_OK) error stop 'Sparse Q9 nonlinear parity mesh kurulamadi.'
 
-  call run_parity_case(mesh,5.0e-2_dp,.false.)
-  call run_parity_case(mesh,0.0_dp,.true.)
+  call run_parity_case(mesh,5.0e-2_dp,.false.,sparse_backend)
+  call run_parity_case(mesh,0.0_dp,.true.,sparse_backend)
 
   write(*,'(A)') 'Q9/P1 Herrmann dense-sparse nonlinear parity testi BASARILI.'
 
 contains
 
-  subroutine run_parity_case(mesh,pressure_compliance,fully_incompressible)
+  subroutine run_parity_case(mesh,pressure_compliance,fully_incompressible,sparse_backend)
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: pressure_compliance
     logical, intent(in) :: fully_incompressible
+    integer, intent(in) :: sparse_backend
 
     integer, parameter :: fixed_dofs(3) = [1,2,7]
     real(dp), parameter :: shear_modulus = 2.0_dp
@@ -95,7 +109,7 @@ contains
     end if
 
     sparse_settings = linear_solver_settings_t()
-    sparse_settings%backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+    sparse_settings%backend = sparse_backend
     sparse_settings%relative_tolerance = 1.0e-11_dp
     sparse_settings%absolute_tolerance = 1.0e-12_dp
     sparse_settings%max_iterations = 100
@@ -151,8 +165,17 @@ contains
         sparse_report%linear_solve_count) then
       error stop 'Q9 sparse context solve sayaci Newton sayaciyla uyusmuyor.'
     end if
-    if (sparse_report%last_linear_report%direct_factorization_performed) then
-      error stop 'Q9 GMRES direct factorization yapmis gibi raporlandi.'
+    if (sparse_report%last_linear_report%backend /= sparse_backend) then
+      error stop 'Q9 sparse parity backend raporu secimle uyusmuyor.'
+    end if
+    if (sparse_backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+      if (.not. sparse_report%last_linear_report%direct_factorization_performed) then
+        error stop 'Q9 MUMPS direct factorization raporlanmadi.'
+      end if
+    else
+      if (sparse_report%last_linear_report%direct_factorization_performed) then
+        error stop 'Q9 GMRES direct factorization yapmis gibi raporlandi.'
+      end if
     end if
 
     if (fully_incompressible) then
