@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "purpose": "V0.3 H3 independent mixed u-P acceptance provenance snapshot",
+  "source_head": "e766bd52f38b81c6c324be1a8a549a172ee40c60",
+  "pull_request_merge_commit": "8bbfcfedd3e21adcde7c569af27c754d6d1e25cb",
+  "captured_utc": "2026-08-19T17:38:06Z",
+  "matched_discrete_displacement_relative_tolerance": 2.0e-5,
+  "continuum_displacement_relative_target": 1.0e-2,
+  "near_incompressible": {
+    "workflow": "FEniCSx V0.3 Mixed u-P Reference",
+    "workflow_run_id": 32282607728,
+    "solver": "FEniCSx / DOLFINx 0.11.0.post0",
+    "space": "continuous Q2 displacement + discontinuous DPC1 pressure",
+    "pressure_compliance": 1.0e-3,
+    "bulk_over_mu": 1000.0,
+    "quadrature": "3x3 equivalent cell integration",
+    "tip_definition": "right_edge_geometric_midpoint",
+    "mesh": {
+      "4": 0.020247003861301714,
+      "8": 0.020285380456296378,
+      "16": 0.020312425368540516
+    },
+    "reference_candidate_converged": true
+  },
+  "fully_incompressible": {
+    "workflow": "FEniCSx V0.3 Fully Incompressible Mixed Reference",
+    "workflow_run_id": 32282607651,
+    "solver": "FEniCSx / DOLFINx 0.11.0.post0",
+    "space": "continuous Q2 displacement + discontinuous DPC1 pressure",
+    "pressure_compliance": 0.0,
+    "quadrature": "Basix degree 4 / 9 cell points",
+    "tip_definition": "right_edge_geometric_midpoint",
+    "mesh": {
+      "4": 0.020227982624133303,
+      "8": 0.02026628299450121,
+      "16": 0.02029337237340392
+    },
+    "reference_candidate_converged": true
+  },
+  "independence_note": "Reference workflows do not call Dyna Fortran element, assembly, tangent or Newton implementation. Snapshot values are frozen provenance data; live FEniCSx workflows remain separate required checks."
+}
