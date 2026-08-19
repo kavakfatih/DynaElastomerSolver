@@ -2,9 +2,10 @@
 
 **Yaklaşım:** Implementasyon öncelikli doğrulama  
 **Ana mimari karar:** ADR-0008 — Herrmann / stable mixed `u-p` ana production yolu  
+**Aktif element kararı:** ADR-0009 — Q9/P1 plane-strain production adayı  
 **İkincil formulation:** F-bar — bağımsız cross-check ve nearly-incompressible alternatif
 
-DynaElastomerSolver genel amaçlı bir CAE kopyası değildir. Hedef; büyük deformasyonlu elastomer problemlerinde dar fakat güçlü, doğrulanmış ve açıklanabilir bir çözüm zinciri kurmaktır. Axisymmetric-with-torsion bu ana hedeflerden biridir; projenin tek hedefi değildir.
+DynaElastomerSolver genel amaçlı bir CAE kopyası değildir. Hedef; büyük deformasyonlu elastomer problemlerinde dar fakat güçlü, düşük hata oranlı, doğrulanabilir ve açıklanabilir bir çözüm zinciri kurmaktır. Hexagon Marc ve ANSYS davranış/benchmark referanslarıdır; kaynak kodları kopyalanmaz ve parity yalnız tekrarlanabilir benchmark kanıtı ile ifade edilir.
 
 ---
 
@@ -45,164 +46,175 @@ Material tangent normalized FD error ≈ 1.26e-9
 
 ---
 
-## V0.3 — Nearly-Incompressible Formulation Foundation
+## V0.3 — Stable Mixed u-P / Herrmann Plane-Strain Foundation
 
-**Durum:** 🟡 GELİŞTİRME YENİDEN AÇILDI  
+**Durum:** 🟡 AKTİF GELİŞTİRME  
 **Branch:** `develop/v0.3`  
 **CMake:** `0.3.0`  
 **Draft PR:** `#1`
 
-### Tarihsel V0.3 bake-off — geçerli kanıt
+### Tarihsel V0.3 bake-off — korunacak regression kanıtı
 
-İlk V0.3 çalışmasında aynı Cook problemi üzerinde:
-
-| Formulation | 8×8 tip | Q2 32×32 göre hata |
-|---|---:|---:|
-| Displacement Q4 | 0.00656452664 | 67.50% |
-| Mixed Q4/P0 | 0.01915555105 | 5.16% |
-| F-bar Q4 | 0.01940548609 | 3.92% |
-
-F-bar daha sonra mesh incelmesiyle:
+İlk V0.3 bake-off aynı Cook problemi üzerinde displacement Q4, mixed Q4/P0 ve F-bar Q4'ü karşılaştırdı. Q4/P0 checkerboard pressure null-mode riski gösterdi; F-bar ise güçlü nearly-incompressible cross-check olarak kaldı.
 
 ```text
-8×8 relative error   ≈ 3.9207%
-16×16 relative error ≈ 0.9083%
+Q4 displacement  -> locking baseline
+Q4/P0 mixed      -> experimental / checkerboard regression
+Q4 F-bar         -> secondary production-quality cross-check
 ```
 
-seviyesine inmiştir. Bu sonuç F-bar'ın güçlü ve geçerli bir formulation olduğunu gösterir ve regression/cross-check hattında korunur.
-
-Mevcut Q4/P0 mixed prototip ise checkerboard pressure coupling riskini göstermiştir:
-
-```text
-checkerboard normalized K_up coupling ≈ 6.22e-17
-mean-zero probe coupling              ≈ 1.58e-01
-```
-
-Bu nedenle mevcut Q4/P0 **as-is production değildir**.
-
-### ADR-0008 ile yeni ana yön
+### ADR-0008 — formulation ailesi
 
 ```text
 PRIMARY:
-  Herrmann / stable mixed u-P element family
-
-FIRST HIGH-ORDER CANDIDATE:
-  Q8 serendipity displacement
-  + 3 element-internal linear pressure DOF
+  Herrmann / stable mixed u-P
 
 SECONDARY / CROSS-CHECK:
-  F-bar element family
+  F-bar
 
 BASELINE / REGRESSION:
-  displacement-only family
+  displacement-only
 ```
 
-ANSYS PLANE183 ve Hexagon Marc Herrmann element yaklaşımı davranış/benchmark referansıdır. Dyna'nın residual, tangent, interpolation, assembly ve solver kodu bağımsız geliştirilir.
+### ADR-0009 — Q8/P1 → Q9/P1 kararı
 
-### H0 — Q8 + pressure interpolation + block/DOF foundation
+İlk araştırma adayı Q8 serendipity + element-internal P1 pressure idi. Mesh-refinement inf-sup proxy tanısı Q8/P1'de stability kaybı gösterdiği için Q8/P1 production-safe ilan edilmedi ve regression/araştırma hattında tutuldu.
 
-- [x] Q8 serendipity displacement shape functions
-- [x] 3-DOF lineer pressure-space ilk adayı
-- [x] partition-of-unity / Kronecker / derivative identity testleri
-- [x] Q8 isoparametric geometry/Jacobian/gradient contract
-- [x] discontinuous element-pressure global DOF layout
-- [x] plane-strain 19-local-unknown mapping (`16u + 3p`)
-- [x] torsion-compatible generic mapping (`24u + 3p`)
-- [x] global `Nd/Np` precheck metriği
+Aktif plane-strain adayı:
 
-Pressure basis production kabulü değildir; stability testlerinden sonra sabitlenecektir. `Nd/Np` kontrolü de inf-sup/stability kanıtının yerine geçmez; yalnız açık overconstraint riskini erkenden yakalar.
+```text
+Q9 biquadratic displacement
++ 3 element-internal complete-linear pressure DOF [1, xi, eta]
++ Herrmann / mixed u-P finite-strain formulation
+```
 
-### H1 — Plane-Strain Q8/P1 Herrmann Element
+Yerel bilinmeyen sayısı:
 
-İlk alt adım, `p` değişkeninin gerçek hydrostatic pressure anlamını koruyacak material/formulation sözleşmesidir. Material Core'un deviatorik response'u ile mixed volumetric constraint birbirinden ayrılacaktır.
+```text
+18 displacement DOF + 3 pressure DOF = 21
+```
 
-- deviatoric / hydrostatic material split contract
-- finite-strain `F`, `J`, `F^{-T}`
-- independent hydrostatic pressure unknown
-- nearly-incompressible compatibility
-- fully-incompressible `J=1` constraint
-- `R_u`, `R_p`
-- `K_uu`, `K_up`, `K_pu`, `K_pp`
-- analytic consistent tangent
-- element FD cross-check
-- pressure patch test
-- rank/null-mode diagnostics
-- checkerboard / spurious pressure scan
-- severe-distortion test
+Primary quadrature şimdilik `3x3 Gauss`; `2x2` diagnostic/cross-check olarak tutulur. Bu karar external mixed reference ve mesh convergence ile tekrar değerlendirilebilir.
 
-**Kural:** Q8/P1 stability kanıtı olmadan production etiketi almaz.
+### H0 — Mixed interpolation / DOF foundation ✅
 
-### H2 — Global Mixed Assembly + Nonlinear Solver
+- [x] Q8 historical interpolation ve stability diagnostics
+- [x] Q9 biquadratic interpolation / geometry
+- [x] 3-DOF discontinuous P1 pressure space
+- [x] global displacement/pressure equation mapping
+- [x] `Nd/Np` precheck
+- [x] Q9 `InternalMesh` topology
 
-- element-internal pressure equation map
-- `InternalMesh` mixed adapter
-- Full Newton
-- displacement + pressure convergence norms
-- volumetric constraint convergence metriği
-- trial/commit/revert
-- adaptive increment
-- cutback/retry
-- independent-pressure Results semantics
+### H1 — Plane-Strain Q9/P1 Herrmann Element ✅ / doğrulama genişliyor
 
-Küçük doğrulama problemlerinde dense LAPACK kullanılabilir. Production büyüme yönü block sparse assembly + sparse direct baseline + Schur/field-split'tir.
+- [x] isochoric Neo-Hookean response
+- [x] independent hydrostatic pressure, `p > 0` compression
+- [x] `sigma = sigma_iso - p I`
+- [x] nearly-incompressible compliance form
+- [x] fully-incompressible `J=1`, `K_pp=0` saddle-point limit
+- [x] `R_u`, `R_p`
+- [x] `K_uu`, `K_up`, `K_pu`, `K_pp`
+- [x] analytic consistent tangent
+- [x] central finite-difference tangent cross-check
+- [x] block/tangent symmetry checks
+- [x] pressure coupling rank / checkerboard gate
+- [x] Q9 mesh-refinement inf-sup proxy plateau gate
+- [x] distorted pressure-stability gate
+- [x] 2x2 / 3x3 quadrature comparison
+- [x] severe-distortion manufactured-state test
+- [x] dedicated P1 pressure patch paketi eklendi — CI doğrulaması sürüyor
 
-### H3 — Production Acceptance Benchmark
+### H2 — Global Mixed Assembly + Nonlinear Solver ✅
 
-Aynı benchmark sözleşmesinde:
+- [x] element-internal pressure global equations
+- [x] Q9 `InternalMesh` mixed assembly
+- [x] Full Newton
+- [x] fixed + adaptive force control
+- [x] displacement residual norm
+- [x] pressure weak residual norm
+- [x] pointwise volumetric diagnostic
+- [x] trial/commit/revert
+- [x] adaptive increment
+- [x] cutback/retry
+- [x] displacement + pressure birlikte rollback
+- [x] independent-pressure Results semantics
+- [x] fully-incompressible saddle-point solve
 
-- Dyna Q4 displacement
-- Dyna Q4 F-bar
-- Dyna Q4/P0 mixed prototype
-- Dyna Q8/P1 Herrmann
-- FEniCSx mixed/Q2 reference
-- mümkün olduğunda ANSYS PLANE183 mixed u-P
-- mümkün olduğunda Hexagon Marc Herrmann
+Dense LAPACK küçük doğrulama problemlerinde korunur. Büyük-model production yönü:
 
-karşılaştırılır.
+```text
+block DOF contract
+→ sparse assembly
+→ sparse direct baseline
+→ Schur-complement / field-split
+→ conditioning/scaling diagnostics
+```
 
-Metrikler:
+### H3 — Production Acceptance / düşük hata zinciri 🟡
 
-- displacement error
-- pressure quality
-- volumetric constraint error
-- mesh convergence
-- nonlinear convergence
-- equation count
-- wall time / memory
-- distortion robustness
+Tamamlanan/aktif kapılar:
 
-**V0.3 release kapısı:** H0-H3 bilimsel minimumları tamamlanmadan V0.3 `main`e merge edilmez ve `v0.3.0` yayınlanmaz.
+- [x] incompressibility sweep: `K/mu = 10,100,1000,∞`
+- [x] `K/mu=1000` → fully-incompressible limit displacement farkı düşük
+- [x] severe-distortion exact-state recovery
+- [x] 2x2 vs 3x3 quadrature bake-off
+- [x] Q9/P1 dedicated Cook `1x1 -> 2x2 -> 4x4` mesh-refinement testi eklendi — CI doğrulaması sürüyor
+- [x] FEniCSx mixed Q2/DPC1 external-reference script/workflow eklendi — CI doğrulaması sürüyor
+- [ ] Dyna Q9/P1 ile FEniCSx mixed referansını otomatik tek acceptance raporunda karşılaştır
+- [ ] pressure field L2-type error karşılaştırması
+- [ ] fully-incompressible external mixed reference
+- [ ] aynı contract ile ANSYS PLANE183 mixed u-P benchmarkı — erişim olduğunda
+- [ ] aynı contract ile Hexagon Marc Herrmann benchmarkı — erişim olduğunda
+
+ADR-0009 hedefleri:
+
+```text
+analytic-vs-FD tangent normalized error  <= 1e-7  (nominal hedef <= 1e-8)
+pressure patch displacement recovery     <= 1e-7
+pressure patch pressure recovery         <= 1e-7
+pressure weak residual                   <= 1e-9
+K/mu=1000 -> incompressible tip gap      <= 0.5%
+external mixed displacement error        <= 1.0%
+external pressure L2-type error           <= 2.0%  [aynı pressure convention]
+```
+
+Bu eşikler solver'ın Marc/ANSYS seviyesinde olduğunu peşinen ilan etmez; bu seviyeye yönelik ölçülebilir acceptance kapılarıdır.
+
+**V0.3 release kapısı:** Q9/P1 external mixed reference, dedicated mesh/pressure gates ve release hardening tamamlanmadan `main`e merge edilmez ve `v0.3.0` yayınlanmaz.
 
 ---
 
-## V0.4 — Axisymmetric Herrmann / Mixed u-P
+## V0.4 — Axisymmetric Q9/P1 Herrmann / Mixed u-P
 
-**Ana yol:** Q8/P1 Herrmann
+**Ana yol:** Q9/P1 Herrmann
 
 - `u_r, u_z`
 - full 3D axisymmetric deformation gradient
 - hoop stretch
 - `2*pi*R` reference-volume integration
+- axis `R -> 0` regularity handling
 - independent pressure constraint
 - consistent block tangent
 - reaction force
 - pressure/constraint diagnostics
-- homogeneous + patch benchmarks
+- homogeneous + pressure patch benchmarks
 - mesh refinement
-- independent external reference
+- severe distortion
+- independent mixed external reference
 
-F-bar axisymmetric formulation paralel cross-check olarak geliştirilebilir fakat ana Herrmann hattını bloke etmez.
+F-bar axisymmetric formulation paralel cross-check olabilir; ana Herrmann hattını bloke etmez.
 
 ---
 
-## V0.5 — Axisymmetric With Torsion / 2.5D Herrmann
+## V0.5 — Axisymmetric With Torsion / 2.5D Q9/P1 Herrmann
 
-Ana local element unknown düzeni:
+Ana local unknown düzeni:
 
 ```text
-8 node × (u_r, u_z, u_theta / phi) = 24 displacement DOF
-+ 3 element-internal pressure DOF
-= 27 local unknown
+9 node × (u_r, u_z, u_theta / phi) = 27 displacement DOF
++ 3 element-internal pressure DOF    =  3 pressure DOF
+------------------------------------------------------
+30 local unknown
 ```
 
 Gereksinimler:
@@ -212,10 +224,11 @@ Gereksinimler:
 - hoop + torsional shear coupling
 - full `J`
 - mixed volumetric constraint
-- consistent tangent
+- consistent tangent + FD
 - reaction torque
 - torque-angle curve
 - torsional stiffness
+- mesh/distortion convergence
 - ANSYS/Marc independent benchmark
 - fiziksel ürün torque-angle validation
 
@@ -241,7 +254,7 @@ Energy
 → Consistent Tangent
 → FD
 → Material Benchmark
-→ Herrmann FEM Benchmark
+→ Q9/P1 Herrmann FEM Benchmark
 → F-bar cross-check (uygunsa)
 ```
 
@@ -260,11 +273,11 @@ Experimental Data
 → Material Validation
 ```
 
+Uniaxial tek başına yeterli kabul edilmez; modele göre uniaxial + planar + biaxial veri kombinasyonları desteklenir.
+
 ---
 
-## V0.8 — Production NonlinearSolutionManager
-
-V0.3-V0.5 içinde çalışan minimum mekanizmalar burada ortak ve tam production yöneticisine birleştirilir:
+## V0.8 — Production NonlinearSolutionManager + Sparse Mixed Linear Algebra
 
 - Full Newton
 - adaptive increment
@@ -273,10 +286,12 @@ V0.3-V0.5 içinde çalışan minimum mekanizmalar burada ortak ve tam production
 - divergence reasons
 - displacement/pressure/constraint convergence
 - `J` / distortion / pressure diagnostics
-- backend-independent linear reports
+- backend-independent block linear reports
+- sparse direct solver baseline
+- Schur/field-split seçeneği
 - automatic / advanced controls
 
-Benchmark ihtiyacı gösterirse line search / Modified Newton / BFGS-Broyden eklenir.
+Benchmark gerektirirse line search / Modified Newton / BFGS-Broyden eklenir.
 
 ---
 
@@ -286,7 +301,7 @@ Benchmark ihtiyacı gösterirse line search / Modified Newton / BFGS-Broyden ekl
 - Gmsh → `InternalMesh`
 - named boundaries
 - AnalysisPrecheck
-- mixed `Nd/Np` ve pressure-space precheck
+- mixed `Nd/Np` / pressure-space / BC uniqueness precheck
 - result database
 - pressure / stress / stretch / `J` / energy
 - force/torque histories
@@ -296,26 +311,29 @@ Benchmark ihtiyacı gösterirse line search / Modified Newton / BFGS-Broyden ekl
 
 ## V1.0 — Doğrulanmış Nonlineer Elastomer Solver
 
-Başarı özellik sayısıyla değil şu kanıtlarla ölçülür:
+Başarı özellik sayısıyla değil kanıt zinciriyle ölçülür:
 
 ```text
-material-point
-+ element tangent
-+ pressure stability
+material point
++ analytic/FD tangent
++ pressure patch
++ pressure stability / inf-sup diagnostics
 + mesh convergence
-+ incompressibility
-+ nonlinear robustness
-+ independent solver benchmark
++ nearly/fully incompressibility
++ nonlinear cutback/rollback robustness
++ independent mixed solver benchmark
++ commercial solver benchmark
 + fiziksel test
 ```
 
 ### Kalıcı formulation hiyerarşisi
 
 ```text
-Herrmann / stable mixed u-P  → ana production yol
-F-bar                         → güçlü alternatif / cross-check
-Displacement-only             → compressible baseline / regression
-Q4/P0 mixed prototype         → araştırma / stability regression
+Q9/P1 Herrmann / stable mixed u-P  → ana production yol
+F-bar                              → güçlü alternatif / cross-check
+Displacement-only                  → compressible baseline / regression
+Q8/P1                              → stability research/regression
+Q4/P0 mixed                        → checkerboard research/regression
 ```
 
-> Ticari solverları kopyalama; onların olgun mühendislik ilkelerini bağımsız ve doğrulanabilir Dyna mimarisine dönüştür.
+> Ticari solverları kopyalama; onların olgun mühendislik davranışlarını bağımsız, ölçülebilir ve regression-test ile korunan Dyna mimarisine dönüştür.
