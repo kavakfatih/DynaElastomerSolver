@@ -141,9 +141,8 @@ jobs:
           echo '=== Process peak RSS (/usr/bin/time -v) ==='
           cat V0.3_FBAR_PERFORMANCE_RSS.txt
 
-      # Birleşik Cook ve lambda/mu sweep testleri kendi geçerli JSON'larını üretir.
-      # Sonuçlar log parse edilerek yeniden oluşturulmaz; doğrudan gerçek Fortran
-      # çözümlerinden artifact paketine alınır.
+      # Cook, legacy lambda/mu sweep ve Q9/P1 Herrmann production benchmark
+      # kendi geçerli JSON'larını doğrudan gerçek Fortran çözümlerinden üretir.
       - name: V0.3 benchmark artifactlerini hazırla
         if: always()
         shell: bash
@@ -166,6 +165,7 @@ jobs:
           required_results = [
               'V0.3_COOK_BAKEOFF_RESULTS.json',
               'V0.3_INCOMPRESSIBILITY_SWEEP_RESULTS.json',
+              'V0.3_HERRMANN_PRODUCTION_BENCHMARK_RESULTS.json',
           ]
 
           missing = []
@@ -228,6 +228,9 @@ jobs:
           echo
           echo '=== Incompressibility lambda/mu sweep ==='
           cat ci-artifacts/V0.3_INCOMPRESSIBILITY_SWEEP_RESULTS.json
+          echo
+          echo '=== Q9/P1 Herrmann production acceptance ==='
+          cat ci-artifacts/V0.3_HERRMANN_PRODUCTION_BENCHMARK_RESULTS.json
           if [ -f ci-artifacts/V0.3_FBAR_PERFORMANCE_RESULTS.json ]; then
             echo
             echo '=== F-bar large-mesh performance ==='
