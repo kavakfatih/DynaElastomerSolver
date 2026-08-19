@@ -64,7 +64,7 @@ contains
     call initialize_q9_plane_strain_herrmann_csr_pattern( &
         nnode,conn,sparse_tangent,status)
     if (status /= DES_STATUS_OK) then
-      error stop 'Q9/P1 CSR structural graph kurulamadı.'
+      error stop 'Q9/P1 CSR structural graph kurulamadi.'
     end if
     if (sparse_tangent%nnz() >= ntotal*ntotal) then
       error stop 'Q9/P1 CSR graph dense matris kadar nonzero ayirdi.'
@@ -99,7 +99,7 @@ contains
       error stop 'Q9/P1 CSR parity test geometry/deformation gecersiz.'
     end if
 
-    if (compliance == 0.0_dp) then
+    if (abs(compliance) <= tiny(1.0_dp)) then
       ! Fully-incompressible Herrmann limitinde Kpp blogu fiziksel olarak sifirdir.
       ! Sparse graph structural entry'leri koruyabilir; numerical degerler dense
       ! referansla birebir ayni sifir saddle-point blogunu tasimalidir.
