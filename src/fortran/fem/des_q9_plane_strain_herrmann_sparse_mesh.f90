@@ -113,7 +113,6 @@ contains
     integer :: e, a, lr, gr, node
 
     residual = 0.0_dp
-    tangent%values = 0.0_dp
     status = DES_STATUS_OK
     min_j = huge(1.0_dp)
 
