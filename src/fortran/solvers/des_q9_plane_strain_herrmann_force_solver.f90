@@ -223,6 +223,10 @@ contains
     ! Q9/P1 Herrmann için adaptive production yolu.
     ! Displacement ve pressure trial state'leri aynı increment transaction'ının
     ! parçasıdır. Bir Newton denemesi başarısız olursa ikisi de committed state'e döner.
+    !
+    ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. Her Newton
+    ! iterasyonunda yalnız values yeniden assemble edilir; böylece adaptive yol da
+    ! fixed solver ile aynı backend-bağımsız Dyna CSR sözleşmesini kullanır.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -239,12 +243,14 @@ contains
     logical, allocatable :: is_fixed(:)
     integer, allocatable :: free_dofs(:)
     real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), delta(:)
+    real(dp), allocatable :: rhs_full(:), delta_full(:)
+    type(csr_matrix_t) :: K_csr
     type(solution_state_t) :: displacement_state, pressure_state
     real(dp) :: min_j, load_factor, target_factor, step
     real(dp) :: residual_norm, accepted_step
     integer :: ndisp, ntotal, nfree, status, failure_status, active_quadrature
     integer :: iteration, a, b, attempt
-    logical :: increment_converged
+    logical :: increment_converged, use_sparse_backend
     real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
@@ -253,6 +259,8 @@ contains
     if (present(linear_settings)) active_linear_settings = linear_settings
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
+    use_sparse_backend = &
+        active_linear_settings%backend == DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
 
     report = newton_report_t()
     report%last_linear_report%backend = active_linear_settings%backend
@@ -276,7 +284,19 @@ contains
     ndisp = 2*mesh%node_count()
     ntotal = ndisp + Q9_HERRMANN_P_DOF*mesh%element_count()
     nfree = size(free_dofs)
-    allocate(K(ntotal,ntotal),Kff(nfree,nfree),rhs(nfree),delta(nfree))
+
+    if (use_sparse_backend) then
+      allocate(rhs_full(ntotal),delta_full(ntotal))
+      call initialize_q9_plane_strain_herrmann_csr_pattern( &
+          mesh%node_count(),mesh%q9_connectivity,K_csr,status)
+      if (status /= DES_STATUS_OK) then
+        report%status = status
+        report%last_failure_status = status
+        return
+      end if
+    else
+      allocate(K(ntotal,ntotal),Kff(nfree,nfree),rhs(nfree),delta(nfree))
+    end if
 
     call enforce_zero_displacement_dofs(u,fixed_dofs)
     call initialize_solution_state(displacement_state,u)
@@ -300,10 +320,17 @@ contains
       failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
 
       do iteration = 1,max_iterations
-        call assemble_q9_internal_mesh_herrmann_with_quadrature( &
-            mesh,displacement_state%trial,pressure_state%trial, &
-            shear_modulus,pressure_compliance,active_quadrature, &
-            residual,K,status,min_j)
+        if (use_sparse_backend) then
+          call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
+              mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
+              pressure_state%trial,shear_modulus,pressure_compliance, &
+              active_quadrature,residual,K_csr,status,min_j)
+        else
+          call assemble_q9_internal_mesh_herrmann_with_quadrature( &
+              mesh,displacement_state%trial,pressure_state%trial, &
+              shear_modulus,pressure_compliance,active_quadrature, &
+              residual,K,status,min_j)
+        end if
         report%min_j = min(report%min_j,min_j)
 
         if (status /= DES_STATUS_OK) then
@@ -314,8 +341,7 @@ contains
         end if
 
         residual(1:ndisp) = residual(1:ndisp) - target_factor*external_force
-        rhs = -residual(free_dofs)
-        residual_norm = maxval(abs(rhs))
+        residual_norm = maxval(abs(residual(free_dofs)))
         report%final_residual_norm = residual_norm
 
         if (residual_norm < tolerance) then
@@ -326,14 +352,29 @@ contains
           exit
         end if
 
-        do a = 1,nfree
-          do b = 1,nfree
-            Kff(a,b) = K(free_dofs(a),free_dofs(b))
-          end do
-        end do
+        if (use_sparse_backend) then
+          rhs_full = -residual
+          call csr_apply_zero_dirichlet(K_csr,rhs_full,fixed_dofs,status)
+          if (status /= DES_STATUS_OK) then
+            call add_herrmann_history(report,attempt,iteration,target_factor, &
+                accepted_step,residual_norm,min_j,status,.false.)
+            failure_status = status
+            exit
+          end if
 
-        call solve_linear_system( &
-            Kff,rhs,delta,active_linear_settings,linear_report)
+          call solve_sparse_linear_system( &
+              K_csr,rhs_full,delta_full,active_linear_settings,linear_report)
+        else
+          rhs = -residual(free_dofs)
+          do a = 1,nfree
+            do b = 1,nfree
+              Kff(a,b) = K(free_dofs(a),free_dofs(b))
+            end do
+          end do
+
+          call solve_linear_system( &
+              Kff,rhs,delta,active_linear_settings,linear_report)
+        end if
         call record_herrmann_linear_solve(report,linear_report)
         if (.not. linear_report%converged) then
           call add_herrmann_history(report,attempt,iteration,target_factor, &
@@ -345,8 +386,14 @@ contains
         call add_herrmann_history(report,attempt,iteration,target_factor, &
             accepted_step,residual_norm,min_j,DES_STATUS_OK,.false.)
 
-        call add_mixed_increment( &
-            displacement_state%trial,pressure_state%trial,ndisp,free_dofs,delta)
+        if (use_sparse_backend) then
+          call add_mixed_increment( &
+              displacement_state%trial,pressure_state%trial,ndisp,free_dofs, &
+              delta_full(free_dofs))
+        else
+          call add_mixed_increment( &
+              displacement_state%trial,pressure_state%trial,ndisp,free_dofs,delta)
+        end if
         call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
         report%total_iterations = report%total_iterations + 1
       end do
@@ -400,9 +447,16 @@ contains
     u = displacement_state%committed
     pressure_coefficients = pressure_state%committed
     call copy_mixed_state_counters(displacement_state,pressure_state,report)
-    call finalize_q9_herrmann_solution( &
-        mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-        tolerance,active_quadrature,u,pressure_coefficients,residual,K,report)
+
+    if (use_sparse_backend) then
+      call finalize_q9_herrmann_solution_sparse( &
+          mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
+          tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report)
+    else
+      call finalize_q9_herrmann_solution( &
+          mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
+          tolerance,active_quadrature,u,pressure_coefficients,residual,K,report)
+    end if
   end subroutine solve_q9_internal_mesh_herrmann_adaptive_force_control
 
   subroutine finalize_q9_herrmann_solution( &
