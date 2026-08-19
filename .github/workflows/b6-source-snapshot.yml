@@ -1,8 +1,8 @@
 name: B6 Source Snapshot
 
 on:
-  push:
-    branches: ['develop/v0.3']
+  pull_request:
+    branches: [main]
     paths:
       - '.github/workflows/b6-source-snapshot.yml'
 
