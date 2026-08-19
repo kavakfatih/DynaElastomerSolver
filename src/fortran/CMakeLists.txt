@@ -3,6 +3,7 @@ add_library(DynaElastomerCore STATIC
   core/des_status.f90
   math/des_tensor3.f90
   math/des_finite_strain.f90
+  math/des_csr_matrix.f90
   materials/des_material_types.f90
   materials/des_neo_hookean.f90
   materials/des_neo_hookean_isochoric.f90
@@ -21,6 +22,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q8_plane_strain_herrmann_neo_hookean.f90
   fem/des_q9_plane_strain_herrmann_neo_hookean.f90
   fem/des_q9_plane_strain_herrmann_mesh.f90
+  fem/des_q9_plane_strain_herrmann_sparse_mesh.f90
   fem/des_q9_internal_mesh_herrmann_assembly.f90
   fem/des_q4_edge_traction.f90
   fem/des_q4_mesh_edge_traction.f90
