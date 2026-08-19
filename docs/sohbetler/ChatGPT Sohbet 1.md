@@ -579,3 +579,59 @@ Context metadata hedefleri:
 Newton boyunca sparsity pattern değişmediğinde symbolic analysis/reorder aşamasının tekrar edilmemesi temel kabul davranışıdır. Dense reference/fallback ve mevcut CSR GMRES bootstrap backend bozulmadan korunacaktır.
 
 Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 18. 2026-08-19 B5 kapanış ve B6 production sparse-direct başlangıcı
+
+Kullanıcı `Devam edelim` diyerek B5 sonrasındaki production sparse-direct entegrasyonuna geçilmesini onayladı. Bu kayıt B6 teknik kod değişikliklerinden **önce** oluşturuldu.
+
+Canlı başlangıç checkpoint'i:
+
+```text
+develop/v0.3 head (B5)   = 940eeeb1e2c7dabc58d460148271914585965331
+PR #1                     = open / draft / merged=false
+B5 ADR                     = ADR-0010 — Production Sparse-Direct Backend Stratejisi
+primary direct karar       = MUMPS 5.9.x
+optional optimized         = oneMKL PARDISO (Windows/Linux)
+PETSc + MUMPS              = future HPC/integration option
+```
+
+B5 head'i üzerindeki CI bu tur başlarken tamamen kapanmamıştı. Canlı kontrolde:
+
+```text
+macOS ARM64 / gfortran 14  = SUCCESS (build + CTest + H3)
+Windows / gfortran 14      = in_progress
+Linux / gfortran 14        = in_progress
+Windows / Intel ifx 2025.2 = in_progress
+```
+
+FEniCSx Mixed u-P, Fully Incompressible Mixed Reference, Mixed Quadrature Diagnostic, Cook Q2, Legal/Public IP Guard ve Full Git History Secret Audit kontrolleri B5 head'i üzerinde başarılıdır. B5'in kalan Fortran job'ları tamamlanmadan dört-platform PASS iddiası yapılmayacaktır.
+
+B6 hedefi:
+
+```text
+Dyna CSR
+→ SparseSolverContext
+→ ISO_C_BINDING sınırı
+→ küçük Dyna MUMPS adapter
+→ MUMPS 5.9.1 sparse-indefinite direct backend
+```
+
+B6 kabul ilkeleri:
+
+- mevcut dense LAPACK ve portable CSR GMRES yolları bozulmayacak,
+- MUMPS build-time optional olacak; MUMPS bulunmadığında Dyna yine derlenebilecek,
+- FEM/material/element/Newton katmanları MUMPS tiplerini bilmeyecek,
+- Q9/P1 symmetric-indefinite mixed sistem metadata'sı backend'e context üzerinden taşınacak,
+- pattern sabit olduğunda symbolic analysis/ordering reuse korunacak,
+- numeric factorization değerler değiştiğinde yenilenecek,
+- finite-compliance ve `cp=0` fully-incompressible dense↔MUMPS parity testleri eklenecek,
+- singular/null-pivot ve backend diagnostics deterministik biçimde raporlanacak,
+- ilk production profil workstation/shared-memory odaklı olacak; MPI/distributed ikinci aşamadır,
+- macOS Apple Silicon ARM64 native build/test zorunlu kabul kapısıdır,
+- Windows x64 ve Linux x64 aynı backend abstraction ile korunacaktır.
+
+B6 sırasında MUMPS sürümü, checksum/provenance, CeCILL-C notice/source-access yükümlülükleri ve optional ordering bağımlılıkları açıkça kaydedilecektir. Bu kayıt hukuki görüş yerine geçmez; release öncesi third-party lisans kontrolü ayrıca zorunludur.
+
+Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
