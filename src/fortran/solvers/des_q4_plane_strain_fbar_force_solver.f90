@@ -1,0 +1,509 @@
+module des_q4_plane_strain_fbar_force_solver
+  use des_kinds, only : dp
+  use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
+                         DES_ERROR_NEWTON_DID_NOT_CONVERGE, &
+                         DES_ERROR_CUTBACK_EXHAUSTED, &
+                         DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+  use des_material_types, only : neo_hookean_parameters_t
+  use des_integration_point_results, only : integration_point_results_t, &
+                                            initialize_q4_integration_results
+  use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
+                                solve_linear_system
+  use des_solution_state, only : solution_state_t, initialize_solution_state, &
+                                 begin_solution_trial, commit_solution_state, &
+                                 revert_solution_state
+  use des_solver_history, only : convergence_record_t, clear_convergence_history, &
+                                 append_convergence_record, mark_last_convergence_status
+  use des_q4_plane_strain_fbar_mesh, only : assemble_q4_plane_strain_fbar_mesh
+  use des_q4_plane_strain_newton_solver, only : newton_report_t
+  implicit none
+  private
+
+  public :: solve_q4_plane_strain_fbar_force_control
+  public :: solve_q4_plane_strain_fbar_adaptive_force_control
+
+contains
+
+  subroutine solve_q4_plane_strain_fbar_force_control( &
+      X, connectivity, parameters, fixed_dofs, external_force, &
+      n_increments, max_iterations, tolerance, u, residual, report, &
+      linear_settings, integration_results)
+    ! V0.3 production F-bar force-control driverı.
+    ! Element residualı energy-consistent, element tangent analitiktir.
+    ! Integration-point Results yalnız yakınsamış final state için üretilir.
+    real(dp), intent(in) :: X(:,:)
+    integer, intent(in) :: connectivity(:,:)
+    type(neo_hookean_parameters_t), intent(in) :: parameters
+    integer, intent(in) :: fixed_dofs(:)
+    real(dp), intent(in) :: external_force(:)
+    integer, intent(in) :: n_increments, max_iterations
+    real(dp), intent(in) :: tolerance
+    real(dp), intent(inout) :: u(:,:)
+    real(dp), intent(out) :: residual(:)
+    type(newton_report_t), intent(out) :: report
+    type(linear_solver_settings_t), intent(in), optional :: linear_settings
+    type(integration_point_results_t), intent(out), optional :: integration_results
+
+    logical, allocatable :: is_fixed(:)
+    integer, allocatable :: free_dofs(:)
+    real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), du(:)
+    real(dp) :: min_j, load_factor, residual_norm, increment_size
+    integer :: nnode, ndof, nfree, status
+    integer :: increment, iteration, a, b, dof, node, comp
+    logical :: increment_converged
+    type(linear_solver_settings_t) :: active_linear_settings
+    type(linear_solver_report_t) :: linear_report
+
+    active_linear_settings = linear_solver_settings_t()
+    if (present(linear_settings)) active_linear_settings = linear_settings
+    if (present(integration_results)) then
+      call initialize_q4_integration_results(integration_results,0)
+    end if
+
+    report = newton_report_t()
+    report%last_linear_report%backend = active_linear_settings%backend
+    call clear_convergence_history(report%history)
+    residual = 0.0_dp
+
+    call prepare_fbar_problem( &
+        X, u, residual, fixed_dofs, external_force, n_increments, &
+        max_iterations, tolerance, is_fixed, free_dofs, report%status)
+    if (report%status /= DES_STATUS_OK) return
+
+    nnode = size(X,1)
+    ndof = 2*nnode
+    nfree = size(free_dofs)
+    increment_size = 1.0_dp/real(n_increments,dp)
+    report%increments_requested = n_increments
+
+    allocate(K(ndof,ndof),Kff(nfree,nfree),rhs(nfree),du(nfree))
+    call enforce_zero_dofs(u,fixed_dofs)
+
+    do increment = 1,n_increments
+      report%increments_attempted = report%increments_attempted + 1
+      load_factor = real(increment,dp)/real(n_increments,dp)
+      increment_converged = .false.
+
+      do iteration = 1,max_iterations
+        call assemble_q4_plane_strain_fbar_mesh( &
+            X,connectivity,u,parameters,residual,K,status,min_j)
+        report%min_j = min(report%min_j,min_j)
+
+        if (status /= DES_STATUS_OK) then
+          call add_fbar_history(report,increment,iteration,load_factor, &
+                                increment_size,huge(1.0_dp),min_j,status,.false.)
+          report%status = status
+          report%last_failure_status = status
+          return
+        end if
+
+        residual = residual - load_factor*external_force
+        rhs = -residual(free_dofs)
+        residual_norm = maxval(abs(rhs))
+        report%final_residual_norm = residual_norm
+
+        if (residual_norm < tolerance) then
+          call add_fbar_history(report,increment,iteration,load_factor, &
+                                increment_size,residual_norm,min_j,DES_STATUS_OK,.true.)
+          increment_converged = .true.
+          report%increments_converged = increment
+          report%final_load_factor = load_factor
+          report%last_accepted_increment = increment_size
+          report%max_iterations_used = max(report%max_iterations_used,iteration-1)
+          exit
+        end if
+
+        do a = 1,nfree
+          do b = 1,nfree
+            Kff(a,b) = K(free_dofs(a),free_dofs(b))
+          end do
+        end do
+
+        call solve_linear_system(Kff,rhs,du,active_linear_settings,linear_report)
+        call record_fbar_linear_solve(report,linear_report)
+        if (.not. linear_report%converged) then
+          call add_fbar_history(report,increment,iteration,load_factor, &
+                                increment_size,residual_norm,min_j, &
+                                linear_report%status,.false.)
+          report%status = linear_report%status
+          report%last_failure_status = linear_report%status
+          return
+        end if
+
+        call add_fbar_history(report,increment,iteration,load_factor, &
+                              increment_size,residual_norm,min_j,DES_STATUS_OK,.false.)
+
+        do a = 1,nfree
+          dof = free_dofs(a)
+          node = (dof+1)/2
+          comp = dof - 2*(node-1)
+          u(node,comp) = u(node,comp) + du(a)
+        end do
+        call enforce_zero_dofs(u,fixed_dofs)
+        report%total_iterations = report%total_iterations + 1
+      end do
+
+      if (.not. increment_converged) then
+        call mark_last_convergence_status(report%history,DES_ERROR_NEWTON_DID_NOT_CONVERGE)
+        report%status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+        report%last_failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+        return
+      end if
+    end do
+
+    call finalize_fbar_solution( &
+        X,connectivity,parameters,fixed_dofs,free_dofs,external_force, &
+        tolerance,u,residual,K,report,integration_results)
+  end subroutine solve_q4_plane_strain_fbar_force_control
+
+  subroutine solve_q4_plane_strain_fbar_adaptive_force_control( &
+      X, connectivity, parameters, fixed_dofs, external_force, &
+      initial_increment, min_increment, cutback_factor, max_cutbacks, &
+      max_iterations, tolerance, u, residual, report, linear_settings, &
+      integration_results)
+    ! F-bar force-control production yolunun adaptive increment sürücüsü.
+    ! Başarısız trial state hiçbir zaman kabul edilmez. Son yakınsayan state'e
+    ! dönülür, yük increment'i küçültülür ve aynı hedef yeniden denenir.
+    real(dp), intent(in) :: X(:,:)
+    integer, intent(in) :: connectivity(:,:)
+    type(neo_hookean_parameters_t), intent(in) :: parameters
+    integer, intent(in) :: fixed_dofs(:)
+    real(dp), intent(in) :: external_force(:)
+    real(dp), intent(in) :: initial_increment, min_increment, cutback_factor
+    integer, intent(in) :: max_cutbacks, max_iterations
+    real(dp), intent(in) :: tolerance
+    real(dp), intent(inout) :: u(:,:)
+    real(dp), intent(out) :: residual(:)
+    type(newton_report_t), intent(out) :: report
+    type(linear_solver_settings_t), intent(in), optional :: linear_settings
+    type(integration_point_results_t), intent(out), optional :: integration_results
+
+    logical, allocatable :: is_fixed(:)
+    integer, allocatable :: free_dofs(:)
+    real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), du(:)
+    type(solution_state_t) :: state
+    real(dp) :: min_j, load_factor, target_factor, step
+    real(dp) :: residual_norm, accepted_step
+    integer :: nnode, ndof, nfree, status, failure_status
+    integer :: iteration, a, b, dof, node, comp, attempt
+    logical :: increment_converged
+    real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
+    type(linear_solver_settings_t) :: active_linear_settings
+    type(linear_solver_report_t) :: linear_report
+
+    active_linear_settings = linear_solver_settings_t()
+    if (present(linear_settings)) active_linear_settings = linear_settings
+    if (present(integration_results)) then
+      call initialize_q4_integration_results(integration_results,0)
+    end if
+
+    report = newton_report_t()
+    report%last_linear_report%backend = active_linear_settings%backend
+    call clear_convergence_history(report%history)
+    residual = 0.0_dp
+
+    if (initial_increment <= 0.0_dp .or. initial_increment > 1.0_dp .or. &
+        min_increment <= 0.0_dp .or. min_increment > initial_increment .or. &
+        cutback_factor <= 0.0_dp .or. cutback_factor >= 1.0_dp .or. &
+        max_cutbacks < 0) then
+      report%status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    call prepare_fbar_problem( &
+        X,u,residual,fixed_dofs,external_force,1,max_iterations,tolerance, &
+        is_fixed,free_dofs,report%status)
+    if (report%status /= DES_STATUS_OK) return
+
+    nnode = size(X,1)
+    ndof = 2*nnode
+    nfree = size(free_dofs)
+    allocate(K(ndof,ndof),Kff(nfree,nfree),rhs(nfree),du(nfree))
+
+    call enforce_zero_dofs(u,fixed_dofs)
+    call initialize_solution_state(state,u)
+    load_factor = 0.0_dp
+    step = initial_increment
+    report%increments_requested = ceiling(1.0_dp/initial_increment)
+
+    do while (load_factor < 1.0_dp-load_tol)
+      report%increments_attempted = report%increments_attempted + 1
+      attempt = report%increments_attempted
+      target_factor = min(1.0_dp,load_factor+step)
+      accepted_step = target_factor-load_factor
+      call begin_solution_trial(state)
+      call enforce_zero_dofs(state%trial,fixed_dofs)
+
+      increment_converged = .false.
+      failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+
+      do iteration = 1,max_iterations
+        call assemble_q4_plane_strain_fbar_mesh( &
+            X,connectivity,state%trial,parameters,residual,K,status,min_j)
+        report%min_j = min(report%min_j,min_j)
+
+        if (status /= DES_STATUS_OK) then
+          call add_fbar_history(report,attempt,iteration,target_factor, &
+                                accepted_step,huge(1.0_dp),min_j,status,.false.)
+          failure_status = status
+          exit
+        end if
+
+        residual = residual-target_factor*external_force
+        rhs = -residual(free_dofs)
+        residual_norm = maxval(abs(rhs))
+        report%final_residual_norm = residual_norm
+
+        if (residual_norm < tolerance) then
+          call add_fbar_history(report,attempt,iteration,target_factor, &
+                                accepted_step,residual_norm,min_j, &
+                                DES_STATUS_OK,.true.)
+          increment_converged = .true.
+          report%max_iterations_used = max(report%max_iterations_used,iteration-1)
+          exit
+        end if
+
+        do a = 1,nfree
+          do b = 1,nfree
+            Kff(a,b) = K(free_dofs(a),free_dofs(b))
+          end do
+        end do
+
+        call solve_linear_system(Kff,rhs,du,active_linear_settings,linear_report)
+        call record_fbar_linear_solve(report,linear_report)
+        if (.not. linear_report%converged) then
+          call add_fbar_history(report,attempt,iteration,target_factor, &
+                                accepted_step,residual_norm,min_j, &
+                                linear_report%status,.false.)
+          failure_status = linear_report%status
+          exit
+        end if
+
+        call add_fbar_history(report,attempt,iteration,target_factor, &
+                              accepted_step,residual_norm,min_j,DES_STATUS_OK,.false.)
+
+        do a = 1,nfree
+          dof = free_dofs(a)
+          node = (dof+1)/2
+          comp = dof-2*(node-1)
+          state%trial(node,comp) = state%trial(node,comp)+du(a)
+        end do
+        call enforce_zero_dofs(state%trial,fixed_dofs)
+        report%total_iterations = report%total_iterations+1
+      end do
+
+      if (increment_converged) then
+        call commit_solution_state(state)
+        load_factor = target_factor
+        report%increments_converged = report%increments_converged+1
+        report%final_load_factor = load_factor
+        report%last_accepted_increment = accepted_step
+      else
+        if (failure_status == DES_ERROR_NEWTON_DID_NOT_CONVERGE) then
+          call mark_last_convergence_status(report%history,failure_status)
+        end if
+
+        report%last_failure_status = failure_status
+        call revert_solution_state(state)
+
+        ! Desteklenmeyen backend yük increment'i küçültülerek düzeltilemez.
+        if (failure_status == DES_ERROR_UNSUPPORTED_LINEAR_BACKEND) then
+          u = state%committed
+          call copy_fbar_state_counters(state,report)
+          report%status = failure_status
+          return
+        end if
+
+        report%cutback_count = report%cutback_count+1
+        if (report%cutback_count > max_cutbacks) then
+          u = state%committed
+          call copy_fbar_state_counters(state,report)
+          report%status = DES_ERROR_CUTBACK_EXHAUSTED
+          return
+        end if
+
+        step = step*cutback_factor
+        if (step < min_increment-load_tol) then
+          u = state%committed
+          call copy_fbar_state_counters(state,report)
+          report%status = DES_ERROR_CUTBACK_EXHAUSTED
+          return
+        end if
+      end if
+
+      call copy_fbar_state_counters(state,report)
+    end do
+
+    u = state%committed
+    call copy_fbar_state_counters(state,report)
+    call finalize_fbar_solution( &
+        X,connectivity,parameters,fixed_dofs,free_dofs,external_force, &
+        tolerance,u,residual,K,report,integration_results)
+  end subroutine solve_q4_plane_strain_fbar_adaptive_force_control
+
+  subroutine finalize_fbar_solution( &
+      X,connectivity,parameters,fixed_dofs,free_dofs,external_force, &
+      tolerance,u,residual,K,report,integration_results)
+    real(dp), intent(in) :: X(:,:),external_force(:),tolerance
+    integer, intent(in) :: connectivity(:,:),fixed_dofs(:),free_dofs(:)
+    type(neo_hookean_parameters_t), intent(in) :: parameters
+    real(dp), intent(inout) :: u(:,:)
+    real(dp), intent(out) :: residual(:)
+    real(dp), intent(inout) :: K(:,:)
+    type(newton_report_t), intent(inout) :: report
+    type(integration_point_results_t), intent(out), optional :: integration_results
+
+    real(dp) :: min_j
+    integer :: status
+
+    call enforce_zero_dofs(u,fixed_dofs)
+    call assemble_q4_plane_strain_fbar_mesh( &
+        X,connectivity,u,parameters,residual,K,status,min_j)
+    report%min_j = min(report%min_j,min_j)
+    if (status /= DES_STATUS_OK) then
+      report%status = status
+      report%last_failure_status = status
+      report%converged = .false.
+      return
+    end if
+
+    residual = residual-external_force
+    report%final_residual_norm = maxval(abs(residual(free_dofs)))
+    report%final_load_factor = 1.0_dp
+    report%status = DES_STATUS_OK
+    report%converged = report%final_residual_norm < tolerance
+    if (.not. report%converged) then
+      report%status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+      report%last_failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+      return
+    end if
+
+    ! Results yalnız tam yükte doğrulanmış final state için üretilir.
+    if (present(integration_results)) then
+      call assemble_q4_plane_strain_fbar_mesh( &
+          X,connectivity,u,parameters,residual,K,status,min_j, &
+          integration_results=integration_results)
+      if (status /= DES_STATUS_OK) then
+        report%status = status
+        report%last_failure_status = status
+        report%converged = .false.
+        return
+      end if
+      residual = residual-external_force
+      report%final_residual_norm = maxval(abs(residual(free_dofs)))
+      report%converged = report%final_residual_norm < tolerance
+      if (.not. report%converged) then
+        report%status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+        report%last_failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+      end if
+    end if
+  end subroutine finalize_fbar_solution
+
+  subroutine prepare_fbar_problem( &
+      X,u,residual,fixed_dofs,external_force,n_increments, &
+      max_iterations,tolerance,is_fixed,free_dofs,status)
+    real(dp), intent(in) :: X(:,:),u(:,:),residual(:),external_force(:),tolerance
+    integer, intent(in) :: fixed_dofs(:),n_increments,max_iterations
+    logical, allocatable, intent(out) :: is_fixed(:)
+    integer, allocatable, intent(out) :: free_dofs(:)
+    integer, intent(out) :: status
+    integer :: nnode,ndof,nfree,a,dof,cursor
+
+    status = DES_STATUS_OK
+    nnode = size(X,1)
+    ndof = 2*nnode
+
+    if (size(X,2) /= 2 .or. size(u,1) /= nnode .or. size(u,2) /= 2 .or. &
+        size(residual) /= ndof .or. size(external_force) /= ndof) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+    if (size(fixed_dofs) < 1 .or. n_increments < 1 .or. max_iterations < 1 .or. &
+        tolerance <= 0.0_dp) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    allocate(is_fixed(ndof))
+    is_fixed = .false.
+    do a = 1,size(fixed_dofs)
+      dof = fixed_dofs(a)
+      if (dof < 1 .or. dof > ndof .or. is_fixed(dof)) then
+        status = DES_ERROR_INVALID_CONSTRAINT
+        return
+      end if
+      is_fixed(dof) = .true.
+    end do
+
+    nfree = count(.not. is_fixed)
+    if (nfree < 1) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    allocate(free_dofs(nfree))
+    cursor = 0
+    do dof = 1,ndof
+      if (.not. is_fixed(dof)) then
+        cursor = cursor+1
+        free_dofs(cursor) = dof
+      end if
+    end do
+  end subroutine prepare_fbar_problem
+
+  subroutine enforce_zero_dofs(u,fixed_dofs)
+    real(dp), intent(inout) :: u(:,:)
+    integer, intent(in) :: fixed_dofs(:)
+    integer :: a,dof,node,comp
+
+    do a = 1,size(fixed_dofs)
+      dof = fixed_dofs(a)
+      node = (dof+1)/2
+      comp = dof-2*(node-1)
+      u(node,comp) = 0.0_dp
+    end do
+  end subroutine enforce_zero_dofs
+
+  subroutine record_fbar_linear_solve(report,linear_report)
+    type(newton_report_t), intent(inout) :: report
+    type(linear_solver_report_t), intent(in) :: linear_report
+
+    report%linear_solve_count = report%linear_solve_count+1
+    report%last_linear_report = linear_report
+    report%max_linear_equation_count = max( &
+        report%max_linear_equation_count,linear_report%equation_count)
+    if (linear_report%converged) then
+      report%max_linear_residual_inf_norm = max( &
+          report%max_linear_residual_inf_norm,linear_report%residual_inf_norm)
+    end if
+  end subroutine record_fbar_linear_solve
+
+  subroutine copy_fbar_state_counters(state,report)
+    type(solution_state_t), intent(in) :: state
+    type(newton_report_t), intent(inout) :: report
+
+    report%state_commit_count = state%commit_count
+    report%state_revert_count = state%revert_count
+  end subroutine copy_fbar_state_counters
+
+  subroutine add_fbar_history( &
+      report,attempt,iteration,load_factor,increment_size,residual_norm, &
+      min_j,status,accepted)
+    type(newton_report_t), intent(inout) :: report
+    integer, intent(in) :: attempt,iteration,status
+    real(dp), intent(in) :: load_factor,increment_size,residual_norm,min_j
+    logical, intent(in) :: accepted
+    type(convergence_record_t) :: record
+
+    record%attempt = attempt
+    record%iteration = iteration
+    record%load_factor = load_factor
+    record%increment_size = increment_size
+    record%residual_norm = residual_norm
+    record%min_j = min_j
+    record%status = status
+    record%accepted = accepted
+    call append_convergence_record(report%history,record)
+  end subroutine add_fbar_history
+
+end module des_q4_plane_strain_fbar_force_solver

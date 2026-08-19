@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "status": "independent_q2_precheck_not_fenicsx_not_official_dyna_ctest",
+  "implementation": "Python/NumPy/SciPy sparse independent Q2 FEM",
+  "problem": "V0.3 normalized Cook membrane plane strain",
+  "material": {
+    "model": "compressible Neo-Hookean",
+    "mu": 1.0,
+    "lambda": 1000.0
+  },
+  "traction_y": 0.01,
+  "mesh_cases": [
+    {
+      "n": 2,
+      "tip_y_displacement": 0.014137892627614253,
+      "minimum_J": 0.9999065650835083,
+      "J_average": 1.0000019119656844,
+      "pressure_from_lambda_lnJ": {
+        "mean": 0.0019112897711312735,
+        "standard_deviation": 0.03671758392573787,
+        "rms": 0.03676729522187939
+      },
+      "total_strain_energy": 0.00002346534826587962,
+      "newton_corrections": 20,
+      "free_equations": 40
+    },
+    {
+      "n": 4,
+      "tip_y_displacement": 0.018075307385707673,
+      "minimum_J": 0.9998570245253230,
+      "J_average": 1.0000019943117215,
+      "pressure_from_lambda_lnJ": {
+        "mean": 0.001993699523636588,
+        "standard_deviation": 0.03493458946138758,
+        "rms": 0.034991432931879785
+      },
+      "total_strain_energy": 0.00002990593910225118,
+      "newton_corrections": 20,
+      "free_equations": 144
+    },
+    {
+      "n": 8,
+      "tip_y_displacement": 0.019545684650648765,
+      "minimum_J": 0.9998086426340973,
+      "J_average": 1.0000021458790962,
+      "pressure_from_lambda_lnJ": {
+        "mean": 0.0021456071216141444,
+        "standard_deviation": 0.023223926126064175,
+        "rms": 0.02332282947305510
+      },
+      "total_strain_energy": 0.000032393792199121386,
+      "newton_corrections": 20,
+      "free_equations": 544
+    },
+    {
+      "n": 16,
+      "tip_y_displacement": 0.02002643260660098,
+      "minimum_J": 0.9997472815361185,
+      "J_average": 1.0000022402877475,
+      "pressure_from_lambda_lnJ": {
+        "mean": 0.002240167243752343,
+        "standard_deviation": 0.015362061939518725,
+        "rms": 0.015524538521759374
+      },
+      "total_strain_energy": 0.000033254905300298875,
+      "newton_corrections": 20,
+      "free_equations": 2112
+    }
+  ],
+  "refinement": [
+    {"from": 2, "to": 4, "relative_tip_change": 0.21783280071117043},
+    {"from": 4, "to": 8, "relative_tip_change": 0.07522894602977053},
+    {"from": 8, "to": 16, "relative_tip_change": 0.024005671174493447}
+  ],
+  "key_finding": "Q2 8->16 tip change is about 2.40%, so 16x16 Q2 should not yet be treated as a converged external reference under a 1% criterion.",
+  "notes": [
+    "Dyna Fortran code is not used.",
+    "This precheck does not replace the FEniCSx/DOLFINx external reference exit criterion.",
+    "FEniCSx reference mesh plan should extend beyond 16x16; 32x32 Q2 is the next required level."
+  ]
+}

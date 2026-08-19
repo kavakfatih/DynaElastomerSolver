@@ -1,0 +1,62 @@
+name: FEniCSx V0.3 Mixed Quadrature Diagnostic
+
+on:
+  push:
+    branches: ['develop/v0.3']
+    paths:
+      - 'tools/reference/fenicsx_v03_mixed_quadrature_diagnostic.py'
+      - '.github/workflows/fenicsx-v03-mixed-quadrature-diagnostic.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/reference/fenicsx_v03_mixed_quadrature_diagnostic.py'
+      - '.github/workflows/fenicsx-v03-mixed-quadrature-diagnostic.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dyna-v03-fenicsx-mixed-qdiag-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FENICSX_IMAGE: dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
+
+jobs:
+  quadrature-diagnostic:
+    name: DOLFINx v0.11.0 / Mixed quadrature diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      # actions/checkout v7.0.1
+      - name: Kaynak kodu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: FEniCSx referans imajini al
+        run: docker pull "$FENICSX_IMAGE"
+
+      - name: Mixed quadrature diagnostic calistir
+        shell: bash
+        run: |
+          mkdir -p reference-results
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            "$FENICSX_IMAGE" \
+            python3 tools/reference/fenicsx_v03_mixed_quadrature_diagnostic.py \
+            | tee reference-results/fenicsx-v03-mixed-quadrature-diagnostic.log
+
+      - name: Diagnostic JSON goster
+        run: cat reference-results/fenicsx-v03-mixed-quadrature-diagnostic.json
+
+      # actions/upload-artifact v7.0.1
+      - name: Diagnostic artifactini sakla
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fenicsx-v03-mixed-quadrature-diagnostic
+          path: reference-results/
+          if-no-files-found: error
+          retention-days: 14

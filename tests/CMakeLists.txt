@@ -13,122 +13,115 @@ function(des_add_fortran_test target test_name source)
   add_test(NAME ${test_name} COMMAND ${target})
 endfunction()
 
-des_add_fortran_test(
-  test_tensor3
-  core.tensor3
-  test_tensor3.f90
-)
+function(des_add_fortran_benchmark target source)
+  add_executable(${target} ${source})
+  target_link_libraries(${target} PRIVATE DynaElastomerCore)
 
-des_add_fortran_test(
-  test_finite_strain
-  core.finite_strain
-  test_finite_strain.f90
-)
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${target} PRIVATE
+      -Wall -Wextra -Wimplicit-interface -Werror=implicit-interface
+    )
+  elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+    target_compile_options(${target} PRIVATE -warn all)
+  endif()
+endfunction()
 
-des_add_fortran_test(
-  test_neo_hookean_reference_states
-  material.neo_hookean.reference_states
-  test_neo_hookean_reference_states.f90
-)
+des_add_fortran_test(test_tensor3 core.tensor3 test_tensor3.f90)
+des_add_fortran_test(test_finite_strain core.finite_strain test_finite_strain.f90)
+des_add_fortran_test(test_csr_matrix solver.csr_matrix_foundation test_csr_matrix.f90)
+des_add_fortran_test(test_neo_hookean_reference_states material.neo_hookean.reference_states test_neo_hookean_reference_states.f90)
+des_add_fortran_test(test_neo_hookean_validation material.neo_hookean.validation test_neo_hookean_validation.f90)
+des_add_fortran_test(test_neo_hookean_material_point material.neo_hookean.point_tangent test_neo_hookean_material_point.f90)
+des_add_fortran_test(test_neo_hookean_isochoric material.neo_hookean.isochoric_tangent test_neo_hookean_isochoric.f90)
+des_add_fortran_test(test_q4_shape fem.q4.shape test_q4_shape.f90)
+des_add_fortran_test(test_q8_herrmann_interpolation fem.q8.herrmann.interpolation test_q8_herrmann_interpolation.f90)
+des_add_fortran_test(test_q8_herrmann_geometry fem.q8.herrmann.geometry test_q8_herrmann_geometry.f90)
+des_add_fortran_test(test_q9_herrmann_interpolation fem.q9.herrmann.interpolation test_q9_herrmann_interpolation.f90)
+des_add_fortran_test(test_q9_herrmann_geometry fem.q9.herrmann.geometry test_q9_herrmann_geometry.f90)
+des_add_fortran_test(test_q9_herrmann_pressure_stability fem.q9.plane_strain.herrmann.pressure_stability test_q9_herrmann_pressure_stability.f90)
+des_add_fortran_test(test_q9_herrmann_infsup_proxy fem.q9.plane_strain.herrmann.infsup_proxy test_q9_herrmann_infsup_proxy.f90)
+des_add_fortran_test(test_q9_herrmann_distorted_pressure_stability fem.q9.plane_strain.herrmann.distorted_pressure_stability test_q9_herrmann_distorted_pressure_stability.f90)
+des_add_fortran_test(test_q9_herrmann_pressure_patch fem.q9.plane_strain.herrmann.pressure_patch test_q9_herrmann_pressure_patch.f90)
+des_add_fortran_test(test_q9_herrmann_mesh_refinement benchmark.v0.3.herrmann.mesh_refinement test_q9_herrmann_mesh_refinement.f90)
+des_add_fortran_test(test_q9_herrmann_quadrature_convergence benchmark.v0.3.herrmann.quadrature_convergence test_q9_herrmann_quadrature_convergence.f90)
+des_add_fortran_test(test_v03_herrmann_fenicsx_mixed_parity benchmark.v0.3.herrmann.fenicsx_mixed_parity test_v03_herrmann_fenicsx_mixed_parity.f90)
+des_add_fortran_test(test_v03_herrmann_fenicsx_fully_incompressible_parity benchmark.v0.3.herrmann.fenicsx_fully_incompressible_parity test_v03_herrmann_fenicsx_fully_incompressible_parity.f90)
+des_add_fortran_test(test_mixed_dof_layout fem.mixed.dof_layout test_mixed_dof_layout.f90)
+des_add_fortran_test(test_mixed_precheck fem.mixed.nd_np_precheck test_mixed_precheck.f90)
+des_add_fortran_test(test_herrmann_pressure_constraint fem.herrmann.pressure_constraint test_herrmann_pressure_constraint.f90)
+des_add_fortran_test(test_q8_plane_strain_herrmann_element fem.q8.plane_strain.herrmann.element_tangent test_q8_plane_strain_herrmann_element.f90)
+des_add_fortran_test(test_q9_plane_strain_herrmann_element fem.q9.plane_strain.herrmann.element_tangent test_q9_plane_strain_herrmann_element.f90)
+des_add_fortran_test(test_q9_herrmann_quadrature fem.q9.plane_strain.herrmann.quadrature test_q9_herrmann_quadrature.f90)
+des_add_fortran_test(test_q9_herrmann_global_assembly fem.q9.plane_strain.herrmann.global_assembly test_q9_herrmann_global_assembly.f90)
+des_add_fortran_test(test_q9_herrmann_sparse_assembly fem.q9.plane_strain.herrmann.sparse_assembly_parity test_q9_herrmann_sparse_assembly.f90)
+des_add_fortran_test(test_q9_herrmann_force_solver solver.q9.plane_strain.herrmann.force_control test_q9_herrmann_force_solver.f90)
+des_add_fortran_test(test_q9_herrmann_sparse_force_solver solver.q9.plane_strain.herrmann.sparse_force_parity test_q9_herrmann_sparse_force_solver.f90)
+des_add_fortran_test(test_q9_herrmann_sparse_adaptive_force_solver solver.q9.plane_strain.herrmann.sparse_adaptive_force_parity test_q9_herrmann_sparse_adaptive_force_solver.f90)
+des_add_fortran_test(test_q9_herrmann_fully_incompressible solver.q9.plane_strain.herrmann.fully_incompressible test_q9_herrmann_fully_incompressible.f90)
+des_add_fortran_test(test_q9_herrmann_convergence_report solver.q9.plane_strain.herrmann.convergence_report test_q9_herrmann_convergence_report.f90)
+des_add_fortran_test(test_herrmann_results_contract results.herrmann.independent_pressure_contract test_herrmann_results_contract.f90)
+des_add_fortran_test(test_v03_herrmann_production_benchmark benchmark.v0.3.herrmann.production_acceptance test_v03_herrmann_production_benchmark.f90)
+des_add_fortran_test(test_q8_herrmann_pressure_stability fem.q8.plane_strain.herrmann.pressure_stability test_q8_herrmann_pressure_stability.f90)
+des_add_fortran_test(test_q8_herrmann_distorted_pressure_stability fem.q8.plane_strain.herrmann.distorted_pressure_stability test_q8_herrmann_distorted_pressure_stability.f90)
+des_add_fortran_test(test_q8_herrmann_infsup_decay_diagnostic fem.q8.plane_strain.herrmann.infsup_decay_diagnostic test_q8_herrmann_infsup_decay_diagnostic.f90)
+des_add_fortran_test(test_q4_edge_traction fem.q4.reference_edge_traction test_q4_edge_traction.f90)
+des_add_fortran_test(test_q4_mesh_edge_traction fem.q4.mesh.reference_edge_traction test_q4_mesh_edge_traction.f90)
+des_add_fortran_test(test_q4_plane_strain_element fem.q4.plane_strain.element_tangent test_q4_plane_strain_element.f90)
+des_add_fortran_test(test_q4_mixed_up_element fem.q4.plane_strain.mixed_up.element_tangent test_q4_mixed_up_element.f90)
+des_add_fortran_test(test_q4_fbar_element fem.q4.plane_strain.fbar.element test_q4_fbar_element.f90)
+des_add_fortran_test(test_q4_mixed_up_mesh fem.q4.plane_strain.mixed_up.global_assembly test_q4_mixed_up_mesh.f90)
+des_add_fortran_test(test_pressure_diagnostics results.pressure_diagnostics test_pressure_diagnostics.f90)
+des_add_fortran_test(test_v03_mixed_pressure_uniformity benchmark.v0.3.mixed_up.pressure_uniformity test_v03_mixed_pressure_uniformity.f90)
+des_add_fortran_test(test_v03_mixed_q4p0_checkerboard_risk benchmark.v0.3.mixed_up.checkerboard_null_mode test_v03_mixed_q4p0_checkerboard_risk.f90)
+des_add_fortran_test(test_q4_plane_strain_newton fem.q4.plane_strain.incremental_newton test_q4_plane_strain_newton.f90)
+des_add_fortran_test(test_dense_linear solver.dense_linear test_dense_linear.f90)
+des_add_fortran_test(test_linear_solver_interface solver.linear.interface test_linear_solver_interface.f90)
+des_add_fortran_test(test_sparse_linear_solver solver.sparse.csr_gmres_indefinite test_sparse_linear_solver.f90)
+des_add_fortran_test(test_sparse_solver_context solver.sparse.context_lifecycle test_sparse_solver_context.f90)
 
-des_add_fortran_test(
-  test_neo_hookean_validation
-  material.neo_hookean.validation
-  test_neo_hookean_validation.f90
-)
+if(DES_ENABLE_MUMPS)
+  des_add_fortran_test(
+    test_mumps_sparse_solver_context
+    solver.sparse.mumps_direct_context
+    test_mumps_sparse_solver_context.f90
+  )
 
-des_add_fortran_test(
-  test_neo_hookean_material_point
-  material.neo_hookean.point_tangent
-  test_neo_hookean_material_point.f90
-)
+  # Aynı Q9/P1 parity executable'ları varsayılan olarak GMRES'i korur. MUMPS
+  # build'inde `mumps` argümanı ile direct backend'i aynı fizik ve lifecycle
+  # kabul kriterlerinden geçirerek test mantığının kopyalanmasını önlüyoruz.
+  add_test(
+    NAME solver.q9.plane_strain.herrmann.mumps_force_parity
+    COMMAND test_q9_herrmann_sparse_force_solver mumps
+  )
+  add_test(
+    NAME solver.q9.plane_strain.herrmann.mumps_adaptive_force_parity
+    COMMAND test_q9_herrmann_sparse_adaptive_force_solver mumps
+  )
+endif()
 
-des_add_fortran_test(
-  test_q4_shape
-  fem.q4.shape
-  test_q4_shape.f90
-)
+des_add_fortran_test(test_q4_plane_strain_mesh_newton fem.q4.plane_strain.mesh_incremental_newton test_q4_plane_strain_mesh_newton.f90)
+des_add_fortran_test(test_q4_solver_api solver.q4.plane_strain.displacement_control test_q4_solver_api.f90)
+des_add_fortran_test(test_q4_force_control_solver solver.q4.plane_strain.force_control test_q4_force_control_solver.f90)
+des_add_fortran_test(test_q4_mixed_up_force_solver solver.q4.plane_strain.mixed_up.force_control test_q4_mixed_up_force_solver.f90)
+des_add_fortran_test(test_q4_fbar_force_solver solver.q4.plane_strain.fbar.force_control test_q4_fbar_force_solver.f90)
+des_add_fortran_test(test_q4_fbar_adaptive_force_solver solver.q4.plane_strain.fbar.adaptive_force_control test_q4_fbar_adaptive_force_solver.f90)
+des_add_fortran_test(test_v03_displacement_q4_locking_baseline benchmark.v0.3.displacement_q4.locking_baseline test_v03_displacement_q4_locking_baseline.f90)
+des_add_fortran_test(test_v03_mixed_up_cook_baseline benchmark.v0.3.mixed_up.cook_baseline test_v03_mixed_up_cook_baseline.f90)
+des_add_fortran_test(test_v03_fbar_cook_baseline benchmark.v0.3.fbar.cook_baseline test_v03_fbar_cook_baseline.f90)
+des_add_fortran_test(test_v03_fbar_severe_distortion_affine benchmark.v0.3.fbar.severe_distortion_affine test_v03_fbar_severe_distortion_affine.f90)
+des_add_fortran_test(test_v03_fbar_pressure_result_contract benchmark.v0.3.fbar.pressure_result_contract test_v03_fbar_pressure_result_contract.f90)
+des_add_fortran_test(test_v03_cook_bakeoff_compare benchmark.v0.3.cook.formulation_bakeoff test_v03_cook_bakeoff_compare.f90)
+des_add_fortran_test(test_v03_incompressibility_sweep benchmark.v0.3.cook.incompressibility_sweep test_v03_incompressibility_sweep.f90)
+des_add_fortran_test(test_q4_nonlinear_patch fem.q4.plane_strain.nonlinear_patch test_q4_nonlinear_patch.f90)
+des_add_fortran_test(test_q4_mesh_refinement fem.q4.plane_strain.mesh_refinement test_q4_mesh_refinement.f90)
+des_add_fortran_test(test_q4_adaptive_cutback solver.q4.plane_strain.adaptive_cutback test_q4_adaptive_cutback.f90)
+des_add_fortran_test(test_solver_state_history solver.state_history_cutback_exhaustion test_solver_state_history.f90)
+des_add_fortran_test(test_status_message core.status_message test_status_message.f90)
+des_add_fortran_test(test_internal_mesh_integration_results fem.internal_mesh.integration_point_results test_internal_mesh_integration_results.f90)
+des_add_fortran_test(test_q9_internal_mesh fem.internal_mesh.q9_topology test_q9_internal_mesh.f90)
+des_add_fortran_test(test_q4_internal_mesh_solver solver.q4.internal_mesh.displacement_control test_q4_internal_mesh_solver.f90)
+des_add_fortran_test(test_q4_severe_distortion_solver solver.q4.internal_mesh.severe_distortion test_q4_severe_distortion_solver.f90)
 
-des_add_fortran_test(
-  test_q4_plane_strain_element
-  fem.q4.plane_strain.element_tangent
-  test_q4_plane_strain_element.f90
-)
-
-des_add_fortran_test(
-  test_q4_plane_strain_newton
-  fem.q4.plane_strain.incremental_newton
-  test_q4_plane_strain_newton.f90
-)
-
-des_add_fortran_test(
-  test_dense_linear
-  solver.dense_linear
-  test_dense_linear.f90
-)
-
-des_add_fortran_test(
-  test_linear_solver_interface
-  solver.linear.interface
-  test_linear_solver_interface.f90
-)
-
-des_add_fortran_test(
-  test_q4_plane_strain_mesh_newton
-  fem.q4.plane_strain.mesh_incremental_newton
-  test_q4_plane_strain_mesh_newton.f90
-)
-
-des_add_fortran_test(
-  test_q4_solver_api
-  solver.q4.plane_strain.displacement_control
-  test_q4_solver_api.f90
-)
-
-des_add_fortran_test(
-  test_q4_nonlinear_patch
-  fem.q4.plane_strain.nonlinear_patch
-  test_q4_nonlinear_patch.f90
-)
-
-des_add_fortran_test(
-  test_q4_mesh_refinement
-  fem.q4.plane_strain.mesh_refinement
-  test_q4_mesh_refinement.f90
-)
-
-des_add_fortran_test(
-  test_q4_adaptive_cutback
-  solver.q4.plane_strain.adaptive_cutback
-  test_q4_adaptive_cutback.f90
-)
-
-des_add_fortran_test(
-  test_solver_state_history
-  solver.state_history_cutback_exhaustion
-  test_solver_state_history.f90
-)
-
-des_add_fortran_test(
-  test_status_message
-  core.status_message
-  test_status_message.f90
-)
-
-des_add_fortran_test(
-  test_internal_mesh_integration_results
-  fem.internal_mesh.integration_point_results
-  test_internal_mesh_integration_results.f90
-)
-
-des_add_fortran_test(
-  test_q4_internal_mesh_solver
-  solver.q4.internal_mesh.displacement_control
-  test_q4_internal_mesh_solver.f90
-)
-
-des_add_fortran_test(
-  test_q4_severe_distortion_solver
-  solver.q4.internal_mesh.severe_distortion
-  test_q4_severe_distortion_solver.f90
-)
+# Performans benchmarklari normal CTest correctness paketine dahil edilmez.
+# CI bunlari yalniz olcum/raporlama amaciyla kontrollu bicimde calistirir.
+des_add_fortran_benchmark(benchmark_v03_fbar_performance benchmark_v03_fbar_performance.f90)

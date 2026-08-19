@@ -6,12 +6,17 @@ program test_q4_internal_mesh_solver
   use des_integration_point_results, only : integration_point_results_t
   use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q4_plane_strain_newton_solver, only : newton_report_t
-  use des_q4_internal_mesh_solver, only : solve_q4_internal_mesh_displacement_control
+  use des_q4_internal_mesh_solver, only : &
+      solve_q4_internal_mesh_displacement_control, &
+      solve_q4_internal_mesh_fbar_force_control, &
+      solve_q4_internal_mesh_fbar_adaptive_force_control
   implicit none
 
   real(dp) :: X(6,2), u(6,2), residual(12)
+  real(dp) :: external_force(12), u_fbar_fixed(6,2)
   integer :: connectivity(2,4), status, g
   integer, parameter :: prescribed_dofs(5) = [1,2,5,7,11]
+  integer, parameter :: fbar_fixed_dofs(4) = [1,2,7,8]
   real(dp), parameter :: prescribed_values(5) = [0.0_dp,0.0_dp,0.5_dp,0.0_dp,0.5_dp]
   type(neo_hookean_parameters_t) :: parameters
   type(internal_mesh_t) :: mesh
@@ -102,6 +107,57 @@ program test_q4_internal_mesh_solver
     error stop 'Basarisiz Newton sonrasi Gauss sonucu uretilmemeli.'
   end if
 
-  write(*,'(A,I0)') 'InternalMesh solver Newton iterations = ', report%total_iterations
-  write(*,'(A)') 'Newton lineer diagnostics ve failure propagation testi BASARILI.'
+  ! Production F-bar artık doğrudan InternalMesh üzerinden çağrılabilir.
+  ! Sabit ve adaptive force-control aynı tam-yük çözümüne ulaşmalıdır.
+  linear_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
+  external_force = 0.0_dp
+  external_force(6) = 5.0e-3_dp
+  external_force(12) = 5.0e-3_dp
+
+  u = 0.0_dp
+  call solve_q4_internal_mesh_fbar_force_control( &
+    mesh, parameters, fbar_fixed_dofs, external_force, &
+    5, 30, 1.0e-9_dp, u, residual, report, integration_results, linear_settings)
+
+  if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
+    error stop 'InternalMesh sabit F-bar force-control yakinsamadi.'
+  end if
+  if (integration_results%count() /= 8) then
+    error stop 'InternalMesh F-bar final state sekiz Gauss sonucu uretmeli.'
+  end if
+  if (abs(report%final_load_factor-1.0_dp) > 1.0e-12_dp) then
+    error stop 'InternalMesh F-bar sabit driver tam yuke ulasmadi.'
+  end if
+  do g = 1,integration_results%count()
+    if (.not. integration_results%points(g)%valid) then
+      error stop 'InternalMesh F-bar Gauss sonucu gecersiz.'
+    end if
+    if (integration_results%points(g)%J <= 0.0_dp) then
+      error stop 'InternalMesh F-bar Gauss J pozitif olmali.'
+    end if
+  end do
+  u_fbar_fixed = u
+
+  u = 0.0_dp
+  call solve_q4_internal_mesh_fbar_adaptive_force_control( &
+    mesh, parameters, fbar_fixed_dofs, external_force, &
+    0.5_dp, 0.0625_dp, 0.5_dp, 4, 30, 1.0e-9_dp, &
+    u, residual, report, integration_results, linear_settings)
+
+  if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
+    error stop 'InternalMesh adaptive F-bar force-control yakinsamadi.'
+  end if
+  if (integration_results%count() /= 8) then
+    error stop 'InternalMesh adaptive F-bar sekiz Gauss sonucu uretmeli.'
+  end if
+  if (abs(report%final_load_factor-1.0_dp) > 1.0e-12_dp) then
+    error stop 'InternalMesh adaptive F-bar tam yuke ulasmadi.'
+  end if
+  if (maxval(abs(u-u_fbar_fixed)) > 2.0e-7_dp) then
+    error stop 'InternalMesh sabit ve adaptive F-bar cozumleri uyusmuyor.'
+  end if
+
+  write(*,'(A,I0)') 'InternalMesh F-bar adaptive commit count = ', report%state_commit_count
+  write(*,'(A,ES14.6)') 'InternalMesh F-bar final residual = ', report%final_residual_norm
+  write(*,'(A)') 'InternalMesh displacement ve F-bar production adapter testleri BASARILI.'
 end program test_q4_internal_mesh_solver

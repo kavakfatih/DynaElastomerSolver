@@ -40,6 +40,8 @@ jobs:
             docs/legal/PUBLIC_REPOSITORY_IP_SECURITY_POLICY.md
             docs/legal/PRE_DISCLOSURE_IP_GATE.md
             docs/legal/IP_PROVENANCE_REGISTER.md
+            tools/security/audit_git_history.py
+            .github/workflows/git-history-secret-audit.yml
           )
 
           for file in "${required[@]}"; do
@@ -114,7 +116,6 @@ jobs:
               except OSError:
                   continue
 
-              # İkili dosyalarda rastlantısal eşleşmeleri azalt.
               if b'\x00' in data[:8192]:
                   continue
 

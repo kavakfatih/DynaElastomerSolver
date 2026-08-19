@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "status": "independent_precheck_not_official_fortran_ctest",
+  "purpose": "V0.3 birleşik Cook benchmark tasarımını CI dışında ikinci bir implementasyonla ön kontrol etmek",
+  "implementation": "Bağımsız Python/NumPy finite-element hesabı; Dyna Fortran solver çıktısı değildir",
+  "problem": {
+    "kinematics": "plane_strain",
+    "mu": 1.0,
+    "lambda": 1000.0,
+    "traction_y": 0.01,
+    "meshes": [2, 4, 8]
+  },
+  "displacement_q4": {
+    "results": [
+      {"n": 2, "tip": 0.005691167188723397, "final_min_j": 0.9999672580066589, "linear_equations": 12},
+      {"n": 4, "tip": 0.0059565828567928695, "final_min_j": 0.9999093009728256, "linear_equations": 40},
+      {"n": 8, "tip": 0.006564526641882192, "final_min_j": 0.9997835738824770, "linear_equations": 144}
+    ],
+    "coarse_to_8x8_gap": 0.1330422589172986
+  },
+  "mixed_q4_p0": {
+    "results": [
+      {"n": 2, "tip": 0.012248241086627861, "final_min_j": 0.9948402728641915, "linear_equations": 16, "pressure_mean": 0.0017845019325517368, "pressure_std": 0.007814530907272051, "pressure_rms": 0.008015693385352948, "pressure_jump_rms": 0.013247926664774635, "pressure_graph_roughness": 2.8740214448277133},
+      {"n": 4, "tip": 0.01685744314188171, "final_min_j": 0.9946615575809234, "linear_equations": 56, "pressure_mean": 0.0023197512218340885, "pressure_std": 0.009089370128161946, "pressure_rms": 0.009380719325186287, "pressure_jump_rms": 0.008980055873047168, "pressure_graph_roughness": 0.9760914312094371},
+      {"n": 8, "tip": 0.019155551046245695, "final_min_j": 0.9937133450679331, "linear_equations": 208, "pressure_mean": 0.0026048466523403485, "pressure_std": 0.009485872003350269, "pressure_rms": 0.00983702158918812, "pressure_jump_rms": 0.005374463930549557, "pressure_graph_roughness": 0.32100794739501787}
+    ],
+    "coarse_to_8x8_gap": 0.36059051201096093
+  },
+  "fbar_q4": {
+    "results": [
+      {"n": 2, "tip": 0.013473197298876393, "final_min_j": 0.9934946281396188, "linear_equations": 12, "min_j_bar": 0.9999902820464269, "max_j_bar": 1.0000117380920948},
+      {"n": 4, "tip": 0.017515068782856445, "final_min_j": 0.9941379011953263, "linear_equations": 40, "min_j_bar": 0.9999788534775247, "max_j_bar": 1.0000155395251276},
+      {"n": 8, "tip": 0.019405486089217598, "final_min_j": 0.9933028743531793, "linear_equations": 144, "min_j_bar": 0.9999691449982375, "max_j_bar": 1.0000176687567810}
+    ],
+    "coarse_to_8x8_gap": 0.3057016331911110
+  },
+  "cross_formulation_observations": {
+    "mixed_vs_fbar_tip_relative_difference": {
+      "2x2": 0.09091800447030404,
+      "4x4": 0.03754627795800667,
+      "8x8": 0.012879607437959344
+    },
+    "displacement_to_fbar_tip_ratio": {
+      "2x2": 0.42240657970606693,
+      "4x4": 0.3400833265709528,
+      "8x8": 0.3382819998273418
+    },
+    "interpretation": [
+      "Displacement-only Q4 kuvvetli volumetric-locking sinyali gösteriyor.",
+      "Mixed Q4/P0 ile F-bar mesh inceldikçe birbirine yaklaşıyor.",
+      "Mixed pressure graph roughness mesh refinement ile belirgin biçimde azalıyor; bu olumlu bir stability sinyalidir ancak bağımsız continuum pressure reference olmadan kesin karar değildir.",
+      "Coarse-to-8x8 gap tek başına locking şiddeti değildir; 8x8 referans çözüm kabul edilmemelidir. Dış Q2/FEniCSx referansı hâlâ gereklidir."
+    ]
+  }
+}

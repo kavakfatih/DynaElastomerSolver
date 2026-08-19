@@ -1,0 +1,101 @@
+name: FEniCSx V0.3 Fully Incompressible Mixed Reference
+
+on:
+  push:
+    branches: ['develop/v0.3']
+    paths:
+      - 'tools/reference/fenicsx_v03_cook_mixed_fully_incompressible.py'
+      - '.github/workflows/fenicsx-v03-mixed-fully-incompressible.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/reference/fenicsx_v03_cook_mixed_fully_incompressible.py'
+      - '.github/workflows/fenicsx-v03-mixed-fully-incompressible.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dyna-v03-fenicsx-fi-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  statuses: write
+
+env:
+  FENICSX_IMAGE: dolfinx/dolfinx:v0.11.0@sha256:58b27e84a2f26b98ce2d9ccc537b0ee6a59e2fcfdf386626d5ed9ddf43425ece
+
+jobs:
+  fully-incompressible-mixed:
+    name: DOLFINx v0.11.0 / Fully incompressible mixed Q2-DPC1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      # actions/checkout v7.0.1
+      - name: Kaynak kodu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: FEniCSx referans imajini al
+        run: docker pull "$FENICSX_IMAGE"
+
+      - name: Fully incompressible mixed referansi calistir
+        id: reference
+        shell: bash
+        run: |
+          mkdir -p reference-results
+          set +e
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            "$FENICSX_IMAGE" \
+            python3 tools/reference/fenicsx_v03_cook_mixed_fully_incompressible.py \
+            > reference-results/fenicsx-v03-cook-mixed-fully-incompressible.log 2>&1
+          status=$?
+          set -e
+
+          cat reference-results/fenicsx-v03-cook-mixed-fully-incompressible.log
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 100 reference-results/fenicsx-v03-cook-mixed-fully-incompressible.log | tr '\n' ' ' | cut -c1-4000)
+            echo "::error file=tools/reference/fenicsx_v03_cook_mixed_fully_incompressible.py::Fully incompressible FEniCSx mixed reference failed: ${message}"
+            exit "$status"
+          fi
+
+      - name: Reference JSON goster
+        if: steps.reference.outcome == 'success'
+        run: cat reference-results/fenicsx-v03-cook-mixed-fully-incompressible.json
+
+      # actions/upload-artifact v7.0.1
+      - name: Reference artifactini sakla
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: fenicsx-v03-cook-mixed-fully-incompressible
+          path: reference-results/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fully incompressible mixed commit status yayinla
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REFERENCE_OUTCOME: ${{ steps.reference.outcome }}
+        run: |
+          $passed = ($env:REFERENCE_OUTCOME -eq 'success')
+          $state = if ($passed) { 'success' } else { 'failure' }
+          $description = if ($passed) { 'DOLFINx fully incompressible mixed reference passed' } else { "DOLFINx fully incompressible reference outcome=$($env:REFERENCE_OUTCOME)" }
+
+          $body = @{
+            state = $state
+            context = 'dyna/v0.3-fenicsx-fully-incompressible-mixed-reference'
+            description = $description
+            target_url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          } | ConvertTo-Json -Compress
+
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          Invoke-RestMethod -Method Post -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' -Headers $headers -ContentType 'application/json' -Body $body | Out-Null

@@ -71,7 +71,7 @@ Secret bulunduğunda değer loglanmaz; yalnız dosya ve risk sınıfı raporlan�
 
 `.github/pull_request_template.md` IP/provenance, third-party license, patent/ticari sır/NDA, secret/credential, müşteri verisi, supply-chain ve minimum permission kontrollerini içerir.
 
-Public issue güvenliği:
+Public issue güvenliği default branch üzerinden yönetilir:
 
 - blank issue kapalı ✅
 - bug formunda secret/security/NDA uyarısı ✅

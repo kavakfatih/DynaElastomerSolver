@@ -1,9 +1,11 @@
 # DynaElastomerSolver Yol Haritası
 
 **Yaklaşım:** Implementasyon öncelikli doğrulama  
-**Ana karar:** ADR-0006 — önce çalışan fizik, sonra mimari genişleme
+**Ana mimari karar:** ADR-0008 — Herrmann / stable mixed `u-p` ana production yolu  
+**Aktif element kararı:** ADR-0009 — Q9/P1 plane-strain production adayı  
+**İkincil formulation:** F-bar — bağımsız cross-check ve nearly-incompressible alternatif
 
-DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamaz. Hedef; büyük deformasyonlu ve yaklaşık sıkıştırılamaz elastomer problemlerinde dar fakat güçlü, doğrulanmış ve açıklanabilir bir çözüm zinciri oluşturmaktır.
+DynaElastomerSolver genel amaçlı bir CAE kopyası değildir. Hedef; büyük deformasyonlu elastomer problemlerinde dar fakat güçlü, düşük hata oranlı, doğrulanabilir ve açıklanabilir bir çözüm zinciri kurmaktır. Hexagon Marc ve ANSYS davranış/benchmark referanslarıdır; kaynak kodları kopyalanmaz ve parity yalnız tekrarlanabilir benchmark kanıtı ile ifade edilir.
 
 ---
 
@@ -17,13 +19,15 @@ DynaElastomerSolver genel amaçlı CAE kapsamını kopyalamaz. Hedef; büyük de
 - analytic consistent tangent
 - material-point + FD tangent
 
-Material tangent normalized FD error ≈ `1.26e-9`.
+```text
+Material tangent normalized FD error ≈ 1.26e-9
+```
 
 ---
 
 ## V0.2 — İlk Çalışan Nonlinear FEM Dikey Dilimi
 
-**Durum:** ✅ **TAMAMLANDI — V0.2.0**  
+**Durum:** ✅ TAMAMLANDI — V0.2.0  
 **Branch:** `release/v0.2`
 
 - Q4 plane strain / 2×2 Gauss
@@ -36,254 +40,227 @@ Material tangent normalized FD error ≈ `1.26e-9`.
 - `InternalMesh`
 - raw integration-point results
 - `kavakfatih/stdlib` / LAPACK dense solve
-- backend-independent lineer solver API
-- Newton lineer diagnostics
-- severe-distortion + closed-form `J/P/W`
-- FEniCSx/DOLFINx bağımsız dış FEM doğrulaması
-- 20-test dört-compiler matrix
-
-Compiler matrix:
-
-- [x] Ubuntu 24.04 / gfortran 14
-- [x] macOS 26 ARM64 / gfortran 14
-- [x] Windows / gfortran 14
-- [x] Windows 2022 / Intel ifx 2025.2
+- backend-independent linear solver API
+- severe-distortion doğrulaması
+- FEniCSx/DOLFINx bağımsız FEM referansı
 
 ---
 
-## V0.3 — Nearly-Incompressible Formulation Bake-off
+## V0.3 — Stable Mixed u-P / Herrmann Plane-Strain Foundation
 
-**Durum:** 🚧 **AKTİF — V0.3.0**  
+**Durum:** 🟡 AKTİF GELİŞTİRME  
 **Branch:** `develop/v0.3`  
-**Draft PR:** `#1 — V0.3 — Nearly-Incompressible Formulation Bake-off`
+**CMake:** `0.3.0`  
+**Draft PR:** `#1`
 
-PR #1 V0.3 exit criteria tamamlanmadan `main`e merge edilmez.
+### Tarihsel V0.3 bake-off — korunacak regression kanıtı
 
-### Platform önceliği
-
-- **Windows x64 / Intel ifx — birincil**
-- **Windows x64 / gfortran — birincil portability**
-- **macOS Apple Silicon / gfortran — birincil**
-- Linux / gfortran — ikincil bilimsel CI
-- Linux / FEniCSx — bağımsız FEM reference
-
-Karşılaştırma:
-
-1. displacement-only Q4
-2. mixed Q4/P0 `u-p`
-3. F-bar Q4
-
-Production formulation henüz seçilmemiştir.
-
-### Ortak benchmark altyapısı
-
-- [x] Q4 reference-edge traction
-- [x] skew-edge / force conservation tests
-- [x] InternalMesh edge-load assembly
-- [x] fixed-increment force-control Full Newton
-- [x] homogeneous analytic traction benchmark
-- [x] Cook-benzeri 2×2 / 4×4 / 8×8 benchmark
-- [x] final-state `J` / historical Newton minimum `J` ayrımı
-- [x] Newton / lineer solve / equation-count diagnostics
-- [x] birleşik üçlü Cook benchmark executable'ı
-- [x] doğrudan `V0.3_COOK_BAKEOFF_RESULTS.json` üretimi
-- [x] JSON schema v3
-- [x] her compiler job'unda doğrudan benchmark artifact'i
-- [x] platform sonuç karşılaştırıcısı: `compare_v03_platform_results.py`
-- [x] 4x4 Cook incompressibility sweep: `lambda/mu = 10/100/1000`
-
-### Displacement-only baseline
-
-- [x] near-incompressible Cook baseline
-- [x] coarse-to-fine convergence trendi test yolu
-- [x] bağımsız precheck'te güçlü locking sinyali
-- [x] incompressibility sweep precheck: lambda10→1000 tip drop ≈ `55.08%`
-- [ ] converged dış Q2/FEniCSx referansına göre gerçek relative error
-
-**Karar kuralı:** coarse-to-8x8 gap tek başına locking metriği değildir; 8x8 Q4 çözümü de locked olabilir.
-
-### Mixed Q4/P0
+İlk V0.3 bake-off aynı Cook problemi üzerinde displacement Q4, mixed Q4/P0 ve F-bar Q4'ü karşılaştırdı. Q4/P0 checkerboard pressure null-mode riski gösterdi; F-bar ise güçlü nearly-incompressible cross-check olarak kaldı.
 
 ```text
-Psi(F,p) = mu/2(I1-3) - mu ln(J) + p ln(J) - p^2/(2 lambda)
+Q4 displacement  -> locking baseline
+Q4/P0 mixed      -> experimental / checkerboard regression
+Q4 F-bar         -> secondary production-quality cross-check
 ```
 
-- [x] 8 displacement + 1 P0 pressure element DOF
-- [x] `Kuu/Kup/Kpu/Kpp`
-- [x] 9×9 tangent FD validation
-- [x] local tangent error ≈ `1.74e-9`
-- [x] homogeneous residual equivalence
-- [x] global mixed assembly
-- [x] mixed Full Newton force solver
-- [x] analytic homogeneous traction benchmark
-- [x] mixed Cook 2×2 / 4×4 / 8×8
-- [x] incompressibility sweep precheck: lambda10→1000 tip drop ≈ `8.45%`
-
-Pressure stability diagnostics:
-
-- [x] min/max/mean/std/RMS
-- [x] edge-neighbor graph
-- [x] neighbor jump RMS/max
-- [x] pressure-RMS normalized jump
-- [x] mean-free `neighbor_jump_to_std`
-- [x] `graph_roughness = (jump_rms/std)^2`
-- [x] manufactured homojen zero-roughness benchmark
-- [x] bağımsız precheck'te roughness trendi `2.874 -> 0.976 -> 0.321`
-- [ ] independent continuum pressure-field reference comparison
-
-### F-bar Q4
+### ADR-0008 — formulation ailesi
 
 ```text
-J_bar = integral(J dV0) / integral(dV0)
-alpha_g = (J_bar/J_g)^(1/3)
-F_bar_g = alpha_g F_g
+PRIMARY:
+  Herrmann / stable mixed u-P
+
+SECONDARY / CROSS-CHECK:
+  F-bar
+
+BASELINE / REGRESSION:
+  displacement-only
 ```
 
-- [x] energy-consistent element residual
-- [x] `J_bar` Gauss coupling'i residualda
-- [x] analitik consistent tangent
-- [x] homogeneous residual-equivalence test
-- [x] independent cross-FD tangent doğrulaması
-- [x] local GNU Fortran cross-FD error ≈ `1.20e-9`
-- [x] local tangent symmetry error ≈ `2.45e-16`
-- [x] global F-bar assembly
-- [x] F-bar force-control Newton solver
-- [x] homogeneous analytic traction benchmark
-- [x] F-bar Cook 2×2 / 4×4 / 8×8
-- [x] incompressibility sweep precheck: lambda10→1000 tip drop ≈ `8.38%`
-- [x] lambda/mu=1000 mixed–F-bar relative tip farkı ≈ `3.75%`
-- [ ] Windows/ifx platform doğrulaması
-- [ ] Windows/gfortran platform doğrulaması
-- [ ] macOS ARM64/gfortran platform doğrulaması
+### ADR-0009 — Q8/P1 → Q9/P1 kararı
 
-### Bağımsız Cook ve sweep precheck
+İlk araştırma adayı Q8 serendipity + element-internal P1 pressure idi. Mesh-refinement inf-sup proxy tanısı Q8/P1'de stability kaybı gösterdiği için Q8/P1 production-safe ilan edilmedi ve regression/araştırma hattında tutuldu.
 
-Kayıtlar:
-
-- `docs/verification/results/V0.3_COOK_INDEPENDENT_PRECHECK.json`
-- `docs/verification/V0.3_COOK_PRECHECK_ANALYSIS.md`
-- `docs/verification/results/V0.3_INCOMPRESSIBILITY_SWEEP_INDEPENDENT_PRECHECK.json`
-
-8x8 tip displacement precheck:
+Aktif plane-strain adayı:
 
 ```text
-Displacement Q4 = 0.00656453
-Mixed Q4/P0    = 0.01915555
-F-bar Q4       = 0.01940549
+Q9 biquadratic displacement
++ 3 element-internal complete-linear pressure DOF [1, xi, eta]
++ Herrmann / mixed u-P finite-strain formulation
 ```
 
-Mixed–F-bar relative tip farkı:
+Yerel bilinmeyen sayısı:
 
 ```text
-2x2 -> 9.09%
-4x4 -> 3.75%
-8x8 -> 1.29%
+18 displacement DOF + 3 pressure DOF = 21
 ```
 
-Bu precheck'ler resmi Fortran/CTest sonucu değildir; regression tasarımı ve beklenen fiziksel trend için bağımsız kanıttır.
+Primary quadrature şimdilik `3x3 Gauss`; `2x2` diagnostic/cross-check olarak tutulur. Bu karar external mixed reference ve mesh convergence ile tekrar değerlendirilebilir.
 
-### Platform numerical reproducibility
+### H0 — Mixed interpolation / DOF foundation ✅
 
-Her compiler job'u kendi birleşik bake-off JSON artifactini saklar:
+- [x] Q8 historical interpolation ve stability diagnostics
+- [x] Q9 biquadratic interpolation / geometry
+- [x] 3-DOF discontinuous P1 pressure space
+- [x] global displacement/pressure equation mapping
+- [x] `Nd/Np` precheck
+- [x] Q9 `InternalMesh` topology
 
-- Windows / ifx
-- Windows / gfortran
-- macOS ARM64 / gfortran
-- Linux / gfortran
+### H1 — Plane-Strain Q9/P1 Herrmann Element ✅ / doğrulama genişliyor
 
-`tools/verification/compare_v03_platform_results.py`:
+- [x] isochoric Neo-Hookean response
+- [x] independent hydrostatic pressure, `p > 0` compression
+- [x] `sigma = sigma_iso - p I`
+- [x] nearly-incompressible compliance form
+- [x] fully-incompressible `J=1`, `K_pp=0` saddle-point limit
+- [x] `R_u`, `R_p`
+- [x] `K_uu`, `K_up`, `K_pu`, `K_pp`
+- [x] analytic consistent tangent
+- [x] central finite-difference tangent cross-check
+- [x] block/tangent symmetry checks
+- [x] pressure coupling rank / checkerboard gate
+- [x] Q9 mesh-refinement inf-sup proxy plateau gate
+- [x] distorted pressure-stability gate
+- [x] 2x2 / 3x3 quadrature comparison
+- [x] severe-distortion manufactured-state test
+- [x] dedicated P1 pressure patch paketi eklendi — CI doğrulaması sürüyor
 
-- tip/final `J`/pressure/`J_bar` sonuçlarını tolerans içinde karşılaştırır
-- equation count'u exact kontrol eder
-- iteration/linear solve farklarını bilgi olarak raporlar
+### H2 — Global Mixed Assembly + Nonlinear Solver ✅
 
-### Bağımsız V0.3 dış referans
+- [x] element-internal pressure global equations
+- [x] Q9 `InternalMesh` mixed assembly
+- [x] Full Newton
+- [x] fixed + adaptive force control
+- [x] displacement residual norm
+- [x] pressure weak residual norm
+- [x] pointwise volumetric diagnostic
+- [x] trial/commit/revert
+- [x] adaptive increment
+- [x] cutback/retry
+- [x] displacement + pressure birlikte rollback
+- [x] independent-pressure Results semantics
+- [x] fully-incompressible saddle-point solve
 
-FEniCSx / DOLFINx Q2 Cook reference:
+Dense LAPACK küçük doğrulama problemlerinde korunur. Büyük-model production yönü:
 
-- [x] `tools/reference/fenicsx_v03_cook_q2_reference.py`
-- [x] aynı Neo-Hookean `mu=1`, `lambda=1000`
-- [x] aynı normalize Cook geometry / traction
-- [x] Q2 quadrilateral, meshler 2/4/8/16
-- [x] UFL automatic residual/Jacobian
-- [x] PETSc SNES + LU/MUMPS
-- [x] tip displacement
-- [x] continuum `p=lambda ln(J)` mean/std/RMS
-- [x] `J` average / total energy / Newton iterations
-- [x] `.github/workflows/fenicsx-v03-reference.yml`
-- [ ] gerçek Actions sonucunu artifact olarak al
-- [ ] Dyna Cook sonuçlarıyla ortak karşılaştırmayı kaydet
+```text
+block DOF contract
+→ sparse assembly
+→ sparse direct baseline
+→ Schur-complement / field-split
+→ conditioning/scaling diagnostics
+```
 
-### CI engeli
+### H3 — Production Acceptance / düşük hata zinciri 🟡
 
-GitHub-hosted job'lar şu anda runner step'leri başlamadan failure olmaktadır. Tek Linux rerun'ı da aynı pre-step failure davranışını göstermiştir.
+Tamamlanan/aktif kapılar:
 
-Bu nedenle mevcut hata build/CTest seviyesine ulaşmamaktadır. GitHub Actions account/repository kullanımı veya runner provisioning engeli ayrıca çözülmelidir.
+- [x] incompressibility sweep: `K/mu = 10,100,1000,∞`
+- [x] `K/mu=1000` → fully-incompressible limit displacement farkı düşük
+- [x] severe-distortion exact-state recovery
+- [x] 2x2 vs 3x3 quadrature bake-off
+- [x] Q9/P1 dedicated Cook `1x1 -> 2x2 -> 4x4` mesh-refinement testi eklendi — CI doğrulaması sürüyor
+- [x] FEniCSx mixed Q2/DPC1 external-reference script/workflow eklendi — CI doğrulaması sürüyor
+- [ ] Dyna Q9/P1 ile FEniCSx mixed referansını otomatik tek acceptance raporunda karşılaştır
+- [ ] pressure field L2-type error karşılaştırması
+- [ ] fully-incompressible external mixed reference
+- [ ] aynı contract ile ANSYS PLANE183 mixed u-P benchmarkı — erişim olduğunda
+- [ ] aynı contract ile Hexagon Marc Herrmann benchmarkı — erişim olduğunda
 
-### Güncel test sayısı
+ADR-0009 hedefleri:
 
-**35 CTest tanımı**.
+```text
+analytic-vs-FD tangent normalized error  <= 1e-7  (nominal hedef <= 1e-8)
+pressure patch displacement recovery     <= 1e-7
+pressure patch pressure recovery         <= 1e-7
+pressure weak residual                   <= 1e-9
+K/mu=1000 -> incompressible tip gap      <= 0.5%
+external mixed displacement error        <= 1.0%
+external pressure L2-type error           <= 2.0%  [aynı pressure convention]
+```
 
-### Sıradaki V0.3 işleri
+Bu eşikler solver'ın Marc/ANSYS seviyesinde olduğunu peşinen ilan etmez; bu seviyeye yönelik ölçülebilir acceptance kapılarıdır.
 
-- [ ] GitHub-hosted Actions pre-step engelini çöz
-- [ ] Windows/ifx + Windows/gfortran + macOS ARM64/gfortran 35-test matrix'i kapat
-- [ ] üç birincil platform bake-off JSON'larını numerical reproducibility açısından karşılaştır
-- [ ] FEniCSx Q2 2/4/8/16 dış referans artifactini al
-- [ ] Dyna üçlü sonuçlarını converged Q2 referansına göre relative error ile değerlendir
-- [ ] mixed pressure mean/std/RMS + graph roughness davranışını dış continuum pressure ile kıyasla
-- [ ] üç formulation ortak mesh/convergence/robustness/maliyet tablosunu tamamla
-- [ ] production formulation ADR kararı
-
-Karar ölçütleri:
-
-- dış referansa göre displacement hatası
-- volumetric locking
-- pressure stability / oscillation
-- mesh convergence
-- incompressibility-sweep sensitivity
-- nonlinear convergence
-- distortion sensitivity
-- minimum final-state `J`
-- DOF / matrix maliyeti
-- lineer solve davranışı
-- platform numerical reproducibility
-- axisymmetric extensibility
-- axisymmetric torsion extensibility
+**V0.3 release kapısı:** Q9/P1 external mixed reference, dedicated mesh/pressure gates ve release hardening tamamlanmadan `main`e merge edilmez ve `v0.3.0` yayınlanmaz.
 
 ---
 
-## V0.4 — Axisymmetric Nonlinear Elastomer
+## V0.4 — Axisymmetric Q9/P1 Herrmann / Mixed u-P
 
-- `ur, uz`
-- `2πR` integration
-- seçilmiş incompressibility formulation
+**Ana yol:** Q9/P1 Herrmann
+
+- `u_r, u_z`
+- full 3D axisymmetric deformation gradient
+- hoop stretch
+- `2*pi*R` reference-volume integration
+- axis `R -> 0` regularity handling
+- independent pressure constraint
+- consistent block tangent
 - reaction force
-- bağımsız benchmark
+- pressure/constraint diagnostics
+- homogeneous + pressure patch benchmarks
+- mesh refinement
+- severe distortion
+- independent mixed external reference
 
-## V0.5 — Axisymmetric Torsion / 2.5D
+F-bar axisymmetric formulation paralel cross-check olabilir; ana Herrmann hattını bloke etmez.
 
-- `ur, uz, φ`
+---
+
+## V0.5 — Axisymmetric With Torsion / 2.5D Q9/P1 Herrmann
+
+Ana local unknown düzeni:
+
+```text
+9 node × (u_r, u_z, u_theta / phi) = 27 displacement DOF
++ 3 element-internal pressure DOF    =  3 pressure DOF
+------------------------------------------------------
+30 local unknown
+```
+
+Gereksinimler:
+
 - prescribed rotation
+- circumferential finite-strain kinematics
+- hoop + torsional shear coupling
+- full `J`
+- mixed volumetric constraint
+- consistent tangent + FD
 - reaction torque
-- torque-angle
+- torque-angle curve
 - torsional stiffness
-- bağımsız solver + fiziksel test
+- mesh/distortion convergence
+- ANSYS/Marc independent benchmark
+- fiziksel ürün torque-angle validation
+
+**Production kapısı:** fiziksel ürün testi ile solver sonucu birlikte doğrulanmadan tamamlandı sayılmaz.
+
+---
 
 ## V0.6 — Hyperelastic Model Library
 
 Öncelik:
+
 1. Mooney-Rivlin
 2. Yeoh
 3. Ogden N1
-4. Ogden N2/N3 ihtiyaç halinde
+4. Ogden N2/N3
 5. Arruda-Boyce / Gent ihtiyaç halinde
 
 Her model:
 
 ```text
-Energy → Stress → Consistent Tangent → FD → Material Benchmark → FEM Benchmark
+Energy
+→ Stress
+→ Consistent Tangent
+→ FD
+→ Material Benchmark
+→ Q9/P1 Herrmann FEM Benchmark
+→ F-bar cross-check (uygunsa)
 ```
+
+Mixed incompressibility formulation bünye yasasından bağımsız kalır.
+
+---
 
 ## V0.7 — Material Calibration
 
@@ -296,31 +273,67 @@ Experimental Data
 → Material Validation
 ```
 
-## V0.8 — Production NonlinearSolutionManager
+Uniaxial tek başına yeterli kabul edilmez; modele göre uniaxial + planar + biaxial veri kombinasyonları desteklenir.
+
+---
+
+## V0.8 — Production NonlinearSolutionManager + Sparse Mixed Linear Algebra
 
 - Full Newton
 - adaptive increment
 - commit/revert
 - cutback/retry
 - divergence reasons
+- displacement/pressure/constraint convergence
 - `J` / distortion / pressure diagnostics
-- backend-independent linear reports
+- backend-independent block linear reports
+- sparse direct solver baseline
+- Schur/field-split seçeneği
+- automatic / advanced controls
 
-Benchmark ihtiyacı gösterirse line search / Modified Newton / BFGS-Broyden.
+Benchmark gerektirirse line search / Modified Newton / BFGS-Broyden eklenir.
+
+---
 
 ## V0.9 — Minimum Engineering Workflow
 
 - geometry adapters
 - Gmsh → `InternalMesh`
 - named boundaries
-- mesh precheck
+- AnalysisPrecheck
+- mixed `Nd/Np` / pressure-space / BC uniqueness precheck
 - result database
 - pressure / stress / stretch / `J` / energy
 - force/torque histories
 - minimum Qt shell
 
+---
+
 ## V1.0 — Doğrulanmış Nonlineer Elastomer Solver
 
-Başarı özellik sayısıyla değil; material-point, element, mesh convergence, incompressibility, robustness, bağımsız solver ve fiziksel test kanıtlarıyla ölçülür.
+Başarı özellik sayısıyla değil kanıt zinciriyle ölçülür:
 
-> Önce çalışan ve doğrulanan en küçük fizik zinciri; sonra yalnız kanıtlanmış ihtiyaca göre mimari genişleme.
+```text
+material point
++ analytic/FD tangent
++ pressure patch
++ pressure stability / inf-sup diagnostics
++ mesh convergence
++ nearly/fully incompressibility
++ nonlinear cutback/rollback robustness
++ independent mixed solver benchmark
++ commercial solver benchmark
++ fiziksel test
+```
+
+### Kalıcı formulation hiyerarşisi
+
+```text
+Q9/P1 Herrmann / stable mixed u-P  → ana production yol
+F-bar                              → güçlü alternatif / cross-check
+Displacement-only                  → compressible baseline / regression
+Q8/P1                              → stability research/regression
+Q4/P0 mixed                        → checkerboard research/regression
+```
+
+> Ticari solverları kopyalama; onların olgun mühendislik davranışlarını bağımsız, ölçülebilir ve regression-test ile korunan Dyna mimarisine dönüştür.
