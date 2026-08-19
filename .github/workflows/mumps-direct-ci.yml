@@ -150,7 +150,10 @@ jobs:
       - name: MUMPS context target derle
         id: build
         shell: bash
-        run: cmake --build build-mumps --target test_mumps_sparse_solver_context --parallel 2
+        run: |
+          set -o pipefail
+          cmake --build build-mumps --target test_mumps_sparse_solver_context --parallel 2 --verbose \
+            2>&1 | tee mumps-build.log
 
       - name: MUMPS direct context regression
         id: ctest
@@ -201,7 +204,7 @@ jobs:
             -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' `
             -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
 
-      - name: Dependency ve configure loglarını sakla
+      - name: Dependency, configure ve build loglarını sakla
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -210,5 +213,6 @@ jobs:
             lapack-configure.log
             lapack-build.log
             cmake-mumps-configure.log
+            mumps-build.log
           if-no-files-found: warn
           retention-days: 7
