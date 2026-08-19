@@ -135,6 +135,26 @@ contains
       error stop 'Q9 sparse nonlinear lineer true residual toleransi asildi.'
     end if
 
+    ! B4: Newton boyunca aynı CSR graph için symbolic analysis ve ordering yalnız
+    ! bir kez yapılmalı; numeric stage ve solve ise her gerçek lineer çözümde yenilenmeli.
+    if (sparse_report%last_linear_report%pattern_analysis_count /= 1) then
+      error stop 'Q9 sparse context pattern analysis birden fazla calisti.'
+    end if
+    if (sparse_report%last_linear_report%reorder_count /= 1) then
+      error stop 'Q9 sparse context ordering birden fazla calisti.'
+    end if
+    if (sparse_report%last_linear_report%factorization_count /= &
+        sparse_report%linear_solve_count) then
+      error stop 'Q9 sparse context numeric lifecycle solve sayisiyla uyusmuyor.'
+    end if
+    if (sparse_report%last_linear_report%context_solve_count /= &
+        sparse_report%linear_solve_count) then
+      error stop 'Q9 sparse context solve sayaci Newton sayaciyla uyusmuyor.'
+    end if
+    if (sparse_report%last_linear_report%direct_factorization_performed) then
+      error stop 'Q9 GMRES direct factorization yapmis gibi raporlandi.'
+    end if
+
     if (fully_incompressible) then
       if (maxval(abs(u_sparse-u_target)) > 5.0e-8_dp) then
         error stop 'Q9 fully-incompressible sparse displacement hedefi kurtarilamadi.'

@@ -8,8 +8,14 @@ module des_q9_plane_strain_herrmann_force_solver
   use des_internal_mesh, only : internal_mesh_t, validate_internal_mesh
   use des_csr_matrix, only : csr_matrix_t, csr_apply_zero_dirichlet
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
-                                solve_linear_system, solve_sparse_linear_system, &
+                                solve_linear_system, &
                                 DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+  use des_sparse_solver_context, only : sparse_solver_context_t, &
+      create_sparse_solver_context, analyze_sparse_pattern, &
+      reorder_sparse_pattern, factorize_sparse_matrix, &
+      solve_sparse_with_context, release_sparse_solver_context, &
+      DES_MATRIX_CLASS_SYMMETRIC_INDEFINITE, DES_PROBLEM_CLASS_MIXED_U_P, &
+      DES_INDEX_CLASS_INT32
   use des_solution_state, only : solution_state_t, initialize_solution_state, &
                                  begin_solution_trial, commit_solution_state, &
                                  revert_solution_state
@@ -60,6 +66,7 @@ contains
     real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), delta(:)
     real(dp), allocatable :: rhs_full(:), delta_full(:)
     type(csr_matrix_t) :: K_csr
+    type(sparse_solver_context_t) :: sparse_context
     real(dp) :: min_j, load_factor, residual_norm, increment_size
     integer :: ndisp, ntotal, nfree, status, active_quadrature
     integer :: increment, iteration, a, b
@@ -95,6 +102,13 @@ contains
       allocate(rhs_full(ntotal),delta_full(ntotal))
       call initialize_q9_plane_strain_herrmann_csr_pattern( &
           mesh%node_count(),mesh%q9_connectivity,K_csr,status)
+      if (status /= DES_STATUS_OK) then
+        report%status = status
+        report%last_failure_status = status
+        return
+      end if
+      call initialize_q9_herrmann_sparse_context( &
+          K_csr,active_linear_settings,sparse_context,status)
       if (status /= DES_STATUS_OK) then
         report%status = status
         report%last_failure_status = status
@@ -158,8 +172,16 @@ contains
             return
           end if
 
-          call solve_sparse_linear_system( &
-              K_csr,rhs_full,delta_full,active_linear_settings,linear_report)
+          call factorize_sparse_matrix(sparse_context,K_csr,status)
+          if (status /= DES_STATUS_OK) then
+            call add_herrmann_history(report,increment,iteration,load_factor, &
+                increment_size,residual_norm,min_j,status,.false.)
+            report%status = status
+            report%last_failure_status = status
+            return
+          end if
+          call solve_sparse_with_context( &
+              sparse_context,K_csr,rhs_full,delta_full,linear_report)
         else
           rhs = -residual(free_dofs)
           do a = 1,nfree
@@ -208,6 +230,7 @@ contains
       call finalize_q9_herrmann_solution_sparse( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
           tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report)
+      call release_sparse_solver_context(sparse_context)
     else
       call finalize_q9_herrmann_solution( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
@@ -224,9 +247,9 @@ contains
     ! Displacement ve pressure trial state'leri aynı increment transaction'ının
     ! parçasıdır. Bir Newton denemesi başarısız olursa ikisi de committed state'e döner.
     !
-    ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. Her Newton
-    ! iterasyonunda yalnız values yeniden assemble edilir; böylece adaptive yol da
-    ! fixed solver ile aynı backend-bağımsız Dyna CSR sözleşmesini kullanır.
+    ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
+    ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
+    ! yalnız numeric values aşaması ve solve tekrarlanır.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -245,6 +268,7 @@ contains
     real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), delta(:)
     real(dp), allocatable :: rhs_full(:), delta_full(:)
     type(csr_matrix_t) :: K_csr
+    type(sparse_solver_context_t) :: sparse_context
     type(solution_state_t) :: displacement_state, pressure_state
     real(dp) :: min_j, load_factor, target_factor, step
     real(dp) :: residual_norm, accepted_step
@@ -289,6 +313,13 @@ contains
       allocate(rhs_full(ntotal),delta_full(ntotal))
       call initialize_q9_plane_strain_herrmann_csr_pattern( &
           mesh%node_count(),mesh%q9_connectivity,K_csr,status)
+      if (status /= DES_STATUS_OK) then
+        report%status = status
+        report%last_failure_status = status
+        return
+      end if
+      call initialize_q9_herrmann_sparse_context( &
+          K_csr,active_linear_settings,sparse_context,status)
       if (status /= DES_STATUS_OK) then
         report%status = status
         report%last_failure_status = status
@@ -362,8 +393,15 @@ contains
             exit
           end if
 
-          call solve_sparse_linear_system( &
-              K_csr,rhs_full,delta_full,active_linear_settings,linear_report)
+          call factorize_sparse_matrix(sparse_context,K_csr,status)
+          if (status /= DES_STATUS_OK) then
+            call add_herrmann_history(report,attempt,iteration,target_factor, &
+                accepted_step,residual_norm,min_j,status,.false.)
+            failure_status = status
+            exit
+          end if
+          call solve_sparse_with_context( &
+              sparse_context,K_csr,rhs_full,delta_full,linear_report)
         else
           rhs = -residual(free_dofs)
           do a = 1,nfree
@@ -452,6 +490,7 @@ contains
       call finalize_q9_herrmann_solution_sparse( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
           tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report)
+      call release_sparse_solver_context(sparse_context)
     else
       call finalize_q9_herrmann_solution( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
@@ -538,6 +577,24 @@ contains
       report%last_failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
     end if
   end subroutine finalize_q9_herrmann_solution_sparse
+
+  subroutine initialize_q9_herrmann_sparse_context( &
+      matrix,settings,context,status)
+    type(csr_matrix_t), intent(in) :: matrix
+    type(linear_solver_settings_t), intent(in) :: settings
+    type(sparse_solver_context_t), intent(out) :: context
+    integer, intent(out) :: status
+
+    call create_sparse_solver_context( &
+        context,settings,DES_MATRIX_CLASS_SYMMETRIC_INDEFINITE, &
+        DES_PROBLEM_CLASS_MIXED_U_P,DES_INDEX_CLASS_INT32,status)
+    if (status /= DES_STATUS_OK) return
+
+    call analyze_sparse_pattern(context,matrix,status)
+    if (status /= DES_STATUS_OK) return
+
+    call reorder_sparse_pattern(context,status)
+  end subroutine initialize_q9_herrmann_sparse_context
 
   subroutine prepare_q9_herrmann_problem( &
       mesh,u,pressure_coefficients,residual,fixed_dofs,external_force, &

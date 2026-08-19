@@ -147,6 +147,26 @@ contains
       error stop 'Q9 adaptive dense-sparse final load factor parity bozuldu.'
     end if
 
+    ! B4 lifecycle: adaptive increment ve Newton iterasyonları aynı context'i
+    ! paylaşır. CSR graph değişmediği sürece symbolic analysis ve ordering tekrarlanmaz.
+    if (sparse_report%last_linear_report%pattern_analysis_count /= 1) then
+      error stop 'Q9 adaptive sparse context pattern analysis tekrarlandi.'
+    end if
+    if (sparse_report%last_linear_report%reorder_count /= 1) then
+      error stop 'Q9 adaptive sparse context ordering tekrarlandi.'
+    end if
+    if (sparse_report%last_linear_report%factorization_count /= &
+        sparse_report%linear_solve_count) then
+      error stop 'Q9 adaptive numeric lifecycle solve sayisiyla uyusmuyor.'
+    end if
+    if (sparse_report%last_linear_report%context_solve_count /= &
+        sparse_report%linear_solve_count) then
+      error stop 'Q9 adaptive context solve sayaci Newton sayaciyla uyusmuyor.'
+    end if
+    if (sparse_report%last_linear_report%direct_factorization_performed) then
+      error stop 'Q9 adaptive GMRES direct factorization iddia etti.'
+    end if
+
     if (fully_incompressible) then
       if (maxval(abs(u_sparse-u_target)) > 5.0e-8_dp) then
         error stop 'Q9 fully-incompressible sparse adaptive displacement hedefi kurtarilamadi.'
@@ -241,6 +261,12 @@ contains
     end if
     if (sparse_report%linear_solve_count /= dense_report%linear_solve_count) then
       error stop 'Q9 adaptive exhaustion lineer solve count parity bozuldu.'
+    end if
+    if (sparse_report%last_linear_report%pattern_analysis_count /= 1) then
+      error stop 'Q9 exhaustion sparse context symbolic analysis tekrarlandi.'
+    end if
+    if (sparse_report%last_linear_report%reorder_count /= 1) then
+      error stop 'Q9 exhaustion sparse context ordering tekrarlandi.'
     end if
 
     write(*,'(A,I0,A,I0,A,I0)') &
