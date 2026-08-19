@@ -34,6 +34,17 @@ module des_linear_solver
     integer :: equation_count = 0
     real(dp) :: residual_inf_norm = huge(1.0_dp)
     logical :: converged = .false.
+
+    ! B4 stateful sparse context sayaçları additive metadata'dır. Stateless
+    ! dense/sparse çağrılarda sıfır kalır; context üzerinden yapılan çözümde
+    ! yaşam döngüsünün gerçek sayıları bu rapora kopyalanır.
+    integer :: pattern_analysis_count = 0
+    integer :: reorder_count = 0
+    integer :: factorization_count = 0
+    integer :: context_solve_count = 0
+    integer :: iterative_refinement_count = 0
+    integer :: symbolic_reuse_count = 0
+    logical :: direct_factorization_performed = .false.
   end type linear_solver_report_t
 
 contains

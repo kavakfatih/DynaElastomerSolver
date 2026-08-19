@@ -33,6 +33,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q4_plane_strain_mixed_up_mesh.f90
   fem/des_q4_plane_strain_fbar_mesh.f90
   solvers/des_linear_solver.f90
+  solvers/des_sparse_solver_context.f90
   solvers/des_dense_linear.f90
   solvers/des_solution_state.f90
   solvers/des_solver_history.f90
