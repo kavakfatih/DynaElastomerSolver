@@ -13,24 +13,23 @@ module des_q9_plane_strain_herrmann_neo_hookean
   integer, parameter, public :: Q9_HERRMANN_U_DOF = 18
   integer, parameter, public :: Q9_HERRMANN_P_DOF = 3
   integer, parameter, public :: Q9_HERRMANN_TOTAL_DOF = 21
+  integer, parameter, public :: Q9_HERRMANN_QUADRATURE_2X2 = 2
+  integer, parameter, public :: Q9_HERRMANN_QUADRATURE_3X3 = 3
 
   public :: evaluate_q9_plane_strain_herrmann_element
+  public :: evaluate_q9_plane_strain_herrmann_element_with_quadrature
 
 contains
 
   pure subroutine evaluate_q9_plane_strain_herrmann_element( &
       X, u, pressure_coefficients, shear_modulus, pressure_compliance, &
       residual, tangent, status, min_j)
-    ! Stability-first Herrmann/mixed u-p plane-strain element adayi.
+    ! Varsayilan Q9/P1 Herrmann plane-strain element degerlendirmesi.
     !
-    ! Displacement : Q9 biquadratic Lagrange, 18 DOF
-    ! Pressure     : element-internal P1 modal alan [1, xi, eta], 3 DOF
-    ! Local system : 21 x 21
-    ! Integration  : 3 x 3 Gauss full-integration baseline
-    !
-    ! Q9/P1 pressure-space stability kapilarinda Q8/P1'e gore daha guclu adaydir.
-    ! Yine de nonlinear mesh benchmarklari, distortion ve external-reference
-    ! kapilari tamamlanmadan production etiketi verilmez.
+    ! H1 arastirma baseline'i bilincli olarak 3x3 full integration ile korunur.
+    ! 2x2 secenegi ayri API uzerinden benchmark edilir; production quadrature
+    ! karari stability/locking/distortion/nonlinear benchmarklari tamamlanmadan
+    ! degistirilmez.
     real(dp), intent(in) :: X(9,2), u(9,2), pressure_coefficients(3)
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     real(dp), intent(out) :: residual(Q9_HERRMANN_TOTAL_DOF)
@@ -38,17 +37,41 @@ contains
     integer, intent(out) :: status
     real(dp), intent(out) :: min_j
 
-    real(dp), parameter :: gp = 0.77459666924148337704_dp
-    real(dp), parameter :: gauss_coordinate(3) = [-gp,0.0_dp,gp]
-    real(dp), parameter :: gauss_weight(3) = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
+        X,u,pressure_coefficients,shear_modulus,pressure_compliance, &
+        Q9_HERRMANN_QUADRATURE_3X3,residual,tangent,status,min_j)
+  end subroutine evaluate_q9_plane_strain_herrmann_element
+
+  pure subroutine evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
+      X, u, pressure_coefficients, shear_modulus, pressure_compliance, &
+      quadrature_order, residual, tangent, status, min_j)
+    ! Stability-first Herrmann/mixed u-p plane-strain element adayi.
+    !
+    ! Displacement : Q9 biquadratic Lagrange, 18 DOF
+    ! Pressure     : element-internal P1 modal alan [1, xi, eta], 3 DOF
+    ! Local system : 21 x 21
+    ! Integration  : secilebilir 2x2 veya 3x3 Gauss
+    !
+    ! ANSYS PLANE183 ile ayni mixed displacement-pressure problem sinifinda
+    ! olsak da quadrature karari Dyna benchmarklariyla verilir; ticari solver
+    ! implementasyonu kopyalanmaz.
+    real(dp), intent(in) :: X(9,2), u(9,2), pressure_coefficients(3)
+    real(dp), intent(in) :: shear_modulus, pressure_compliance
+    integer, intent(in) :: quadrature_order
+    real(dp), intent(out) :: residual(Q9_HERRMANN_TOTAL_DOF)
+    real(dp), intent(out) :: tangent(Q9_HERRMANN_TOTAL_DOF,Q9_HERRMANN_TOTAL_DOF)
+    integer, intent(out) :: status
+    real(dp), intent(out) :: min_j
 
     type(material_kinematics_t) :: kinematics
     type(material_response_t) :: iso_response
     type(herrmann_constraint_response_t) :: pressure_response
+    real(dp) :: gauss_coordinate(3), gauss_weight(3)
     real(dp) :: N(9), dN_parent(9,2), dN_dX(9,2)
     real(dp) :: x_point(2), Jmap(2,2), det_jac
     real(dp) :: Np(3), F(3,3), P_total(3,3)
     real(dp) :: A_total(3,3,3,3), pressure, weight
+    integer :: n_gauss
     integer :: gx, gy, a, b, i, k, jdir, ldir, q, r
     integer :: row, col, prow, pcol, point_status
 
@@ -62,8 +85,11 @@ contains
       return
     end if
 
-    do gy = 1,3
-      do gx = 1,3
+    call set_gauss_rule(quadrature_order,n_gauss,gauss_coordinate,gauss_weight,status)
+    if (status /= DES_STATUS_OK) return
+
+    do gy = 1,n_gauss
+      do gx = 1,n_gauss
         call q9_reference_gradient( &
             X,gauss_coordinate(gx),gauss_coordinate(gy), &
             N,dN_parent,dN_dX,x_point,Jmap,det_jac,point_status)
@@ -163,6 +189,32 @@ contains
         end do
       end do
     end do
-  end subroutine evaluate_q9_plane_strain_herrmann_element
+  end subroutine evaluate_q9_plane_strain_herrmann_element_with_quadrature
+
+  pure subroutine set_gauss_rule(order,n_gauss,coordinate,weight,status)
+    integer, intent(in) :: order
+    integer, intent(out) :: n_gauss,status
+    real(dp), intent(out) :: coordinate(3),weight(3)
+    real(dp), parameter :: gp3 = 0.77459666924148337704_dp
+    real(dp), parameter :: gp2 = 0.57735026918962576451_dp
+
+    coordinate = 0.0_dp
+    weight = 0.0_dp
+    status = DES_STATUS_OK
+
+    select case (order)
+    case (Q9_HERRMANN_QUADRATURE_2X2)
+      n_gauss = 2
+      coordinate(1:2) = [-gp2,gp2]
+      weight(1:2) = [1.0_dp,1.0_dp]
+    case (Q9_HERRMANN_QUADRATURE_3X3)
+      n_gauss = 3
+      coordinate = [-gp3,0.0_dp,gp3]
+      weight = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    case default
+      n_gauss = 0
+      status = DES_ERROR_INVALID_PARAMETERS
+    end select
+  end subroutine set_gauss_rule
 
 end module des_q9_plane_strain_herrmann_neo_hookean
