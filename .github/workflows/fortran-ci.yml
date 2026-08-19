@@ -124,6 +124,22 @@ jobs:
         shell: bash
         run: ctest --test-dir build --output-on-failure --build-config Debug
 
+      - name: V0.3 H3 Q9/P1 mixed u-P acceptance gate
+        id: h3
+        if: steps.ctest.outcome == 'success'
+        shell: bash
+        run: |
+          python tools/verification/build_v03_h3_acceptance_report.py \
+            --production build/tests/V0.3_HERRMANN_PRODUCTION_BENCHMARK_RESULTS.json \
+            --mesh-refinement build/tests/V0.3_HERRMANN_MESH_REFINEMENT_RESULTS.json \
+            --quadrature build/tests/V0.3_HERRMANN_QUADRATURE_CONVERGENCE_RESULTS.json \
+            --ctest-log build/Testing/Temporary/LastTest.log \
+            --reference-snapshot docs/verification/results/V0.3_H3_EXTERNAL_REFERENCE_SNAPSHOT.json \
+            --json-output ci-artifacts/V0.3_HERRMANN_H3_ACCEPTANCE_RESULTS.json \
+            --markdown-output ci-artifacts/V0.3_HERRMANN_H3_ACCEPTANCE_REPORT.md
+          echo '=== Q9/P1 Herrmann H3 acceptance ==='
+          cat ci-artifacts/V0.3_HERRMANN_H3_ACCEPTANCE_REPORT.md
+
       - name: V0.3 F-bar büyük mesh performansını ölç
         id: perf
         if: matrix.os == 'ubuntu-24.04' && steps.ctest.outcome == 'success'
@@ -147,6 +163,7 @@ jobs:
           DYNA_RUNNER: ${{ matrix.os }}
           DYNA_COMPILER: ${{ matrix.compiler }}-${{ matrix.compiler_version }}
           DYNA_CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+          DYNA_H3_OUTCOME: ${{ steps.h3.outcome }}
           DYNA_PERF_OUTCOME: ${{ steps.perf.outcome }}
         run: |
           python - <<'PY'
@@ -177,6 +194,16 @@ jobs:
               raise SystemExit(
                   'CTest başarılı fakat zorunlu V0.3 sonuç dosyaları bulunamadı: '
                   + ', '.join(missing)
+              )
+
+          h3_results = [
+              'V0.3_HERRMANN_H3_ACCEPTANCE_RESULTS.json',
+              'V0.3_HERRMANN_H3_ACCEPTANCE_REPORT.md',
+          ]
+          h3_missing = [name for name in h3_results if not (out / name).exists()]
+          if os.environ.get('DYNA_H3_OUTCOME') == 'success' and h3_missing:
+              raise SystemExit(
+                  'H3 acceptance başarılı fakat artifact eksik: ' + ', '.join(h3_missing)
               )
 
           performance_results = [
@@ -211,6 +238,7 @@ jobs:
               f"runner={os.environ.get('DYNA_RUNNER','')}\n"
               f"compiler={os.environ.get('DYNA_COMPILER','')}\n"
               f"ctest={os.environ.get('DYNA_CTEST_OUTCOME','')}\n"
+              f"h3={os.environ.get('DYNA_H3_OUTCOME','')}\n"
               f"performance={os.environ.get('DYNA_PERF_OUTCOME','')}\n"
           )
           (out / 'V0.3_CI_METADATA.txt').write_text(metadata, encoding='utf-8')
@@ -234,6 +262,11 @@ jobs:
           echo
           echo '=== Q9/P1 Herrmann quadrature convergence ==='
           cat ci-artifacts/V0.3_HERRMANN_QUADRATURE_CONVERGENCE_RESULTS.json
+          if [ -f ci-artifacts/V0.3_HERRMANN_H3_ACCEPTANCE_RESULTS.json ]; then
+            echo
+            echo '=== Q9/P1 Herrmann H3 unified acceptance ==='
+            cat ci-artifacts/V0.3_HERRMANN_H3_ACCEPTANCE_RESULTS.json
+          fi
           if [ -f ci-artifacts/V0.3_FBAR_PERFORMANCE_RESULTS.json ]; then
             echo
             echo '=== F-bar large-mesh performance ==='
@@ -259,6 +292,7 @@ jobs:
           CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+          H3_OUTCOME: ${{ steps.h3.outcome }}
           PERF_OUTCOME: ${{ steps.perf.outcome }}
         run: |
           $smokeOk = $true
@@ -271,9 +305,9 @@ jobs:
             $perfOk = ($env:PERF_OUTCOME -eq 'success')
           }
 
-          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $smokeOk -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success' -and $perfOk)
+          $passed = ($env:SETUP_OUTCOME -eq 'success' -and $smokeOk -and $env:CONFIGURE_OUTCOME -eq 'success' -and $env:BUILD_OUTCOME -eq 'success' -and $env:CTEST_OUTCOME -eq 'success' -and $env:H3_OUTCOME -eq 'success' -and $perfOk)
           $state = if ($passed) { 'success' } else { 'failure' }
-          $description = "setup=$($env:SETUP_OUTCOME); smoke=$($env:SMOKE_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME); perf=$($env:PERF_OUTCOME)"
+          $description = "setup=$($env:SETUP_OUTCOME); smoke=$($env:SMOKE_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME); h3=$($env:H3_OUTCOME); perf=$($env:PERF_OUTCOME)"
           if ($description.Length -gt 140) { $description = $description.Substring(0, 140) }
 
           $body = @{
