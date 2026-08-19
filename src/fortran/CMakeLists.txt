@@ -10,6 +10,7 @@ add_library(DynaElastomerCore STATIC
   results/des_integration_point_results.f90
   results/des_pressure_diagnostics.f90
   fem/des_q4_shape.f90
+  fem/des_herrmann_pressure_interpolation.f90
   fem/des_q8_herrmann_interpolation.f90
   fem/des_q8_herrmann_geometry.f90
   fem/des_q9_herrmann_interpolation.f90

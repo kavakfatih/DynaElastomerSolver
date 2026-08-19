@@ -1,5 +1,6 @@
 module des_q8_herrmann_interpolation
   use des_kinds, only : dp
+  use des_herrmann_pressure_interpolation, only : herrmann_p1_pressure_basis
   implicit none
   private
 
@@ -49,15 +50,5 @@ contains
     dN_parent(8,1) = 0.50_dp*(eta-1.0_dp)*(eta+1.0_dp)
     dN_parent(8,2) = eta*(xi-1.0_dp)
   end subroutine q8_shape_functions
-
-  pure subroutine herrmann_p1_pressure_basis(xi, eta, Np)
-    ! Q8 displacement alanına eşlik edecek ilk 3-DOF lineer pressure-space adayı.
-    ! Bu basis henüz production kabulü değildir; inf-sup/rank/checkerboard ve
-    ! distorted-element testleri tamamlanmadan element formulasyonu sabitlenmez.
-    real(dp), intent(in) :: xi, eta
-    real(dp), intent(out) :: Np(3)
-
-    Np = [1.0_dp, xi, eta]
-  end subroutine herrmann_p1_pressure_basis
 
 end module des_q8_herrmann_interpolation
