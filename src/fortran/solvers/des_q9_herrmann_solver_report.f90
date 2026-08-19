@@ -7,7 +7,8 @@ module des_q9_herrmann_solver_report
   use des_linear_solver, only : linear_solver_settings_t
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
-      Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_2X2, Q9_HERRMANN_QUADRATURE_3X3
+      Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_2X2, &
+      Q9_HERRMANN_QUADRATURE_3X3, Q9_HERRMANN_QUADRATURE_4X4
   use des_q9_plane_strain_herrmann_force_solver, only : &
       solve_q9_internal_mesh_herrmann_adaptive_force_control
   use des_q9_herrmann_geometry, only : q9_reference_gradient
@@ -170,7 +171,7 @@ contains
     integer, intent(out) :: status
 
     type(herrmann_constraint_response_t) :: response
-    real(dp) :: coordinate(3),weight(3)
+    real(dp) :: coordinate(4),weight(4)
     real(dp) :: Xe(9,2),ue(9,2),N(9),dN_parent(9,2),dN_dX(9,2)
     real(dp) :: x_point(2),Jmap(2,2),det_jac,Np(3),F(3,3),pressure
     integer :: n_gauss,e,a,i,jdir,gx,gy,node,point_status
@@ -227,9 +228,13 @@ contains
   subroutine set_gauss_rule(order,n_gauss,coordinate,weight,status)
     integer, intent(in) :: order
     integer, intent(out) :: n_gauss,status
-    real(dp), intent(out) :: coordinate(3),weight(3)
+    real(dp), intent(out) :: coordinate(4),weight(4)
     real(dp), parameter :: gp3 = 0.77459666924148337704_dp
     real(dp), parameter :: gp2 = 0.57735026918962576451_dp
+    real(dp), parameter :: gp4_outer = 0.86113631159405257522_dp
+    real(dp), parameter :: gp4_inner = 0.33998104358485626480_dp
+    real(dp), parameter :: gw4_outer = 0.34785484513745385737_dp
+    real(dp), parameter :: gw4_inner = 0.65214515486254614263_dp
 
     coordinate = 0.0_dp
     weight = 0.0_dp
@@ -242,8 +247,12 @@ contains
       weight(1:2) = [1.0_dp,1.0_dp]
     case (Q9_HERRMANN_QUADRATURE_3X3)
       n_gauss = 3
-      coordinate = [-gp3,0.0_dp,gp3]
-      weight = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+      coordinate(1:3) = [-gp3,0.0_dp,gp3]
+      weight(1:3) = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    case (Q9_HERRMANN_QUADRATURE_4X4)
+      n_gauss = 4
+      coordinate = [-gp4_outer,-gp4_inner,gp4_inner,gp4_outer]
+      weight = [gw4_outer,gw4_inner,gw4_inner,gw4_outer]
     case default
       n_gauss = 0
       status = DES_ERROR_INVALID_PARAMETERS
