@@ -72,8 +72,14 @@ target_link_libraries(DynaElastomerCore PUBLIC ${DES_STDLIB_TARGET})
 
 if(DES_ENABLE_MUMPS)
   # MUMPS tipleri Dyna public Fortran API'sine taşınmaz; ancak static core'u
-  # kullanan executable'ların MUMPS link bağımlılığını alması gerekir.
-  target_link_libraries(DynaElastomerCore PUBLIC ${DES_MUMPS_TARGET})
+  # kullanan executable'ların MUMPS ve sequential MPI/libseq link bağımlılığını
+  # alması gerekir. MPI::MPI_C burada gerçek MPI değil, B6 workstation profilinde
+  # pinned MUMPS build'inin PUBLIC mpiseq_c alias'ıdır; mpi.h include yolu da bu
+  # target üzerinden adapter'a taşınır.
+  target_link_libraries(DynaElastomerCore PUBLIC
+    ${DES_MUMPS_TARGET}
+    MPI::MPI_C
+  )
 endif()
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")

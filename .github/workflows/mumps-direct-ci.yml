@@ -39,6 +39,9 @@ permissions:
   contents: read
   statuses: write
 
+env:
+  LAPACK_COMMIT: 6ec7f2bc4ecf4c4a93496aa2fa519575bc0e39ca
+
 jobs:
   mumps-direct:
     name: ${{ matrix.name }}
@@ -104,6 +107,32 @@ jobs:
           ninja --version
           fypp --version
 
+      - name: Reference LAPACK 3.12.1 derle
+        id: lapack
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf third-party/lapack-src third-party/lapack-build third-party/lapack-install
+          mkdir -p third-party
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/Reference-LAPACK/lapack.git third-party/lapack-src
+          git -C third-party/lapack-src checkout --detach "$LAPACK_COMMIT"
+          test "$(git -C third-party/lapack-src rev-parse HEAD)" = "$LAPACK_COMMIT"
+
+          cmake -S third-party/lapack-src -B third-party/lapack-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_Fortran_COMPILER="$FC" \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCBLAS=OFF \
+            -DLAPACKE=OFF \
+            -DCMAKE_INSTALL_PREFIX="$PWD/third-party/lapack-install" \
+            > lapack-configure.log 2>&1
+          cat lapack-configure.log
+          cmake --build third-party/lapack-build --target install --parallel 2 \
+            > lapack-build.log 2>&1
+          cat lapack-build.log
+
       - name: MUMPS-enabled CMake configure
         id: configure
         shell: bash
@@ -111,6 +140,8 @@ jobs:
           cmake -S . -B build-mumps -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_Fortran_COMPILER="$FC" \
+            -DCMAKE_PREFIX_PATH="$PWD/third-party/lapack-install" \
+            -DLAPACK_VENDOR=Netlib \
             -DDES_BUILD_TESTS=ON \
             -DDES_ENABLE_MUMPS=ON \
             > cmake-mumps-configure.log 2>&1
@@ -135,18 +166,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SETUP_OUTCOME: ${{ steps.setup_fortran.outcome }}
+          LAPACK_OUTCOME: ${{ steps.lapack.outcome }}
           CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CTEST_OUTCOME: ${{ steps.ctest.outcome }}
         run: |
           $passed = (
             $env:SETUP_OUTCOME -eq 'success' -and
+            $env:LAPACK_OUTCOME -eq 'success' -and
             $env:CONFIGURE_OUTCOME -eq 'success' -and
             $env:BUILD_OUTCOME -eq 'success' -and
             $env:CTEST_OUTCOME -eq 'success'
           )
           $state = if ($passed) { 'success' } else { 'failure' }
-          $description = "setup=$($env:SETUP_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
+          $description = "setup=$($env:SETUP_OUTCOME); lapack=$($env:LAPACK_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
           if ($description.Length -gt 140) {
             $description = $description.Substring(0, 140)
           }
@@ -168,11 +201,14 @@ jobs:
             -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' `
             -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
 
-      - name: MUMPS configure logunu sakla
+      - name: Dependency ve configure loglarını sakla
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: mumps-configure-${{ matrix.compiler }}-${{ matrix.compiler_version }}-${{ runner.os }}
-          path: cmake-mumps-configure.log
+          path: |
+            lapack-configure.log
+            lapack-build.log
+            cmake-mumps-configure.log
           if-no-files-found: warn
           retention-days: 7
