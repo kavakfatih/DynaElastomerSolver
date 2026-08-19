@@ -8,6 +8,8 @@ module des_csr_matrix
   public :: initialize_csr_from_element_dof_maps
   public :: csr_add_local_matrix
   public :: csr_to_dense
+  public :: csr_matvec
+  public :: csr_apply_zero_dirichlet
 
   type :: csr_matrix_t
     ! 1-based Compressed Sparse Row (CSR) depolama.
@@ -232,6 +234,98 @@ contains
       end do
     end do
   end subroutine csr_to_dense
+
+  subroutine csr_matvec(matrix, x, y, status)
+    ! Backend-bagimsiz CSR matris-vektor carpimi.
+    !
+    ! Bu rutin hem sparse solver sonrasi true residual hesabinda hem de ileride
+    ! matrix-free / block preconditioner dogrulamalarinda ortak referans islemi
+    ! olarak kullanilir.
+    class(csr_matrix_t), intent(in) :: matrix
+    real(dp), intent(in) :: x(:)
+    real(dp), intent(out) :: y(:)
+    integer, intent(out) :: status
+
+    integer :: row, k
+
+    status = DES_STATUS_OK
+    y = 0.0_dp
+
+    if (.not. allocated(matrix%row_ptr) .or. .not. allocated(matrix%col_ind) .or. &
+        .not. allocated(matrix%values)) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+    if (matrix%nrows < 1 .or. matrix%ncols < 1 .or. &
+        size(x) /= matrix%ncols .or. size(y) /= matrix%nrows) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    do row = 1,matrix%nrows
+      do k = matrix%row_ptr(row),matrix%row_ptr(row+1)-1
+        y(row) = y(row)+matrix%values(k)*x(matrix%col_ind(k))
+      end do
+    end do
+  end subroutine csr_matvec
+
+  subroutine csr_apply_zero_dirichlet(matrix, rhs, fixed_dofs, status)
+    ! Newton increment sisteminde sifir Dirichlet kosullarini tam CSR sistemine
+    ! uygular. Fixed satir ve kolonlar sifirlanir, diagonal 1 yapilir ve RHS 0
+    ! atanir. Boylece sparse yolda dense Kff alt-matrisi cikarmaya gerek kalmaz.
+    !
+    ! Bu islem nonzero graph'i degistirmez; yalniz values ve rhs guncellenir.
+    class(csr_matrix_t), intent(inout) :: matrix
+    real(dp), intent(inout) :: rhs(:)
+    integer, intent(in) :: fixed_dofs(:)
+    integer, intent(out) :: status
+
+    logical, allocatable :: is_fixed(:)
+    integer :: row, col, k, dof, diagonal_position
+
+    status = DES_STATUS_OK
+
+    if (.not. allocated(matrix%row_ptr) .or. .not. allocated(matrix%col_ind) .or. &
+        .not. allocated(matrix%values)) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+    if (matrix%nrows /= matrix%ncols .or. size(rhs) /= matrix%nrows) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+    if (size(fixed_dofs) == 0) return
+    if (any(fixed_dofs < 1) .or. any(fixed_dofs > matrix%nrows)) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    allocate(is_fixed(matrix%nrows))
+    is_fixed = .false.
+    do k = 1,size(fixed_dofs)
+      is_fixed(fixed_dofs(k)) = .true.
+    end do
+
+    ! Satir veya kolon fixed ise ilgili coupling sifirlanir. Bu, prescribed
+    ! increment = 0 kosulunu tam sistemde free-subsystem cozumuyle esdeger yapar.
+    do row = 1,matrix%nrows
+      do k = matrix%row_ptr(row),matrix%row_ptr(row+1)-1
+        col = matrix%col_ind(k)
+        if (is_fixed(row) .or. is_fixed(col)) matrix%values(k) = 0.0_dp
+      end do
+    end do
+
+    do k = 1,size(fixed_dofs)
+      dof = fixed_dofs(k)
+      diagonal_position = find_csr_position(matrix,dof,dof)
+      if (diagonal_position == 0) then
+        status = DES_ERROR_INVALID_CONSTRAINT
+        return
+      end if
+      matrix%values(diagonal_position) = 1.0_dp
+      rhs(dof) = 0.0_dp
+    end do
+  end subroutine csr_apply_zero_dirichlet
 
   integer function csr_nnz(this) result(nnz)
     class(csr_matrix_t), intent(in) :: this
