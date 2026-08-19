@@ -4,6 +4,7 @@ program test_q9_herrmann_quadrature
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_TOTAL_DOF, Q9_HERRMANN_U_DOF, &
       Q9_HERRMANN_QUADRATURE_2X2, Q9_HERRMANN_QUADRATURE_3X3, &
+      Q9_HERRMANN_QUADRATURE_4X4, &
       evaluate_q9_plane_strain_herrmann_element_with_quadrature
   implicit none
 
@@ -12,16 +13,20 @@ program test_q9_herrmann_quadrature
   real(dp) :: X(9,2),u(9,2),p(3)
   real(dp) :: residual_2(Q9_HERRMANN_TOTAL_DOF)
   real(dp) :: residual_3(Q9_HERRMANN_TOTAL_DOF)
+  real(dp) :: residual_4(Q9_HERRMANN_TOTAL_DOF)
   real(dp) :: tangent_2(Q9_HERRMANN_TOTAL_DOF,Q9_HERRMANN_TOTAL_DOF)
   real(dp) :: tangent_3(Q9_HERRMANN_TOTAL_DOF,Q9_HERRMANN_TOTAL_DOF)
-  real(dp) :: min_j_2,min_j_3,fd_error_2,fd_error_3
-  real(dp) :: residual_difference,tangent_difference
-  integer :: status_2,status_3,status_invalid,a
+  real(dp) :: tangent_4(Q9_HERRMANN_TOTAL_DOF,Q9_HERRMANN_TOTAL_DOF)
+  real(dp) :: min_j_2,min_j_3,min_j_4,fd_error_2,fd_error_3,fd_error_4
+  real(dp) :: residual_difference_23,residual_difference_34
+  real(dp) :: tangent_difference_23,tangent_difference_34
+  integer :: status_2,status_3,status_4,status_invalid,a
 
   call set_unit_q9(X)
 
   ! Q9 displacement alaninin temsil edebildigi, Gauss noktalarinda F'yi degistiren
-  ! non-affine quadratic alan. Bu alan 2x2 ve 3x3 quadrature'i gercekten ayirir.
+  ! non-affine quadratic alan. Bu alan 2x2, 3x3 ve 4x4 quadrature operatorlerini
+  ! gercekten ayirir ve her biri icin consistent tangent FD ile sinanir.
   do a = 1,9
     u(a,1) = 0.05_dp*X(a,1) + 0.03_dp*X(a,2) &
         + 0.02_dp*X(a,1)*X(a,2) + 0.015_dp*X(a,1)*X(a,1)
@@ -36,16 +41,21 @@ program test_q9_herrmann_quadrature
   call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
       X,u,p,mu,compliance,Q9_HERRMANN_QUADRATURE_3X3, &
       residual_3,tangent_3,status_3,min_j_3)
+  call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
+      X,u,p,mu,compliance,Q9_HERRMANN_QUADRATURE_4X4, &
+      residual_4,tangent_4,status_4,min_j_4)
 
-  if (status_2 /= DES_STATUS_OK .or. status_3 /= DES_STATUS_OK) then
-    error stop 'Q9/P1 2x2 veya 3x3 quadrature degerlendirmesi basarisiz.'
+  if (status_2 /= DES_STATUS_OK .or. status_3 /= DES_STATUS_OK .or. &
+      status_4 /= DES_STATUS_OK) then
+    error stop 'Q9/P1 quadrature degerlendirmelerinden biri basarisiz.'
   end if
-  if (min(min_j_2,min_j_3) <= 0.80_dp) then
+  if (min(min_j_2,min_j_3,min_j_4) <= 0.80_dp) then
     error stop 'Q9/P1 quadrature testi gecersiz/ters deformation uretti.'
   end if
 
   call check_fd_for_order(X,u,p,Q9_HERRMANN_QUADRATURE_2X2,fd_error_2)
   call check_fd_for_order(X,u,p,Q9_HERRMANN_QUADRATURE_3X3,fd_error_3)
+  call check_fd_for_order(X,u,p,Q9_HERRMANN_QUADRATURE_4X4,fd_error_4)
 
   if (fd_error_2 > 8.0e-6_dp) then
     error stop 'Q9/P1 2x2 analytic tangent FD ile uyusmuyor.'
@@ -53,27 +63,37 @@ program test_q9_herrmann_quadrature
   if (fd_error_3 > 8.0e-6_dp) then
     error stop 'Q9/P1 3x3 analytic tangent FD ile uyusmuyor.'
   end if
+  if (fd_error_4 > 8.0e-6_dp) then
+    error stop 'Q9/P1 4x4 analytic tangent FD ile uyusmuyor.'
+  end if
 
-  residual_difference = maxval(abs(residual_2-residual_3)) &
+  residual_difference_23 = maxval(abs(residual_2-residual_3)) &
       / max(1.0_dp,maxval(abs(residual_3)))
-  tangent_difference = maxval(abs(tangent_2-tangent_3)) &
+  tangent_difference_23 = maxval(abs(tangent_2-tangent_3)) &
       / max(1.0_dp,maxval(abs(tangent_3)))
+  residual_difference_34 = maxval(abs(residual_3-residual_4)) &
+      / max(1.0_dp,maxval(abs(residual_4)))
+  tangent_difference_34 = maxval(abs(tangent_3-tangent_4)) &
+      / max(1.0_dp,maxval(abs(tangent_4)))
 
-  ! Quadrature secenekleri ayni formulation API'sinde bilincli olarak farkli
-  ! sayisal operatorlerdir. Burada birbirine zorla esitlenmez; farklar sonraki
-  ! mesh/locking/distortion benchmarklarinda karar girdisi olarak raporlanir.
-  if (residual_difference <= 10.0_dp*epsilon(1.0_dp) .and. &
-      tangent_difference <= 10.0_dp*epsilon(1.0_dp)) then
-    error stop 'Non-affine Q9 quadrature testi 2x2 ve 3x3 operatorleri ayiramadi.'
+  if (residual_difference_23 <= 10.0_dp*epsilon(1.0_dp) .and. &
+      tangent_difference_23 <= 10.0_dp*epsilon(1.0_dp)) then
+    error stop 'Non-affine Q9 testi 2x2 ve 3x3 operatorleri ayiramadi.'
+  end if
+
+  ! 3x3 ile 4x4 farki sifira zorlanmaz. Nonlinear isochoric enerji polinom degildir;
+  ! higher-order integration duyarliligi external reference ile birlikte raporlanir.
+  if (residual_difference_34 < 0.0_dp .or. tangent_difference_34 < 0.0_dp) then
+    error stop 'Q9/P1 3x3-4x4 quadrature fark metrigi gecersiz.'
   end if
 
   call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
-      X,u,p,mu,compliance,4,residual_2,tangent_2,status_invalid,min_j_2)
+      X,u,p,mu,compliance,5,residual_2,tangent_2,status_invalid,min_j_2)
   if (status_invalid /= DES_ERROR_INVALID_PARAMETERS) then
     error stop 'Gecersiz Q9 quadrature order reddedilmedi.'
   end if
 
-  ! Fully incompressible limitte her iki quadrature secenegi de Kpp=0 kalmali.
+  ! Fully incompressible limitte tum quadrature secenekleri Kpp=0 kalmali.
   p = [0.20_dp,0.01_dp,-0.02_dp]
   call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
       X,u,p,mu,0.0_dp,Q9_HERRMANN_QUADRATURE_2X2, &
@@ -81,7 +101,11 @@ program test_q9_herrmann_quadrature
   call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
       X,u,p,mu,0.0_dp,Q9_HERRMANN_QUADRATURE_3X3, &
       residual_3,tangent_3,status_3,min_j_3)
-  if (status_2 /= DES_STATUS_OK .or. status_3 /= DES_STATUS_OK) then
+  call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
+      X,u,p,mu,0.0_dp,Q9_HERRMANN_QUADRATURE_4X4, &
+      residual_4,tangent_4,status_4,min_j_4)
+  if (status_2 /= DES_STATUS_OK .or. status_3 /= DES_STATUS_OK .or. &
+      status_4 /= DES_STATUS_OK) then
     error stop 'Q9/P1 fully incompressible quadrature testi basarisiz.'
   end if
   if (maxval(abs(tangent_2(Q9_HERRMANN_U_DOF+1:Q9_HERRMANN_TOTAL_DOF, &
@@ -92,12 +116,19 @@ program test_q9_herrmann_quadrature
                             Q9_HERRMANN_U_DOF+1:Q9_HERRMANN_TOTAL_DOF))) > 1.0e-14_dp) then
     error stop 'Q9/P1 3x3 fully incompressible Kpp sifir degil.'
   end if
+  if (maxval(abs(tangent_4(Q9_HERRMANN_U_DOF+1:Q9_HERRMANN_TOTAL_DOF, &
+                            Q9_HERRMANN_U_DOF+1:Q9_HERRMANN_TOTAL_DOF))) > 1.0e-14_dp) then
+    error stop 'Q9/P1 4x4 fully incompressible Kpp sifir degil.'
+  end if
 
   write(*,'(A,ES14.6)') 'Q9/P1 2x2 tangent FD error = ',fd_error_2
   write(*,'(A,ES14.6)') 'Q9/P1 3x3 tangent FD error = ',fd_error_3
-  write(*,'(A,ES14.6)') 'Q9/P1 2x2-vs-3x3 residual relative difference = ',residual_difference
-  write(*,'(A,ES14.6)') 'Q9/P1 2x2-vs-3x3 tangent relative difference = ',tangent_difference
-  write(*,'(A)') 'Q9/P1 selectable quadrature ve FD testleri BASARILI.'
+  write(*,'(A,ES14.6)') 'Q9/P1 4x4 tangent FD error = ',fd_error_4
+  write(*,'(A,ES14.6)') 'Q9/P1 2x2-vs-3x3 residual relative difference = ',residual_difference_23
+  write(*,'(A,ES14.6)') 'Q9/P1 3x3-vs-4x4 residual relative difference = ',residual_difference_34
+  write(*,'(A,ES14.6)') 'Q9/P1 2x2-vs-3x3 tangent relative difference = ',tangent_difference_23
+  write(*,'(A,ES14.6)') 'Q9/P1 3x3-vs-4x4 tangent relative difference = ',tangent_difference_34
+  write(*,'(A)') 'Q9/P1 selectable 2x2/3x3/4x4 quadrature ve FD testleri BASARILI.'
 
 contains
 
@@ -144,8 +175,6 @@ contains
     scale = max(1.0_dp,maxval(abs(fd)))
     relative_error = maxval(abs(analytic-fd))/scale
 
-    ! node yalniz compiler warninglarini engellemek icin degil; pack/unpack mantiginin
-    ! 9 dugumlu displacement alani uzerinde kaldigini acik eder.
     node = 9
     if (node /= size(u_state,1)) error stop 'Q9 quadrature FD state boyutu bozuldu.'
   end subroutine check_fd_for_order
