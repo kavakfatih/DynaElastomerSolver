@@ -40,6 +40,7 @@ des_add_fortran_test(test_mixed_precheck fem.mixed.nd_np_precheck test_mixed_pre
 des_add_fortran_test(test_herrmann_pressure_constraint fem.herrmann.pressure_constraint test_herrmann_pressure_constraint.f90)
 des_add_fortran_test(test_q8_plane_strain_herrmann_element fem.q8.plane_strain.herrmann.element_tangent test_q8_plane_strain_herrmann_element.f90)
 des_add_fortran_test(test_q8_herrmann_pressure_stability fem.q8.plane_strain.herrmann.pressure_stability test_q8_herrmann_pressure_stability.f90)
+des_add_fortran_test(test_q8_herrmann_distorted_pressure_stability fem.q8.plane_strain.herrmann.distorted_pressure_stability test_q8_herrmann_distorted_pressure_stability.f90)
 des_add_fortran_test(test_q4_edge_traction fem.q4.reference_edge_traction test_q4_edge_traction.f90)
 des_add_fortran_test(test_q4_mesh_edge_traction fem.q4.mesh.reference_edge_traction test_q4_mesh_edge_traction.f90)
 des_add_fortran_test(test_q4_plane_strain_element fem.q4.plane_strain.element_tangent test_q4_plane_strain_element.f90)
@@ -74,6 +75,6 @@ des_add_fortran_test(test_internal_mesh_integration_results fem.internal_mesh.in
 des_add_fortran_test(test_q4_internal_mesh_solver solver.q4.internal_mesh.displacement_control test_q4_internal_mesh_solver.f90)
 des_add_fortran_test(test_q4_severe_distortion_solver solver.q4.internal_mesh.severe_distortion test_q4_severe_distortion_solver.f90)
 
-# Performans benchmarkları normal CTest correctness paketine dahil edilmez.
-# CI bunları yalnız ölçüm/raporlama amacıyla kontrollü biçimde çalıştırır.
+# Performans benchmarklari normal CTest correctness paketine dahil edilmez.
+# CI bunlari yalniz olcum/raporlama amaciyla kontrollu bicimde calistirir.
 des_add_fortran_benchmark(benchmark_v03_fbar_performance benchmark_v03_fbar_performance.f90)
