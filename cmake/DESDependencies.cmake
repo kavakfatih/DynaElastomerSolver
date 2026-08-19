@@ -122,6 +122,28 @@ if(DES_ENABLE_MUMPS)
   set(BUILD_COMPLEX16 OFF CACHE BOOL "MUMPS complex16 kapalı" FORCE)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "B6: static dependency build" FORCE)
 
+  # GNU ld Linux ve GNU/MinGW Windows'ta statik arşivleri tek geçişte tarar.
+  # stdlib BLAS'ı MUMPS/LAPACK zincirinden önce linklediğinde liblapack.a'nın
+  # BLAS sembolleri çözümsüz kalabilir. Numeric kütüphaneleri gerçek dosya
+  # seviyesinde RESCAN grubuna alarak bu yalnız-build/link sırası problemini
+  # vendor/FEM katmanına sızdırmadan çözüyoruz. Apple linker ve Intel ifx bu
+  # workaround'a ihtiyaç duymadığından mevcut davranışları aynen korunur.
+  set(DES_MUMPS_NUMERIC_LINK_TARGET "")
+  if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU" AND NOT APPLE)
+    find_package(BLAS REQUIRED)
+    find_package(LAPACK REQUIRED)
+
+    set(_des_mumps_numeric_libraries ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES})
+    list(REMOVE_DUPLICATES _des_mumps_numeric_libraries)
+    string(JOIN "," _des_mumps_numeric_group ${_des_mumps_numeric_libraries})
+
+    add_library(des_mumps_numeric_rescan INTERFACE)
+    target_link_libraries(des_mumps_numeric_rescan INTERFACE
+      "$<LINK_GROUP:RESCAN,${_des_mumps_numeric_group}>"
+    )
+    set(DES_MUMPS_NUMERIC_LINK_TARGET des_mumps_numeric_rescan)
+  endif()
+
   message(STATUS
     "Dyna MUMPS backend: upstream ${DES_MUMPS_VERSION}, "
     "SHA256=${DES_MUMPS_SHA256}"

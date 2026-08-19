@@ -80,6 +80,14 @@ if(DES_ENABLE_MUMPS)
     ${DES_MUMPS_TARGET}
     MPI::MPI_C
   )
+
+  # GNU/Linux ve GNU/Windows'ta static Netlib LAPACK->BLAS çözüm sırasını
+  # RESCAN grubuyla garanti eden build-only helper. Diğer toolchain'lerde boş.
+  if(DES_MUMPS_NUMERIC_LINK_TARGET)
+    target_link_libraries(DynaElastomerCore PUBLIC
+      ${DES_MUMPS_NUMERIC_LINK_TARGET}
+    )
+  endif()
 endif()
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
