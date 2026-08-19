@@ -147,7 +147,6 @@ peak RSS ≈ 11.48 MiB
 ```
 
 V0.3 correctness paketi: **38 CTest**.
-
 ---
 
 ## 5. Public repository ve hukuki hak sahibi
@@ -298,7 +297,6 @@ Birleşik head:
 `93fab4a7362b6593dc1d20fd2bb109d082c34c0a`
 
 Resmi GitHub Actions sonuçları:
-
 ```text
 Fortran CI #193                    = SUCCESS
 FEniCSx V0.3 Cook Q2 Reference #77 = SUCCESS
@@ -447,7 +445,6 @@ Dense stdlib/LAPACK backend küçük doğrulama modelleri için reference/fallba
 Kullanıcı açıkça istemeden PR #1 merge, release branch, tag veya GitHub Release oluşturulmayacaktır.
 
 ---
-
 ## 15. 2026-08-19 solver mimarisi, MacBook şartı ve geliştirme paketleri
 
 Kullanıcı solverın ANSYS ve Marc seviyesine göre durumunu, sparse-direct altyapısının bulunup bulunmadığını ve mimarinin ticari solverlarla kıyaslandığında nasıl geliştirilmesi gerektiğini sordu. Ardından geliştirme paketlerinin planlanmasını ve çalışmaya devam edilmesini istedi.
@@ -536,3 +533,49 @@ Bu turda teknik geliştirmeden önce kayda alınan B3 kapsamı:
 macOS Apple Silicon ARM64 desteği bu paketin zorunlu kabul kapısıdır. Tek-vendor bağımlılığı oluşturulmayacak; FEM assembly katmanı Dyna CSR veri sözleşmesi ve linear-solver abstraction arkasında kalacaktır.
 
 Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release işlemi yapılmayacaktır.
+
+---
+
+## 17. 2026-08-19 B4 stateful sparse solver context çalışma başlangıcı
+
+Kullanıcı `Devam edelim` diyerek B3 sonrasındaki geliştirmeye geçilmesini onayladı. B4 teknik değişiklikleri yapılmadan önce canlı GitHub durumu yeniden doğrulandı.
+
+Başlangıç checkpoint'i:
+
+```text
+develop/v0.3 head         = 7891b61deb6fd990055dc22ec9eb916f9d5b8357
+PR #1                     = open / draft / merged=false / mergeable=true
+B3 macOS ARM64            = PASS
+B3 Windows gfortran       = PASS
+B3 Windows Intel ifx      = PASS
+B3 Linux gfortran         = runner/setup adımında in_progress
+Linux kod/CTest sonucu    = henüz yok; PASS veya FAIL ilan edilmedi
+```
+
+B4 hedefi mevcut stateless sparse solve arayüzünü vendor-bağımsız bir solver yaşam döngüsüne taşımaktır:
+
+```text
+create/context
+→ analyze_pattern()
+→ reorder()
+→ factorize()
+→ solve()
+→ iterative_refinement()
+→ reuse()
+→ diagnostics()
+→ release()
+```
+
+İlk B4 paketi backend implementasyonundan önce abstraction/context katmanını kuracaktır. Dyna CSR kanonik matrix veri sözleşmesi olarak kalacak; FEM, element, material ve Newton katmanları MUMPS/PETSc/PARDISO tiplerini doğrudan bilmeyecektir.
+
+Context metadata hedefleri:
+
+- matrix class: SPD / symmetric-indefinite / unsymmetric,
+- problem class: displacement / mixed_u_p,
+- index class: int32 / int64,
+- pattern analyzed / factorized / reuse sayaçları,
+- backend report ve solver diagnostics.
+
+Newton boyunca sparsity pattern değişmediğinde symbolic analysis/reorder aşamasının tekrar edilmemesi temel kabul davranışıdır. Dense reference/fallback ve mevcut CSR GMRES bootstrap backend bozulmadan korunacaktır.
+
+Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
