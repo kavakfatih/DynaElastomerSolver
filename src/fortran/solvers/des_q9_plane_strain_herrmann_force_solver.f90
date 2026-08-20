@@ -8,7 +8,8 @@ module des_q9_plane_strain_herrmann_force_solver
   use des_internal_mesh, only : internal_mesh_t, validate_internal_mesh
   use des_csr_matrix, only : csr_matrix_t, csr_apply_zero_dirichlet
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
-                                solve_linear_system, linear_backend_is_sparse
+                                solve_linear_system, linear_backend_is_sparse, &
+                                production_linear_solver_settings
   use des_sparse_solver_context, only : sparse_solver_context_t, &
       create_sparse_solver_context, analyze_sparse_pattern, &
       reorder_sparse_pattern, factorize_sparse_matrix, &
@@ -73,7 +74,7 @@ contains
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
 
-    active_linear_settings = linear_solver_settings_t()
+    active_linear_settings = production_linear_solver_settings()
     if (present(linear_settings)) active_linear_settings = linear_settings
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
@@ -277,7 +278,7 @@ contains
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
 
-    active_linear_settings = linear_solver_settings_t()
+    active_linear_settings = production_linear_solver_settings()
     if (present(linear_settings)) active_linear_settings = linear_settings
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
