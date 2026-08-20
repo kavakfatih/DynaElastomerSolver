@@ -137,3 +137,4 @@ des_add_fortran_test(test_q4_severe_distortion_solver solver.q4.internal_mesh.se
 # Performans benchmarklari normal CTest correctness paketine dahil edilmez.
 # CI bunlari yalniz olcum/raporlama amaciyla kontrollu bicimde calistirir.
 des_add_fortran_benchmark(benchmark_v03_fbar_performance benchmark_v03_fbar_performance.f90)
+des_add_fortran_benchmark(benchmark_v03_herrmann_performance benchmark_v03_herrmann_performance.f90)
