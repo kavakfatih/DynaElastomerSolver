@@ -1394,3 +1394,52 @@ Bu turdaki güvenlik sözleşmesi:
 İlk sonraki kapı, aynı `e6775eb9e68927695c8faff2008774d45c33c48f` head üzerindeki MUMPS 4/4 sonucunu doğrulamaktır. Ardından gerçek CSR index-width migration küçük ve geri alınabilir alt paketlere bölünecektir.
 
 PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 22. 2026-08-20 B9.5b portable stdlib CSR narrowing guard — devam checkpoint'i
+
+Kullanıcı `Devam` diyerek B9.5 çalışmasının sürdürülmesini onayladı. Bu yeni teknik turun ilk repo write'ı olarak sohbet kaydı güncellenmektedir.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 6e3e786c21c6cdbcce6f8aea3db85c395cc576ab
+```
+
+B9.5b kapsamında önceki turda portable stdlib CSR/GMRES köprüsündeki ikinci narrowing sınırı explicit hale getirildi:
+
+```text
+8400cab04b5e7cab1a9c8c59c898962dabc67f0a
+→ stdlib CSR i32 conversion öncesi n/nnz ve pattern value range guard
+→ unsupported kapasitede silent int(...,i32) narrowing yerine fail-fast
+
+6e3e786c21c6cdbcce6f8aea3db85c395cc576ab
+→ küçük allocation ile i32 sınır davranışını doğrulayan regression
+→ i32_max / nnz+1 rowptr sınırı deterministic test
+```
+
+Bu değişiklik portable stdlib GMRES backend'ini 64-bit yapmaz. Ama gelecekte Dyna CSR storage genişlediğinde stdlib tarafına sessizce taşmış indeks aktarılmasını engeller. GMRES row-equilibration ve original-system residual acceptance aynen korunmaktadır.
+
+Bu checkpoint anında current technical head için normal CI custom status'larından macOS/gfortran sonucu SUCCESS olarak yayımlanmış, diğer normal platformlar ve production MUMPS matrisi henüz tamamlanmamıştır. Normal run kimliği görünen status üzerinden:
+
+```text
+Normal Fortran CI = 32414088320
+```
+
+B9.5b acceptance için current `6e3e786c21c6cdbcce6f8aea3db85c395cc576ab` teknik SHA üzerinde aşağıdakiler zorunludur:
+
+```text
+Normal compiler matrix = 4/4 SUCCESS
+MUMPS production matrix = 4/4 SUCCESS
+Toplam = 8/8 SUCCESS
+```
+
+CI kapanmadan B9.5b PASS yazılmayacak. Sonraki küçük migration adayı SparseSolverContext içindeki `equation_count` / `structural_nnz` cardinality metadata'sını i64-safe hale getirmektir. Bu aşamada CSR row/column storage, MUMPS adapter ABI veya `supports_int64` flag topluca değiştirilmeyecektir.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
