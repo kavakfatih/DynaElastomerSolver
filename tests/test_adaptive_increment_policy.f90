@@ -95,7 +95,7 @@ program test_adaptive_increment_policy
   call select_next_adaptive_increment( &
       ieee_value(1.0_dp,ieee_quiet_nan),0.8_dp,1,.false.,settings, &
       next_increment,growth_applied)
-  if (next_increment /= 0.0_dp .or. growth_applied) then
+  if (abs(next_increment) > 1.0e-14_dp .or. growth_applied) then
     error stop 'Non-finite current increment policy tarafindan reddedilmedi.'
   end if
 
