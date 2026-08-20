@@ -1,0 +1,60 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dyna-development-minimal",
+      "displayName": "Dyna Development Minimal — MUMPS OFF",
+      "description": "Portable developer/bootstrap profile. Q9 production AUTO policy MUMPS unavailable olduğunda CSR GMRES fallback kullanır.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/presets/development-minimal",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DES_BUILD_TESTS": "ON",
+        "DES_ENABLE_MUMPS": "OFF"
+      }
+    },
+    {
+      "name": "dyna-production",
+      "displayName": "Dyna Production — MUMPS Direct ON",
+      "description": "Production Q9/P1 profile. MUMPS sparse-direct zorunlu olarak etkinleştirilir; dependency bulunamazsa configure fail-fast olur.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/presets/production",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DES_BUILD_TESTS": "ON",
+        "DES_ENABLE_MUMPS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dyna-development-minimal",
+      "configurePreset": "dyna-development-minimal"
+    },
+    {
+      "name": "dyna-production",
+      "configurePreset": "dyna-production"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dyna-development-minimal",
+      "configurePreset": "dyna-development-minimal",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dyna-production",
+      "configurePreset": "dyna-production",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
