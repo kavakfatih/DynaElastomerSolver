@@ -30,6 +30,12 @@ program test_nonlinear_solver_policy
   if (line_search_residual_accepted(10.0_dp,1.0_dp,0.0_dp,settings)) then
     error stop 'Sifir correction scale line-search tarafindan kabul edildi.'
   end if
+  if (line_search_residual_accepted(inf_value,1.0_dp,1.0_dp,settings)) then
+    error stop 'Inf baseline residual line-search tarafindan kabul edildi.'
+  end if
+  if (line_search_residual_accepted(1.0_dp,nan_value,1.0_dp,settings)) then
+    error stop 'NaN candidate residual line-search tarafindan kabul edildi.'
+  end if
 
   settings%line_search_reduction = 1.0_dp
   if (nonlinear_solver_settings_valid(settings)) then
@@ -55,6 +61,11 @@ program test_nonlinear_solver_policy
   end if
 
   settings = nonlinear_solver_settings_t()
+  streak = next_residual_growth_streak(1.0_dp,inf_value,1,settings)
+  if (streak /= 0) then
+    error stop 'Inf current residual growth streak uretmeye devam etti.'
+  end if
+
   settings%residual_growth_factor = 2.0_dp
   settings%residual_growth_patience = 2
 
