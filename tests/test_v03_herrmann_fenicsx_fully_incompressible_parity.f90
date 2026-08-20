@@ -2,6 +2,7 @@ program test_v03_herrmann_fenicsx_fully_incompressible_parity
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
+  use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q9_plane_strain_herrmann_neo_hookean, only : Q9_HERRMANN_QUADRATURE_3X3
   use des_q9_herrmann_solver_report, only : herrmann_solver_report_t, &
       solve_q9_internal_mesh_herrmann_adaptive_reported
@@ -34,6 +35,7 @@ program test_v03_herrmann_fenicsx_fully_incompressible_parity
 
   type(internal_mesh_t) :: mesh
   type(herrmann_solver_report_t) :: report
+  type(linear_solver_settings_t) :: dense_settings
   real(dp), allocatable :: X(:,:),external_force(:),u(:,:),p(:,:),residual(:)
   integer, allocatable :: connectivity(:,:),fixed_dofs(:)
   real(dp) :: midpoint,p_mean,p_std,p_rms,constraint_l2,j_average
@@ -50,11 +52,13 @@ program test_v03_herrmann_fenicsx_fully_incompressible_parity
   allocate(u(nnode,2),p(nelem,3),residual(2*nnode+3*nelem))
   u = 0.0_dp
   p = 0.0_dp
+  dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
 
   call solve_q9_internal_mesh_herrmann_adaptive_reported( &
       mesh,mu,pressure_compliance,fixed_dofs,external_force, &
       0.125_dp,0.015625_dp,0.5_dp,6,50,1.0e-11_dp, &
-      u,p,residual,report,quadrature_order=Q9_HERRMANN_QUADRATURE_3X3)
+      u,p,residual,report,linear_settings=dense_settings, &
+      quadrature_order=Q9_HERRMANN_QUADRATURE_3X3)
 
   if (.not. report%nonlinear%converged .or. &
       report%nonlinear%status /= DES_STATUS_OK .or. .not. report%metrics_valid) then
