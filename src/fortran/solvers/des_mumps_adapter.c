@@ -1,4 +1,6 @@
+#include <limits.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,6 +13,10 @@
 #define DES_MUMPS_JOB_FACTORIZE 2
 #define DES_MUMPS_JOB_SOLVE 3
 #define DES_MUMPS_USE_COMM_WORLD (-987654)
+#define DES_MUMPS_ERROR_INVALID (-1)
+#define DES_MUMPS_ERROR_ALLOC (-2)
+#define DES_MUMPS_ERROR_SOLVER (-3)
+#define DES_MUMPS_ERROR_INDEX_RANGE (-4)
 
 typedef struct {
   DMUMPS_STRUC_C id;
@@ -18,8 +24,9 @@ typedef struct {
   MUMPS_INT *jcn;
   double *a;
   size_t *csr_value_index;
-  int full_nnz;
-  int n;
+  int64_t full_nnz;
+  int64_t n;
+  size_t supplied_count;
   MUMPS_INT8 supplied_nnz;
   int symmetry_mode;
   int pattern_ready;
@@ -59,6 +66,38 @@ static int des_mumps_ensure_sequential_mpi(void)
   return 0;
 }
 
+int des_mumps_c_index_bits(void)
+{
+  return (int)(sizeof(MUMPS_INT) * CHAR_BIT);
+}
+
+static int des_mumps_value_fits_index(int64_t value)
+{
+  if (value < 1) {
+    return 0;
+  }
+  if (sizeof(MUMPS_INT) >= sizeof(int64_t)) {
+    return 1;
+  }
+  if (sizeof(MUMPS_INT) == sizeof(int32_t)) {
+    return value <= (int64_t)INT32_MAX;
+  }
+  return 0;
+}
+
+static int des_mumps_count_fits_size_t(int64_t count)
+{
+  if (count < 0) {
+    return 0;
+  }
+  return (uint64_t)count <= (uint64_t)SIZE_MAX;
+}
+
+static int des_mumps_allocation_fits(size_t count, size_t element_size)
+{
+  return element_size != 0 && count <= SIZE_MAX / element_size;
+}
+
 static void des_mumps_release_pattern(des_mumps_handle_t *handle)
 {
   if (handle == NULL) {
@@ -74,6 +113,7 @@ static void des_mumps_release_pattern(des_mumps_handle_t *handle)
   handle->a = NULL;
   handle->csr_value_index = NULL;
   handle->full_nnz = 0;
+  handle->supplied_count = 0;
   handle->supplied_nnz = 0;
   handle->n = 0;
   handle->pattern_ready = 0;
@@ -87,16 +127,16 @@ static void des_mumps_release_pattern(des_mumps_handle_t *handle)
 }
 
 static int des_mumps_refresh_values(
-    des_mumps_handle_t *handle, int full_nnz, const double *values)
+    des_mumps_handle_t *handle, int64_t full_nnz, const double *values)
 {
   size_t k;
 
   if (handle == NULL || values == NULL || !handle->pattern_ready ||
       full_nnz != handle->full_nnz) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
 
-  for (k = 0; k < (size_t)handle->supplied_nnz; ++k) {
+  for (k = 0; k < handle->supplied_count; ++k) {
     handle->a[k] = values[handle->csr_value_index[k]];
   }
 
@@ -160,7 +200,7 @@ int des_mumps_c_configure(
       error_analysis < 0 || error_analysis > 2 ||
       (out_of_core != 0 && out_of_core != 1) ||
       (null_pivot_detection != 0 && null_pivot_detection != 1)) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
 
   /*
@@ -200,7 +240,7 @@ int des_mumps_c_get_diagnostics(
       refinement_steps == NULL || out_of_core == NULL ||
       scaled_residual == NULL || backward_error_1 == NULL ||
       backward_error_2 == NULL) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
 
   *ordering_used = (int)handle->id.infog[6];       /* INFOG(7)  */
@@ -216,32 +256,39 @@ int des_mumps_c_get_diagnostics(
 }
 
 int des_mumps_c_set_pattern(
-    void *opaque_handle, int n, int nnz, const int *row_ptr,
-    const int *col_ind, int *info_primary, int *info_secondary)
+    void *opaque_handle, int64_t n, int64_t nnz, const int64_t *row_ptr,
+    const int64_t *col_ind, int *info_primary, int *info_secondary)
 {
   des_mumps_handle_t *handle = (des_mumps_handle_t *)opaque_handle;
   size_t supplied = 0;
   size_t cursor = 0;
-  int row;
-  int position;
+  int64_t row;
+  int64_t position;
 
   if (handle == NULL || n < 1 || nnz < 1 ||
       row_ptr == NULL || col_ind == NULL) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
+  }
+  if (!des_mumps_value_fits_index(n) || nnz == INT64_MAX ||
+      !des_mumps_count_fits_size_t(nnz)) {
+    return DES_MUMPS_ERROR_INDEX_RANGE;
   }
   if (row_ptr[0] != 1 || row_ptr[n] != nnz + 1) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
 
   for (row = 0; row < n; ++row) {
     if (row_ptr[row] > row_ptr[row + 1]) {
-      return -1;
+      return DES_MUMPS_ERROR_INVALID;
     }
     for (position = row_ptr[row] - 1;
          position < row_ptr[row + 1] - 1; ++position) {
-      int col = col_ind[position];
+      int64_t col = col_ind[position];
       if (col < 1 || col > n) {
-        return -1;
+        return DES_MUMPS_ERROR_INVALID;
+      }
+      if (!des_mumps_value_fits_index(col)) {
+        return DES_MUMPS_ERROR_INDEX_RANGE;
       }
       if (handle->symmetry_mode == 0 || col <= row + 1) {
         ++supplied;
@@ -250,7 +297,12 @@ int des_mumps_c_set_pattern(
   }
 
   if (supplied == 0) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
+  }
+  if (!des_mumps_allocation_fits(supplied, sizeof(MUMPS_INT)) ||
+      !des_mumps_allocation_fits(supplied, sizeof(double)) ||
+      !des_mumps_allocation_fits(supplied, sizeof(size_t))) {
+    return DES_MUMPS_ERROR_INDEX_RANGE;
   }
 
   des_mumps_release_pattern(handle);
@@ -261,13 +313,13 @@ int des_mumps_c_set_pattern(
   if (handle->irn == NULL || handle->jcn == NULL ||
       handle->a == NULL || handle->csr_value_index == NULL) {
     des_mumps_release_pattern(handle);
-    return -2;
+    return DES_MUMPS_ERROR_ALLOC;
   }
 
   for (row = 0; row < n; ++row) {
     for (position = row_ptr[row] - 1;
          position < row_ptr[row + 1] - 1; ++position) {
-      int col = col_ind[position];
+      int64_t col = col_ind[position];
       if (handle->symmetry_mode == 0 || col <= row + 1) {
         handle->irn[cursor] = (MUMPS_INT)(row + 1);
         handle->jcn[cursor] = (MUMPS_INT)col;
@@ -280,6 +332,7 @@ int des_mumps_c_set_pattern(
 
   handle->n = n;
   handle->full_nnz = nnz;
+  handle->supplied_count = supplied;
   handle->supplied_nnz = (MUMPS_INT8)supplied;
   handle->pattern_ready = 1;
   handle->analyzed = 0;
@@ -296,13 +349,13 @@ int des_mumps_c_set_pattern(
 }
 
 int des_mumps_c_analyze(
-    void *opaque_handle, int nnz, const double *values,
+    void *opaque_handle, int64_t nnz, const double *values,
     int *info_primary, int *info_secondary)
 {
   des_mumps_handle_t *handle = (des_mumps_handle_t *)opaque_handle;
 
   if (des_mumps_refresh_values(handle, nnz, values) != 0) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
 
   handle->id.job = DES_MUMPS_JOB_ANALYZE;
@@ -310,7 +363,7 @@ int des_mumps_c_analyze(
   des_mumps_copy_info(handle, info_primary, info_secondary);
   if (handle->id.infog[0] < 0) {
     handle->analyzed = 0;
-    return -3;
+    return DES_MUMPS_ERROR_SOLVER;
   }
 
   handle->analyzed = 1;
@@ -319,16 +372,16 @@ int des_mumps_c_analyze(
 }
 
 int des_mumps_c_factorize(
-    void *opaque_handle, int nnz, const double *values,
+    void *opaque_handle, int64_t nnz, const double *values,
     int *info_primary, int *info_secondary)
 {
   des_mumps_handle_t *handle = (des_mumps_handle_t *)opaque_handle;
 
   if (handle == NULL || !handle->analyzed) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
   if (des_mumps_refresh_values(handle, nnz, values) != 0) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
   }
 
   handle->id.job = DES_MUMPS_JOB_FACTORIZE;
@@ -336,7 +389,7 @@ int des_mumps_c_factorize(
   des_mumps_copy_info(handle, info_primary, info_secondary);
   if (handle->id.infog[0] < 0) {
     handle->factorized = 0;
-    return -3;
+    return DES_MUMPS_ERROR_SOLVER;
   }
 
   handle->factorized = 1;
@@ -344,14 +397,19 @@ int des_mumps_c_factorize(
 }
 
 int des_mumps_c_solve(
-    void *opaque_handle, int n, const double *rhs, double *x,
+    void *opaque_handle, int64_t n, const double *rhs, double *x,
     int *info_primary, int *info_secondary)
 {
   des_mumps_handle_t *handle = (des_mumps_handle_t *)opaque_handle;
 
   if (handle == NULL || !handle->factorized || n != handle->n ||
       rhs == NULL || x == NULL) {
-    return -1;
+    return DES_MUMPS_ERROR_INVALID;
+  }
+  if (!des_mumps_value_fits_index(n) ||
+      !des_mumps_count_fits_size_t(n) ||
+      !des_mumps_allocation_fits((size_t)n, sizeof(double))) {
+    return DES_MUMPS_ERROR_INDEX_RANGE;
   }
 
   memcpy(x, rhs, (size_t)n * sizeof(double));
@@ -364,7 +422,7 @@ int des_mumps_c_solve(
   handle->id.rhs = NULL;
 
   if (handle->id.infog[0] < 0) {
-    return -3;
+    return DES_MUMPS_ERROR_SOLVER;
   }
 
   return 0;

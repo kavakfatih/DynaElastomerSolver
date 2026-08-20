@@ -1,5 +1,5 @@
 module des_mumps_backend
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_csr_matrix, only : csr_matrix_t
   implicit none
@@ -31,6 +31,8 @@ module des_mumps_backend
   public :: mumps_backend_factorize
   public :: mumps_backend_solve
   public :: mumps_backend_destroy
+  public :: mumps_backend_c_index_range_supported
+  public :: mumps_backend_index_bits
 
 contains
 
@@ -127,5 +129,17 @@ contains
 
     handle%placeholder = 0
   end subroutine mumps_backend_destroy
+
+  logical function mumps_backend_c_index_range_supported(n,nnz) result(supported)
+    integer(i64), intent(in) :: n, nnz
+
+    ! Stub build'de MUMPS backend yoktur; capability sorgusu da destek vermez.
+    supported = .false.
+    if (n == 0_i64 .and. nnz == 0_i64) supported = .false.
+  end function mumps_backend_c_index_range_supported
+
+  integer function mumps_backend_index_bits() result(bits)
+    bits = 0
+  end function mumps_backend_index_bits
 
 end module des_mumps_backend

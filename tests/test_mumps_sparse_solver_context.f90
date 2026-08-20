@@ -1,7 +1,6 @@
 program test_mumps_sparse_solver_context
   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
-  use, intrinsic :: iso_c_binding, only : c_int
-  use des_kinds, only : dp, i64
+  use des_kinds, only : dp, i32, i64
   use des_status, only : DES_STATUS_OK
   use des_csr_matrix, only : csr_matrix_t, &
                              initialize_csr_from_element_dof_maps, &
@@ -10,7 +9,8 @@ program test_mumps_sparse_solver_context
                                 linear_solver_report_t, &
                                 production_linear_solver_settings, &
                                 DES_LINEAR_BACKEND_MUMPS_DIRECT
-  use des_mumps_backend, only : mumps_backend_c_index_range_supported
+  use des_mumps_backend, only : mumps_backend_c_index_range_supported, &
+                                mumps_backend_index_bits
   use des_sparse_solver_context, only : sparse_solver_context_t, &
       sparse_solver_diagnostics_t, create_sparse_solver_context, &
       analyze_sparse_pattern, reorder_sparse_pattern, &
@@ -26,35 +26,48 @@ program test_mumps_sparse_solver_context
   type(linear_solver_report_t) :: report
   type(sparse_solver_context_t) :: context
   type(sparse_solver_diagnostics_t) :: diagnostics
-  integer :: maps(1,3), status
-  integer(i64) :: c_int_max
+  integer :: maps(1,3), status, index_bits
+  integer(i64) :: index_max, nnz_above_i32
   real(dp) :: A_dense(3,3), b(3), x(3), expected(3)
   logical :: reused
 
-  ! B9.5: C adapter su anda n/nnz/index icin c_int ABI'si kullaniyor.
-  ! 64-bit CSR migration tamamlanmadan once bu narrowing siniri sessiz tasma
-  ! yerine explicit capability check ile korunmalidir.
+  ! B9.5e: Dyna Fortran-C köprüsü n/nnz/cardinality'yi int64 taşır.
+  ! Pinned MUMPS build'inde equation/column index kapasitesi MUMPS_INT ile
+  ! sınırlıdır; nnz ise assembled interface'te MUMPS_INT8 ile taşınabilir.
+  index_bits = mumps_backend_index_bits()
+  if (index_bits < 32) then
+    error stop 'MUMPS index width beklenen minimum 32 bit degil.'
+  end if
+
   if (.not. mumps_backend_c_index_range_supported(3_i64,5_i64)) then
-    error stop 'MUMPS C-index preflight kucuk matrisi reddetti.'
+    error stop 'MUMPS index preflight kucuk matrisi reddetti.'
   end if
   if (mumps_backend_c_index_range_supported(0_i64,5_i64) .or. &
       mumps_backend_c_index_range_supported(3_i64,0_i64)) then
-    error stop 'MUMPS C-index preflight gecersiz cardinality kabul etti.'
+    error stop 'MUMPS index preflight gecersiz cardinality kabul etti.'
   end if
-  if (bit_size(0_c_int) < bit_size(0_i64)) then
-    c_int_max = int(huge(0_c_int),i64)
-    if (.not. mumps_backend_c_index_range_supported( &
-        c_int_max,c_int_max-1_i64)) then
-      error stop 'MUMPS C-index preflight gecerli c_int sinirini reddetti.'
+
+  ! Önceki C-int ABI'de nnz bu sınırda reddediliyordu. B9.5e ile n küçük ve
+  ! column index representable kaldığı sürece 32-bit üstü nnz cardinality
+  ! Dyna->C sınırında artık yapay olarak reddedilmemelidir.
+  nnz_above_i32 = int(huge(0_i32),i64)+1024_i64
+  if (.not. mumps_backend_c_index_range_supported(3_i64,nnz_above_i32)) then
+    error stop 'MUMPS int64 C bridge 32-bit ustu nnz cardinality reddetti.'
+  end if
+
+  ! 1-based CSR terminal row pointer nnz+1 olduğundan i64 maximum nnz kabul
+  ! edilemez; bu sınır allocation yapılmadan deterministic olarak test edilir.
+  if (mumps_backend_c_index_range_supported(3_i64,huge(0_i64))) then
+    error stop 'MUMPS index preflight terminal rowptr i64 tasmasini kabul etti.'
+  end if
+
+  if (index_bits < bit_size(0_i64)) then
+    index_max = shiftl(1_i64,index_bits-1)-1_i64
+    if (.not. mumps_backend_c_index_range_supported(index_max,5_i64)) then
+      error stop 'MUMPS index preflight gecerli equation sinirini reddetti.'
     end if
-    if (mumps_backend_c_index_range_supported(3_i64,c_int_max)) then
-      error stop 'MUMPS C-index preflight nnz+1 rowptr tasma sinirini kabul etti.'
-    end if
-    if (mumps_backend_c_index_range_supported(c_int_max+1_i64,5_i64)) then
-      error stop 'MUMPS C-index preflight equation overflowunu kabul etti.'
-    end if
-    if (mumps_backend_c_index_range_supported(3_i64,c_int_max+1_i64)) then
-      error stop 'MUMPS C-index preflight nnz overflowunu kabul etti.'
+    if (mumps_backend_c_index_range_supported(index_max+1_i64,5_i64)) then
+      error stop 'MUMPS index preflight equation index overflowunu kabul etti.'
     end if
   end if
 
@@ -137,8 +150,7 @@ program test_mumps_sparse_solver_context
     error stop 'Production workstation default beklenmedik OOC kullandi.'
   end if
 
-  ! Aynı graph üzerinde yeni Newton values seti: symbolic analysis/order tekrar
-  ! edilmemeli; yalnız numeric factorization yenilenmelidir.
+  ! Aynı graph üzerinde ikinci Newton values seti symbolic analizi tekrar etmez.
   call reuse_sparse_pattern(context,A,reused,status)
   if (status /= DES_STATUS_OK .or. .not. reused) then
     error stop 'MUMPS ayni CSR pattern reuse edemedi.'
@@ -195,7 +207,11 @@ program test_mumps_sparse_solver_context
   if (diagnostics%direct_ordering_used < 0) then
     error stop 'MUMPS diagnostic ordering bilgisi eksik.'
   end if
+  if (diagnostics%supports_int64) then
+    error stop 'MUMPS full int64 backend destegi erken ilan edildi.'
+  end if
 
+  write(*,'(A,I0)') 'MUMPS equation/column index width (bit) = ',index_bits
   write(*,'(A,I0)') 'MUMPS context equation count (int64) = ', &
       diagnostics%equation_count
   write(*,'(A,I0)') 'MUMPS context structural nnz (int64) = ',diagnostics%nnz
