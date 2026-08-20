@@ -1208,3 +1208,58 @@ Cache için yalnız undeformed/reference mesh boyunca invariant olduğu kaynak s
 Q9/P1 formulation, 3x3 production quadrature kararı, B8 nonlinear transaction semantics, GMRES row-equilibration ve AUTO→MUMPS production policy bu turda değiştirilmeyecektir.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 19. 2026-08-20 B9.4c production solver cache-lifetime entegrasyonu başlangıç checkpoint'i
+
+Kullanıcı `devam` diyerek B9.4 geliştirmesinin bir sonraki küçük alt paketine geçilmesini onayladı. Bu kayıt teknik kaynak değişikliğinden önce canlı GitHub durumu doğrulanarak eklendi.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = a9aa24b6a5c0e5408c8a9f7fff21db4637087825
+```
+
+Aynı head üzerinde normal Fortran CI custom status'ları 4/4 SUCCESS'tir:
+
+```text
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+Bu head'e kadar B9.4 kapsamında element-level reference cache, mesh-level reference cache, dense/CSR optional cache assembly ve InternalMesh cache plumbing eklenmiştir. Cache yalnız reference-mesh invariant büyüklükleri taşır; deformation gradient, current `J`, constitutive stress/tangent, pressure state ve residual/tangent katkıları her nonlinear evaluation'da yeniden hesaplanmaya devam eder.
+
+Bu turun dar hedefi **B9.4c — production solver cache lifetime integration** olarak sınırlandırılmıştır:
+
+```text
+1. solver-owned q9_herrmann_mesh_reference_cache_t solve başlangıcında bir kez oluşturulacak
+2. fixed Newton dense/CSR assembly çağrıları aynı cache'i kullanacak
+3. adaptive Newton ana assembly aynı cache'i kullanacak
+4. line-search trial assembly aynı cache'i kullanacak
+5. final solution/residual assembly aynı cache'i kullanacak
+6. global/module SAVE cache kullanılmayacak
+7. cache yaşam süresi yalnız ilgili solve çağrısı ile sınırlı olacak
+8. cache yoksa mevcut optional fallback yolu korunacak
+```
+
+Formulation ve nonlinear semantics değişmeyecektir. `F`, `J`, pressure coupling, constitutive response, residual/tangent matematiği, 3x3 production quadrature kararı, rollback/cutback/growth/predictor davranışı ve AUTO→MUMPS production policy aynen korunacaktır.
+
+Acceptance sırası:
+
+```text
+source parity/regression
+→ normal compiler matrix 4/4
+→ production MUMPS matrix 4/4
+→ aynı teknik SHA üzerinde 8/8
+→ B9.3 aynı-runner benchmark ile 3x3/4x4 assembly_cpu_seconds karşılaştırması
+```
+
+Ölçülebilir assembly kazancı görülmeden B9.4 production PASS olarak işaretlenmeyecektir. Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 merge edilmeyecek; `release/v0.3`, `v0.3.0` tag ve GitHub Release kullanıcı açıkça istemeden oluşturulmayacaktır.
