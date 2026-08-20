@@ -1,9 +1,13 @@
 name: B7b Apply Production Direct
 
-# Existing workflow retrigger: B7b source patch is applied atomically.
 on:
   push:
     branches: ['develop/v0.3']
+    paths:
+      - '.github/scripts/b7b_apply_production_direct.py'
+      - '.github/workflows/b7b-apply-production-direct.yml'
+  pull_request:
+    branches: [main]
     paths:
       - '.github/scripts/b7b_apply_production_direct.py'
       - '.github/workflows/b7b-apply-production-direct.yml'
@@ -15,10 +19,13 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-24.04
+    # Yalnız develop/v0.3 kaynağından gelen kendi PR'ımızda yazma yapar.
+    if: github.event_name == 'push' || github.head_ref == 'develop/v0.3'
     steps:
       - name: Kaynak kodu al
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: develop/v0.3
           fetch-depth: 0
 
       - name: B7b patch uygula
