@@ -42,6 +42,26 @@ program test_adaptive_predictor_policy
     error stop 'Predictor scale upper cap uygulanmadi.'
   end if
 
+  call select_secant_predictor_scale( &
+      ieee_value(1.0_dp,ieee_quiet_nan),0.1_dp,.true.,.false., &
+      settings,scale,applied)
+  if (applied .or. abs(scale) > 1.0e-14_dp) then
+    error stop 'NaN next increment predictor tarafindan reddedilmedi.'
+  end if
+
+  call select_secant_predictor_scale( &
+      0.2_dp,ieee_value(1.0_dp,ieee_quiet_nan),.true.,.false., &
+      settings,scale,applied)
+  if (applied .or. abs(scale) > 1.0e-14_dp) then
+    error stop 'NaN previous increment predictor tarafindan reddedilmedi.'
+  end if
+
+  call select_secant_predictor_scale( &
+      0.2_dp,-0.1_dp,.true.,.false.,settings,scale,applied)
+  if (applied .or. abs(scale) > 1.0e-14_dp) then
+    error stop 'Negatif previous increment predictor tarafindan reddedilmedi.'
+  end if
+
   previous_u = reshape([0.0_dp,0.0_dp,0.0_dp,0.0_dp],[2,2])
   current_u = reshape([1.0_dp,2.0_dp,3.0_dp,4.0_dp],[2,2])
   previous_p = reshape([1.0_dp,2.0_dp,3.0_dp],[1,3])
