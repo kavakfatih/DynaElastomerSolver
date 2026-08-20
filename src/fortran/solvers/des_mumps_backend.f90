@@ -392,14 +392,14 @@ contains
 
   logical function mumps_backend_c_index_range_supported(n,nnz) result(supported)
     ! Mevcut Dyna->MUMPS C adapter ABI'si n ve nnz icin C int kullanir.
-    ! 64-bit CSR migration tamamlanana kadar bu sinir explicit olarak test edilir;
-    ! int(...,c_int) ile sessiz tasma yapilmasina izin verilmez.
+    ! 1-based CSR terminal row pointer nnz+1 olduğundan nnz için maksimum
+    ! c_int değerinin kendisi kabul edilmez; sınır geçilmeden fail-fast yapılır.
     integer(i64), intent(in) :: n, nnz
     integer(i64) :: c_int_max
 
     c_int_max = int(huge(0_c_int),i64)
     supported = n >= 1_i64 .and. nnz >= 1_i64 .and. &
-                n <= c_int_max .and. nnz <= c_int_max
+                n <= c_int_max .and. nnz < c_int_max
   end function mumps_backend_c_index_range_supported
 
   logical function csr_pattern_values_fit_c_int(matrix) result(fits)

@@ -43,6 +43,13 @@ program test_mumps_sparse_solver_context
   end if
   if (bit_size(0_c_int) < bit_size(0_i64)) then
     c_int_max = int(huge(0_c_int),i64)
+    if (.not. mumps_backend_c_index_range_supported( &
+        c_int_max,c_int_max-1_i64)) then
+      error stop 'MUMPS C-index preflight gecerli c_int sinirini reddetti.'
+    end if
+    if (mumps_backend_c_index_range_supported(3_i64,c_int_max)) then
+      error stop 'MUMPS C-index preflight nnz+1 rowptr tasma sinirini kabul etti.'
+    end if
     if (mumps_backend_c_index_range_supported(c_int_max+1_i64,5_i64)) then
       error stop 'MUMPS C-index preflight equation overflowunu kabul etti.'
     end if
