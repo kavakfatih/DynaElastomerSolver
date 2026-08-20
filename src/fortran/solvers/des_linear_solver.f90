@@ -74,6 +74,14 @@ module des_linear_solver
     integer :: symbolic_reuse_count = 0
     logical :: direct_factorization_performed = .false.
 
+    ! B9.3 phase-level timing yalnız performans telemetrisidir. CPU süreleri
+    ! correctness kararına girmez ve desteklenmeyen fazlar sıfır kalır.
+    real(dp) :: pattern_analysis_cpu_seconds = 0.0_dp
+    real(dp) :: reorder_cpu_seconds = 0.0_dp
+    real(dp) :: backend_analysis_cpu_seconds = 0.0_dp
+    real(dp) :: factorization_cpu_seconds = 0.0_dp
+    real(dp) :: solve_cpu_seconds = 0.0_dp
+
     ! Vendor ham durum kodları generic raporda ayrı tutulur. Dyna status kodu
     ! kullanıcı-facing kontrol akışını yönetir; bu iki alan backend teşhisidir.
     integer :: backend_info_primary = 0
@@ -118,6 +126,7 @@ contains
     type(linear_solver_report_t), intent(out) :: report
 
     type(linear_solver_settings_t) :: active_settings
+    real(dp) :: solve_cpu_start, solve_cpu_end
 
     active_settings = linear_solver_settings_t()
     if (present(settings)) active_settings = settings
@@ -136,7 +145,10 @@ contains
 
     select case (active_settings%backend)
     case (DES_LINEAR_BACKEND_STDLIB_DENSE)
+      call cpu_time(solve_cpu_start)
       call solve_stdlib_dense(A, b, x, report)
+      call cpu_time(solve_cpu_end)
+      report%solve_cpu_seconds = max(0.0_dp,solve_cpu_end-solve_cpu_start)
     case default
       report%status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
     end select
@@ -153,6 +165,7 @@ contains
     type(linear_solver_report_t), intent(out) :: report
 
     type(linear_solver_settings_t) :: active_settings
+    real(dp) :: solve_cpu_start, solve_cpu_end
 
     active_settings = linear_solver_settings_t()
     if (present(settings)) active_settings = settings
@@ -181,7 +194,10 @@ contains
 
     select case (active_settings%backend)
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
+      call cpu_time(solve_cpu_start)
       call solve_stdlib_csr_gmres(A,b,x,active_settings,report)
+      call cpu_time(solve_cpu_end)
+      report%solve_cpu_seconds = max(0.0_dp,solve_cpu_end-solve_cpu_start)
     case default
       report%status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
     end select
