@@ -14,7 +14,21 @@ module des_mumps_backend
     type(c_ptr) :: ptr = c_null_ptr
   end type mumps_backend_handle_t
 
+  type, public :: mumps_backend_diagnostics_t
+    integer :: ordering_used = -1
+    integer :: negative_pivot_count = 0
+    integer :: delayed_pivot_count = 0
+    integer :: null_pivot_count = 0
+    integer :: internal_refinement_steps = 0
+    logical :: out_of_core = .false.
+    real(dp) :: scaled_residual = huge(1.0_dp)
+    real(dp) :: backward_error_1 = huge(1.0_dp)
+    real(dp) :: backward_error_2 = huge(1.0_dp)
+  end type mumps_backend_diagnostics_t
+
   public :: mumps_backend_create
+  public :: mumps_backend_configure
+  public :: mumps_backend_get_diagnostics
   public :: mumps_backend_set_pattern
   public :: mumps_backend_analyze
   public :: mumps_backend_factorize
@@ -29,6 +43,35 @@ module des_mumps_backend
       integer(c_int), intent(out) :: info_primary, info_secondary
       type(c_ptr) :: handle
     end function des_mumps_c_create
+
+    function des_mumps_c_configure( &
+        handle,ordering,pivot_threshold,refinement_steps,refinement_tolerance, &
+        error_analysis,out_of_core,null_pivot_detection,null_pivot_tolerance, &
+        info_primary,info_secondary) &
+        bind(C,name='des_mumps_c_configure') result(rc)
+      import :: c_double, c_int, c_ptr
+      type(c_ptr), value :: handle
+      integer(c_int), value :: ordering, refinement_steps, error_analysis
+      integer(c_int), value :: out_of_core, null_pivot_detection
+      real(c_double), value :: pivot_threshold, refinement_tolerance
+      real(c_double), value :: null_pivot_tolerance
+      integer(c_int), intent(out) :: info_primary, info_secondary
+      integer(c_int) :: rc
+    end function des_mumps_c_configure
+
+    function des_mumps_c_get_diagnostics( &
+        handle,ordering_used,negative_pivots,delayed_pivots,null_pivots, &
+        refinement_steps,out_of_core,scaled_residual,backward_error_1, &
+        backward_error_2) bind(C,name='des_mumps_c_get_diagnostics') result(rc)
+      import :: c_double, c_int, c_ptr
+      type(c_ptr), value :: handle
+      integer(c_int), intent(out) :: ordering_used, negative_pivots
+      integer(c_int), intent(out) :: delayed_pivots, null_pivots
+      integer(c_int), intent(out) :: refinement_steps, out_of_core
+      real(c_double), intent(out) :: scaled_residual, backward_error_1
+      real(c_double), intent(out) :: backward_error_2
+      integer(c_int) :: rc
+    end function des_mumps_c_get_diagnostics
 
     function des_mumps_c_set_pattern( &
         handle,n,nnz,row_ptr,col_ind,info_primary,info_secondary) &
@@ -108,6 +151,74 @@ contains
       status = DES_ERROR_LINEAR_SOLVE
     end if
   end subroutine mumps_backend_create
+
+  subroutine mumps_backend_configure( &
+      handle,ordering,pivot_threshold,refinement_steps,refinement_tolerance, &
+      error_analysis,out_of_core,null_pivot_detection,null_pivot_tolerance, &
+      status,info_primary,info_secondary)
+    type(mumps_backend_handle_t), intent(inout) :: handle
+    integer, intent(in) :: ordering, refinement_steps, error_analysis
+    real(dp), intent(in) :: pivot_threshold, refinement_tolerance
+    logical, intent(in) :: out_of_core, null_pivot_detection
+    real(dp), intent(in) :: null_pivot_tolerance
+    integer, intent(out) :: status, info_primary, info_secondary
+
+    integer(c_int) :: rc, c_info_primary, c_info_secondary
+
+    status = DES_STATUS_OK
+    info_primary = 0
+    info_secondary = 0
+    if (.not. c_associated(handle%ptr)) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    rc = des_mumps_c_configure( &
+        handle%ptr,int(ordering,c_int),real(pivot_threshold,c_double), &
+        int(refinement_steps,c_int),real(refinement_tolerance,c_double), &
+        int(error_analysis,c_int),merge(1_c_int,0_c_int,out_of_core), &
+        merge(1_c_int,0_c_int,null_pivot_detection), &
+        real(null_pivot_tolerance,c_double),c_info_primary,c_info_secondary)
+    info_primary = int(c_info_primary)
+    info_secondary = int(c_info_secondary)
+    if (rc /= 0_c_int) status = DES_ERROR_INVALID_CONSTRAINT
+  end subroutine mumps_backend_configure
+
+  subroutine mumps_backend_get_diagnostics(handle,diagnostics,status)
+    type(mumps_backend_handle_t), intent(in) :: handle
+    type(mumps_backend_diagnostics_t), intent(out) :: diagnostics
+    integer, intent(out) :: status
+
+    integer(c_int) :: rc, ordering, negative_pivots, delayed_pivots
+    integer(c_int) :: null_pivots, refinement_steps, out_of_core
+    real(c_double) :: scaled_residual, backward_error_1, backward_error_2
+
+    diagnostics = mumps_backend_diagnostics_t()
+    status = DES_STATUS_OK
+    if (.not. c_associated(handle%ptr)) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    rc = des_mumps_c_get_diagnostics( &
+        handle%ptr,ordering,negative_pivots,delayed_pivots,null_pivots, &
+        refinement_steps,out_of_core,scaled_residual,backward_error_1, &
+        backward_error_2)
+    if (rc /= 0_c_int) then
+      status = DES_ERROR_LINEAR_SOLVE
+      return
+    end if
+
+    diagnostics%ordering_used = int(ordering)
+    diagnostics%negative_pivot_count = int(negative_pivots)
+    diagnostics%delayed_pivot_count = int(delayed_pivots)
+    diagnostics%null_pivot_count = int(null_pivots)
+    diagnostics%internal_refinement_steps = int(refinement_steps)
+    diagnostics%out_of_core = out_of_core /= 0_c_int
+    diagnostics%scaled_residual = real(scaled_residual,dp)
+    diagnostics%backward_error_1 = real(backward_error_1,dp)
+    diagnostics%backward_error_2 = real(backward_error_2,dp)
+  end subroutine mumps_backend_get_diagnostics
 
   subroutine mumps_backend_set_pattern(handle,matrix,status,info_primary,info_secondary)
     type(mumps_backend_handle_t), intent(inout) :: handle
