@@ -14,6 +14,7 @@ on:
       - 'src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90'
       - 'tests/CMakeLists.txt'
       - 'tests/test_mumps*.f90'
+      - 'tests/test_auto_sparse_solver_policy.f90'
       - 'tests/test_q9_herrmann_sparse*_force_solver.f90'
       - '.github/workflows/mumps-direct-ci.yml'
   pull_request:
@@ -29,6 +30,7 @@ on:
       - 'src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90'
       - 'tests/CMakeLists.txt'
       - 'tests/test_mumps*.f90'
+      - 'tests/test_auto_sparse_solver_policy.f90'
       - 'tests/test_q9_herrmann_sparse*_force_solver.f90'
       - '.github/workflows/mumps-direct-ci.yml'
   workflow_dispatch:
@@ -149,23 +151,24 @@ jobs:
             > cmake-mumps-configure.log 2>&1
           cat cmake-mumps-configure.log
 
-      - name: MUMPS context ve Q9/P1 parity targetlarini derle
+      - name: MUMPS context ve B7 AUTO policy targetlarini derle
         id: build
         shell: bash
         run: |
           set -o pipefail
           cmake --build build-mumps --target \
             test_mumps_sparse_solver_context \
+            test_auto_sparse_solver_policy \
             test_q9_herrmann_sparse_force_solver \
             test_q9_herrmann_sparse_adaptive_force_solver \
             --parallel 2 --verbose 2>&1 | tee mumps-build.log
 
-      - name: MUMPS direct context ve Q9/P1 parity regression
+      - name: MUMPS direct context, AUTO policy ve Q9/P1 parity regression
         id: ctest
         shell: bash
         run: |
           ctest --test-dir build-mumps \
-            -R '^(solver\.sparse\.mumps_direct_context|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity)$' \
+            -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity)$' \
             --output-on-failure --build-config Debug
 
       - name: MUMPS platform status yayınla
