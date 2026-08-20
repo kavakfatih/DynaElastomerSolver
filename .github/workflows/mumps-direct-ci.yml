@@ -8,14 +8,20 @@ on:
       - 'CMakePresets.json'
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
+      - 'src/fortran/core/des_status.f90'
       - 'src/fortran/solvers/des_linear_solver.f90'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'src/fortran/solvers/des_mumps_backend*.f90'
       - 'src/fortran/solvers/des_mumps_adapter.c'
+      - 'src/fortran/solvers/des_solver_history.f90'
+      - 'src/fortran/solvers/des_nonlinear_solver.f90'
       - 'src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90'
+      - 'src/fortran/solvers/des_q9_herrmann_solver_report.f90'
       - 'tests/CMakeLists.txt'
       - 'tests/test_mumps*.f90'
       - 'tests/test_auto_sparse_solver_policy.f90'
+      - 'tests/test_nonlinear_solver_policy.f90'
+      - 'tests/test_status_message.f90'
       - 'tests/test_q9_herrmann_*.f90'
       - 'tests/test_v03_herrmann_*.f90'
       - '.github/workflows/mumps-direct-ci.yml'
@@ -26,14 +32,20 @@ on:
       - 'CMakePresets.json'
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
+      - 'src/fortran/core/des_status.f90'
       - 'src/fortran/solvers/des_linear_solver.f90'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'src/fortran/solvers/des_mumps_backend*.f90'
       - 'src/fortran/solvers/des_mumps_adapter.c'
+      - 'src/fortran/solvers/des_solver_history.f90'
+      - 'src/fortran/solvers/des_nonlinear_solver.f90'
       - 'src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90'
+      - 'src/fortran/solvers/des_q9_herrmann_solver_report.f90'
       - 'tests/CMakeLists.txt'
       - 'tests/test_mumps*.f90'
       - 'tests/test_auto_sparse_solver_policy.f90'
+      - 'tests/test_nonlinear_solver_policy.f90'
+      - 'tests/test_status_message.f90'
       - 'tests/test_q9_herrmann_*.f90'
       - 'tests/test_v03_herrmann_*.f90'
       - '.github/workflows/mumps-direct-ci.yml'
@@ -152,7 +164,7 @@ jobs:
             > cmake-mumps-configure.log 2>&1
           cat cmake-mumps-configure.log
 
-      - name: MUMPS context ve B7 AUTO policy targetlarini derle
+      - name: MUMPS context, AUTO ve B8 robustness targetlarini derle
         id: build
         shell: bash
         run: |
@@ -160,17 +172,19 @@ jobs:
           cmake --build --preset dyna-production --target \
             test_mumps_sparse_solver_context \
             test_auto_sparse_solver_policy \
+            test_nonlinear_solver_policy \
+            test_q9_herrmann_convergence_report \
             test_q9_herrmann_sparse_force_solver \
             test_q9_herrmann_sparse_adaptive_force_solver \
             test_q9_herrmann_mumps_failure_cutback \
             --parallel 2 --verbose 2>&1 | tee mumps-build.log
 
-      - name: MUMPS direct context, AUTO policy ve Q9/P1 parity regression
+      - name: MUMPS direct, AUTO, B8 robustness ve Q9/P1 parity regression
         id: ctest
         shell: bash
         run: |
           ctest --preset dyna-production \
-            -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
+            -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
             --output-on-failure
 
       - name: MUMPS platform status yayınla
