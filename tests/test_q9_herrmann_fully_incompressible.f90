@@ -2,6 +2,7 @@ program test_q9_herrmann_fully_incompressible
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
+  use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
   use des_q9_plane_strain_herrmann_force_solver, only : &
@@ -22,6 +23,7 @@ program test_q9_herrmann_fully_incompressible
   integer :: status,a
   type(internal_mesh_t) :: mesh
   type(newton_report_t) :: report
+  type(linear_solver_settings_t) :: dense_settings
 
   X(1,:) = [0.0_dp,0.0_dp]
   X(2,:) = [1.0_dp,0.0_dp]
@@ -59,13 +61,14 @@ program test_q9_herrmann_fully_incompressible
     error stop 'Fully incompressible target pressure residual sıfır değil.'
   end if
   external_force = residual_target(1:18)
+  dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
 
   u = 0.0_dp
   p = 0.0_dp
   call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
       mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
       0.2_dp,0.0125_dp,0.5_dp,6,40,1.0e-10_dp, &
-      u,p,residual,report)
+      u,p,residual,report,linear_settings=dense_settings)
 
   if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
     error stop 'Fully incompressible Q9/P1 saddle-point solver yakınsamadı.'
