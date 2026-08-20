@@ -1,5 +1,6 @@
 name: B7b Apply Production Direct
 
+# Existing workflow retrigger: B7b source patch is applied atomically.
 on:
   push:
     branches: ['develop/v0.3']
