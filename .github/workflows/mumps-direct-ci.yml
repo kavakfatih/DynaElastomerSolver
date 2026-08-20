@@ -16,7 +16,8 @@ on:
       - 'tests/CMakeLists.txt'
       - 'tests/test_mumps*.f90'
       - 'tests/test_auto_sparse_solver_policy.f90'
-      - 'tests/test_q9_herrmann_sparse*_force_solver.f90'
+      - 'tests/test_q9_herrmann_*.f90'
+      - 'tests/test_v03_herrmann_*.f90'
       - '.github/workflows/mumps-direct-ci.yml'
   pull_request:
     branches: [main]
@@ -33,7 +34,8 @@ on:
       - 'tests/CMakeLists.txt'
       - 'tests/test_mumps*.f90'
       - 'tests/test_auto_sparse_solver_policy.f90'
-      - 'tests/test_q9_herrmann_sparse*_force_solver.f90'
+      - 'tests/test_q9_herrmann_*.f90'
+      - 'tests/test_v03_herrmann_*.f90'
       - '.github/workflows/mumps-direct-ci.yml'
   workflow_dispatch:
 
