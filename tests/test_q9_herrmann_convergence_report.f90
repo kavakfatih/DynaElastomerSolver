@@ -44,7 +44,7 @@ contains
     real(dp) :: beta,J_target,min_j
     real(dp) :: u_target(9,2),u(9,2),p_target(1,3),p(1,3)
     real(dp) :: residual_target(21),residual(21),K_target(21,21),external_force(18)
-    integer :: a,local_status
+    integer :: a,local_status,h,line_search_records
     type(herrmann_solver_report_t) :: report
     type(linear_solver_settings_t) :: dense_settings
 
@@ -91,6 +91,25 @@ contains
         report%nonlinear%status /= DES_STATUS_OK) then
       error stop 'Reported Q9/P1 Herrmann solver yakinsamadi.'
     end if
+
+    ! B8.1: production adaptive yolunun line-search policy'sinden gerçekten geçtiğini
+    ! history üzerinden doğrula. Bu manufactured durumda alpha=1 kabul edilebilir;
+    ! önemli sözleşme mixed correction için pozitif ve en fazla 1 olan ölçeğin
+    ! kaydedilmesi ve en az bir line-search residual denemesinin yapılmasıdır.
+    line_search_records = 0
+    do h = 1,report%nonlinear%history%count
+      if (report%nonlinear%history%records(h)%line_search_trials > 0) then
+        line_search_records = line_search_records + 1
+        if (report%nonlinear%history%records(h)%correction_scale <= 0.0_dp .or. &
+            report%nonlinear%history%records(h)%correction_scale > 1.0_dp) then
+          error stop 'Q9 line-search correction scale history degeri gecersiz.'
+        end if
+      end if
+    end do
+    if (line_search_records < 1) then
+      error stop 'Q9 adaptive production yolu line-search residual denemesi kaydetmedi.'
+    end if
+
     if (.not. report%metrics_valid .or. report%metrics_status /= DES_STATUS_OK) then
       error stop 'Herrmann convergence metrikleri valid degil.'
     end if
