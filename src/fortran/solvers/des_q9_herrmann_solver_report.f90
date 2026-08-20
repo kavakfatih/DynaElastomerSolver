@@ -5,6 +5,7 @@ module des_q9_herrmann_solver_report
                          DES_ERROR_INVALID_CONSTRAINT
   use des_internal_mesh, only : internal_mesh_t, validate_internal_mesh
   use des_linear_solver, only : linear_solver_settings_t
+  use des_nonlinear_solver, only : nonlinear_solver_settings_t
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_2X2, &
@@ -36,9 +37,11 @@ contains
       mesh, shear_modulus, pressure_compliance, fixed_dofs, external_force, &
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
       max_iterations, tolerance, u, pressure_coefficients, residual, report, &
-      linear_settings, quadrature_order)
+      linear_settings, quadrature_order, nonlinear_settings)
     ! Production-facing Herrmann wrapper. Nonlinear orchestration mevcut solver'da
-    ! kalir; bu katman mixed formulationa ozgu convergence metriklerini ekler.
+    ! kalır; bu katman mixed formulationa özgü convergence metriklerini ekler.
+    ! B8.1 nonlinear settings optional olarak bu sınırdan da geçirildi; mevcut
+    ! çağrılar son argüman optional olduğu için geriye uyumludur.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -51,12 +54,16 @@ contains
     type(herrmann_solver_report_t), intent(out) :: report
     type(linear_solver_settings_t), intent(in), optional :: linear_settings
     integer, intent(in), optional :: quadrature_order
+    type(nonlinear_solver_settings_t), intent(in), optional :: nonlinear_settings
 
     integer :: active_quadrature
+    type(nonlinear_solver_settings_t) :: active_nonlinear_settings
 
     report = herrmann_solver_report_t()
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
+    active_nonlinear_settings = nonlinear_solver_settings_t()
+    if (present(nonlinear_settings)) active_nonlinear_settings = nonlinear_settings
 
     if (present(linear_settings)) then
       if (present(quadrature_order)) then
@@ -64,13 +71,15 @@ contains
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
             initial_increment,min_increment,cutback_factor,max_cutbacks, &
             max_iterations,tolerance,u,pressure_coefficients,residual, &
-            report%nonlinear,linear_settings,quadrature_order)
+            report%nonlinear,linear_settings,quadrature_order, &
+            nonlinear_settings=active_nonlinear_settings)
       else
         call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
             initial_increment,min_increment,cutback_factor,max_cutbacks, &
             max_iterations,tolerance,u,pressure_coefficients,residual, &
-            report%nonlinear,linear_settings=linear_settings)
+            report%nonlinear,linear_settings=linear_settings, &
+            nonlinear_settings=active_nonlinear_settings)
       end if
     else
       if (present(quadrature_order)) then
@@ -78,12 +87,14 @@ contains
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
             initial_increment,min_increment,cutback_factor,max_cutbacks, &
             max_iterations,tolerance,u,pressure_coefficients,residual, &
-            report%nonlinear,quadrature_order=quadrature_order)
+            report%nonlinear,quadrature_order=quadrature_order, &
+            nonlinear_settings=active_nonlinear_settings)
       else
         call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
             initial_increment,min_increment,cutback_factor,max_cutbacks, &
-            max_iterations,tolerance,u,pressure_coefficients,residual,report%nonlinear)
+            max_iterations,tolerance,u,pressure_coefficients,residual, &
+            report%nonlinear,nonlinear_settings=active_nonlinear_settings)
       end if
     end if
 
