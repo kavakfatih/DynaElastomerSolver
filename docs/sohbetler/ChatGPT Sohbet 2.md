@@ -250,10 +250,11 @@ PR #1                     = open
 draft                     = true
 merged                    = false
 mergeable                 = false
-PR head                   = 37c3a234c786e3970529f496ddfa5238532c2fa0
+head branch               = develop/v0.3
+head SHA                  = 37c3a234c786e3970529f496ddfa5238532c2fa0
 ```
 
-Aynı head için combined CI status doğrulaması:
+Aynı head üzerindeki CI sonucu:
 
 ```text
 Normal Fortran / MUMPS-off
@@ -1071,5 +1072,101 @@ B9.3 kapsamı:
 ```
 
 B9.3'te mixed `u-P` formulation, row-equilibration, production AUTO→MUMPS policy, nonlinear rollback/cutback/growth/predictor semantics ve correctness toleransları değiştirilmeyecektir. Faz ölçümü solver sonucunu etkilememeli ve native macOS Apple Silicon/Linux/Windows desteği korunmalıdır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 17. 2026-08-20 B9.3 final kapanış ve B9.4 assembly optimizasyonu başlangıç checkpoint'i
+
+B9.3 final teknik head'i:
+
+```text
+develop/v0.3 = f7cc6955c1daa97c8178503fd401901f8b986ff1
+```
+
+Canlı GitHub doğrulamasında PR #1 durumu korunmuştur:
+
+```text
+state       = open
+draft       = true
+merged      = false
+head branch = develop/v0.3
+```
+
+B9.3 ile Q9/P1 adaptive production solver'a report-only faz zamanlaması eklendi. Solver sonucu, mixed `u-P` formulation, nonlinear acceptance, rollback/cutback/growth/predictor semantics ve backend seçimi değiştirilmedi.
+
+Benchmark JSON şeması `schema_version = 2` oldu ve her vaka için aşağıdaki stabil alanlar yayımlanır:
+
+```text
+assembly_cpu_seconds
+linear_setup_cpu_seconds
+linear_factorization_cpu_seconds
+linear_solve_cpu_seconds
+linear_total_cpu_seconds
+```
+
+Faz ölçümleri `CPU_TIME` tabanlıdır. Negatif süre üretilmemesi için ölçülen farklar solver katmanında `max(0, delta)` ile sınırlandırılır. Timing verisi correctness gate değildir; residual/load-factor/material-state acceptance eşikleri aynen korunur.
+
+Final CI aynı `f7cc6955c1daa97c8178503fd401901f8b986ff1` SHA üzerinde kapanmıştır:
+
+```text
+Normal Fortran CI = 32397780698
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS Direct CI = 32397780646
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                  = 8/8 SUCCESS
+```
+
+MUMPS Linux artifact'ındaki aynı-runner B9.3 faz ölçümleri:
+
+```text
+GMRES
+Mesh  CPU total(s)  Assembly(s)  Linear total(s)  Assembly %  Linear %
+1x1      0.001197      0.000276         0.000843       23.06     70.43
+2x2      0.009273      0.000914         0.008247        9.86     88.94
+3x3      0.323734      0.002096         0.321402        0.65     99.28
+4x4      0.998048      0.003781         0.993911        0.38     99.59
+
+MUMPS DIRECT
+Mesh  CPU total(s)  Assembly(s)  Linear total(s)  Assembly %  Linear %
+1x1      0.001166      0.000254         0.000811       21.78     69.55
+2x2      0.002040      0.000950         0.000956       46.57     46.86
+3x3      0.003957      0.002087         0.001654       52.74     41.80
+4x4      0.006607      0.003680         0.002549       55.70     38.58
+```
+
+Production MUMPS 4x4 linear alt fazları:
+
+```text
+setup         = 0.000104 s
+factorization = 0.001942 s
+solve         = 0.000503 s
+linear total  = 0.002549 s
+```
+
+Sonuç nettir: portable GMRES büyüyen meshte lineer çözüm-dominant kalırken production MUMPS yolunda 3x3 ve 4x4 seviyelerinde **assembly ana CPU maliyeti** olmuştur. Bu nedenle sıradaki küçük paket **B9.4 — Q9/P1 assembly hotspot optimization** olarak başlatılmıştır.
+
+B9.4 ilkesi spekülatif optimizasyon yapmamak olacaktır. Önce source-level incelemede her Newton iterasyonunda tekrar hesaplanan fakat undeformed/reference mesh boyunca değişmeyen Q9 geometri/quadrature büyüklükleri belirlenecektir. Güvenli bir invariant-cache adayı doğrulanırsa yalnız o kısım cache edilecek; constitutive response, deformation gradient, pressure coupling, residual/tangent ve quadrature kuralı değiştirilmeden kalacaktır.
+
+B9.4 kabul sözleşmesi:
+
+```text
+1. final displacement / pressure / residual parity korunacak
+2. minimum J ve final load factor değişmeyecek
+3. fully-incompressible ve finite-compliance regressions korunacak
+4. dense / GMRES / MUMPS backend parity bozulmayacak
+5. normal + MUMPS compiler matrisi 8/8 SUCCESS olacak
+6. aynı B9.3 benchmark ile assembly CPU etkisi tekrar ölçülecek
+7. ölçülebilir kazanç yoksa cache production optimizasyonu olarak kabul edilmeyecek
+```
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
