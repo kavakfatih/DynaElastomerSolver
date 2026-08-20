@@ -1443,3 +1443,59 @@ Toplam = 8/8 SUCCESS
 CI kapanmadan B9.5b PASS yazılmayacak. Sonraki küçük migration adayı SparseSolverContext içindeki `equation_count` / `structural_nnz` cardinality metadata'sını i64-safe hale getirmektir. Bu aşamada CSR row/column storage, MUMPS adapter ABI veya `supports_int64` flag topluca değiştirilmeyecektir.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 23. 2026-08-20 B9.5d CSR index-width migration — başlangıç checkpoint'i
+
+Kullanıcı `Sonraki tura geç` diyerek B9.5 large-scale sparse foundation çalışmasının bir sonraki geliştirme turunu başlattı. Teknik kaynak değişikliğinden önce canlı GitHub durumu tekrar doğrulandı ve bu kayıt ilk repo write olarak eklendi.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = a8832c4c229aee1b7d006c6fe0a6ed4d384a728a
+```
+
+Önceki turda B9.5c kapsamında `SparseSolverContext` cardinality metadata'sı 64-bit-safe hale getirildi:
+
+```text
+a8832c4c229aee1b7d006c6fe0a6ed4d384a728a
+→ sparse_solver_context_t%equation_count = integer(i64)
+→ sparse_solver_context_t%structural_nnz = integer(i64)
+→ diagnostics equation_count / nnz = integer(i64)
+→ same-pattern cardinality karşılaştırmaları nnz_i64() kullanır
+→ GMRES ve MUMPS context regression'ları 64-bit metadata'yı doğrular
+```
+
+Aynı teknik SHA için normal Fortran CI run `32415460869` canlı combined status'ta 4/4 SUCCESS olarak kapanmıştır:
+
+```text
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+Bu checkpoint anında production MUMPS custom status context'leri henüz aynı teknik SHA üzerinde yayımlanmamıştır. Bu nedenle B9.5c henüz final PASS olarak kapatılmayacak; MUMPS 4/4 sonucu ayrıca doğrulanacaktır.
+
+Bu turun dar teknik hedefi **B9.5d — CSR index-width migration foundation** olarak belirlenmiştir. Amaç tek committe tüm backend'i 64-bit ilan etmek değil; Dyna CSR structural index storage zincirini kontrollü biçimde genişletmeye başlamaktır.
+
+İlk migration kapsamı:
+
+```text
+1. csr_matrix_t row_ptr / col_ind storage için int64-safe temsil
+2. CSR graph-build count/pointer scratch alanlarında overflow-safe aritmetik
+3. array indexing gereken noktalarda explicit, range-checked default-integer conversion
+4. SparseSolverContext cached pattern storage ile tip uyumu
+5. stdlib GMRES ve mevcut MUMPS C adapter sınırlarında fail-fast narrowing sözleşmesini koruma
+6. supports_int64 = false durumunu gerçek backend ABI tamamlanana kadar değiştirmeme
+```
+
+Bu aşamada mixed DOF layout, Q9/P1 formulation, MUMPS C ABI ve production solver policy topluca değiştirilmeyecektir. Migration küçük, geri alınabilir adımlarla ilerleyecek; her adım normal + MUMPS compiler matrisiyle doğrulanacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
