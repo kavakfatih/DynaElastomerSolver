@@ -426,3 +426,45 @@ Bu PASS commercial ANSYS/Marc parity anlamına gelmez. Commercial LEVEL 3/B12 ge
 Sonraki paket B8 nonlinear robustness'tır; bu kapanış turunda B8 teknik implementasyonuna başlanmamıştır.
 
 Kullanıcı açıkça istemeden PR #1 merge edilmedi, `release/v0.3` oluşturulmadı, `v0.3.0` tag atılmadı ve GitHub Release oluşturulmadı.
+
+---
+
+## 8. 2026-08-20 B8.1 nonlinear robustness başlangıç checkpoint'i
+
+Kullanıcı geliştirmeye devam edilmesini onayladı. Yeni teknik tura başlamadan önce canlı GitHub durumu doğrulandı ve bu kayıt kod değişikliğinden önce eklendi.
+
+Başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 5d2bb5d2e4a0816a3624b5e86f644e976e985e18
+```
+
+B8 paketi tek seferde büyütülmeyecektir. Kullanıcının çalışma kuralına uygun olarak küçük, kapanabilir alt paketlerle ilerlenir.
+
+Bu tur yalnızca **B8.1 nonlinear Newton robustness foundation** kapsamındadır. Öncelik sırası:
+
+```text
+1. mixed u-P Newton correction için controlled damping / backtracking line-search altyapısı
+2. residual growth / açık divergence tespiti
+3. gerekli solver diagnostics ve regression testleri
+```
+
+B8.1 kabul ilkeleri:
+
+- displacement ve pressure Newton increment'leri aynı line-search katsayısı ile ölçeklenecek,
+- trial residual değerlendirmesi committed state'i bozmayacak,
+- alpha=1 yeterince iyi ise full Newton davranışı korunacak,
+- backtracking yalnız gerektiğinde devreye girecek,
+- line-search başarısızlığı kontrollü nonlinear failure olarak adaptive cutback zincirine taşınabilecek,
+- residual-growth/divergence tespiti deterministic ve ayarlanabilir olacak,
+- mevcut dense / GMRES / MUMPS backend davranışı bozulmayacak,
+- NaN/Inf guard, adaptive increment büyütme ve predictor bu alt pakete karıştırılmayacak; sonraki B8 alt paketlerinde ele alınacak.
+
+Bu checkpoint commercial ANSYS/Marc parity iddiası değildir. B12/LEVEL 3 açık kalır.
+
+Kullanıcı açıkça istemeden PR #1 merge edilmeyecek, `release/v0.3` oluşturulmayacak, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır.
