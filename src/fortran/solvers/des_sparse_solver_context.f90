@@ -114,8 +114,9 @@ module des_sparse_solver_context
     logical :: direct_factorization_performed = .false.
     logical :: supports_int64 = .false.
     logical :: released = .false.
-    integer, allocatable :: pattern_row_ptr(:)
-    integer, allocatable :: pattern_col_ind(:)
+    ! CSR structural cache, matrix row_ptr/col_ind ile aynı i64 temsilini taşır.
+    integer(i64), allocatable :: pattern_row_ptr(:)
+    integer(i64), allocatable :: pattern_col_ind(:)
     type(mumps_backend_handle_t) :: mumps_handle
     type(linear_solver_report_t) :: last_linear_report
   end type sparse_solver_context_t
@@ -170,8 +171,9 @@ contains
       context%supports_int64 = .false.
 
     case (DES_LINEAR_BACKEND_MUMPS_DIRECT)
-      ! B7b production workstation profili int32 Dyna CSR ile başlar.
-      ! MUMPS 64-bit genişlemesi B9'da Dyna CSR int64 dönüşümüyle açılacaktır.
+      ! Dyna CSR structural storage i64 olsa da production MUMPS adapter ABI
+      ! bu aşamada c_int'tir. supports_int64 ancak adapter/backend birlikte
+      ! genişletildiğinde true yapılacaktır.
       context%supports_int64 = .false.
       if (.not. DES_MUMPS_AVAILABLE) then
         status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
@@ -647,8 +649,10 @@ contains
     if (.not. valid_csr_structure(matrix)) return
     if (int(matrix%nrows,i64) /= context%equation_count) return
     if (matrix%nnz_i64() /= context%structural_nnz) return
-    if (size(matrix%row_ptr) /= size(context%pattern_row_ptr)) return
-    if (size(matrix%col_ind) /= size(context%pattern_col_ind)) return
+    if (size(matrix%row_ptr,kind=i64) /= &
+        size(context%pattern_row_ptr,kind=i64)) return
+    if (size(matrix%col_ind,kind=i64) /= &
+        size(context%pattern_col_ind,kind=i64)) return
     if (any(matrix%row_ptr /= context%pattern_row_ptr)) return
     if (any(matrix%col_ind /= context%pattern_col_ind)) return
     same_sparse_pattern = .true.
@@ -662,11 +666,13 @@ contains
     if (.not. allocated(matrix%row_ptr)) return
     if (.not. allocated(matrix%col_ind)) return
     if (.not. allocated(matrix%values)) return
-    if (size(matrix%row_ptr) /= matrix%nrows+1) return
-    if (size(matrix%col_ind) /= size(matrix%values)) return
-    if (matrix%row_ptr(1) /= 1) return
-    if (matrix%row_ptr(matrix%nrows+1) /= size(matrix%col_ind)+1) return
-    if (any(matrix%col_ind < 1) .or. any(matrix%col_ind > matrix%ncols)) return
+    if (size(matrix%row_ptr,kind=i64) /= int(matrix%nrows,i64)+1_i64) return
+    if (size(matrix%col_ind,kind=i64) /= size(matrix%values,kind=i64)) return
+    if (matrix%row_ptr(1) /= 1_i64) return
+    if (matrix%row_ptr(matrix%nrows+1) /= &
+        size(matrix%col_ind,kind=i64)+1_i64) return
+    if (any(matrix%col_ind < 1_i64) .or. &
+        any(matrix%col_ind > int(matrix%ncols,i64))) return
     valid_csr_structure = .true.
   end function valid_csr_structure
 

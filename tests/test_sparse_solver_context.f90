@@ -63,6 +63,10 @@ program test_sparse_solver_context
 
   call analyze_sparse_pattern(context,A,status)
   if (status /= DES_STATUS_OK) error stop 'Pattern analysis basarisiz.'
+  if (kind(context%pattern_row_ptr(1)) /= i64 .or. &
+      kind(context%pattern_col_ind(1)) /= i64) then
+    error stop 'Sparse context cached pattern storage int64 degil.'
+  end if
   call reorder_sparse_pattern(context,status)
   if (status /= DES_STATUS_OK) error stop 'Reorder lifecycle basarisiz.'
   call factorize_sparse_matrix(context,A,status)

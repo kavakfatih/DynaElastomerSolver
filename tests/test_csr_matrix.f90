@@ -7,7 +7,8 @@ program test_csr_matrix
   implicit none
 
   type(csr_matrix_t) :: A
-  integer :: maps(2,3), status, row, k
+  integer :: maps(2,3), status, row
+  integer(i64) :: k
   integer :: fixed_dofs(2)
   real(dp) :: K1(3,3), K2(3,3), dense(5,5), expected(5,5)
   real(dp) :: constrained_expected(5,5)
@@ -22,14 +23,17 @@ program test_csr_matrix
   if (A%nnz_i64() /= 17_i64) then
     error stop 'CSR 64-bit structural nnz sorgusu beklenen degeri vermedi.'
   end if
+  if (kind(A%row_ptr(1)) /= i64 .or. kind(A%col_ind(1)) /= i64) then
+    error stop 'CSR structural index storage int64 degil.'
+  end if
 
-  if (A%row_ptr(1) /= 1 .or. A%row_ptr(6) /= 18) then
+  if (A%row_ptr(1) /= 1_i64 .or. A%row_ptr(6) /= 18_i64) then
     error stop 'CSR row_ptr 1-based sozlesmesi bozuldu.'
   end if
 
   do row = 1,A%nrows
-    do k = A%row_ptr(row)+1,A%row_ptr(row+1)-1
-      if (A%col_ind(k) <= A%col_ind(k-1)) then
+    do k = A%row_ptr(row)+1_i64,A%row_ptr(row+1)-1_i64
+      if (A%col_ind(k) <= A%col_ind(k-1_i64)) then
         error stop 'CSR kolon indeksleri satir icinde strictly sorted degil.'
       end if
     end do

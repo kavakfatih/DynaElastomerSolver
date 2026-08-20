@@ -63,6 +63,9 @@ program test_mumps_sparse_solver_context
   if (status /= DES_STATUS_OK) then
     error stop 'MUMPS context CSR graph kuramadi.'
   end if
+  if (kind(A%row_ptr(1)) /= i64 .or. kind(A%col_ind(1)) /= i64) then
+    error stop 'MUMPS bridge Dyna CSR structural storage int64 degil.'
+  end if
 
   settings = production_linear_solver_settings()
   settings%backend = DES_LINEAR_BACKEND_MUMPS_DIRECT

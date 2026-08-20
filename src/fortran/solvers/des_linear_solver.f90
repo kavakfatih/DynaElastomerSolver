@@ -243,7 +243,8 @@ contains
     type(CSR_dp_type) :: A_stdlib
     real(dp), allocatable :: Ax(:), b_scaled(:)
     real(dp) :: residual_limit, rhs_scale, row_max, inverse_row_scale
-    integer :: matvec_status, kdim, row, first_entry, last_entry
+    integer :: matvec_status, kdim, row
+    integer(i64) :: first_entry, last_entry
 
     if (.not. stdlib_csr_index_range_supported( &
         int(A%nrows,i64),A%nnz_i64()) .or. &
@@ -268,7 +269,7 @@ contains
     allocate(b_scaled(size(b)))
     do row = 1,A%nrows
       first_entry = A%row_ptr(row)
-      last_entry = A%row_ptr(row+1)-1
+      last_entry = A%row_ptr(row+1)-1_i64
       row_max = 0.0_dp
       if (last_entry >= first_entry) then
         row_max = maxval(abs(A%values(first_entry:last_entry)))
@@ -336,12 +337,13 @@ contains
 
     fits = .false.
     if (.not. allocated(A%row_ptr) .or. .not. allocated(A%col_ind)) return
-    if (size(A%row_ptr) < 2 .or. size(A%col_ind) < 1) return
+    if (size(A%row_ptr,kind=i64) < 2_i64 .or. &
+        size(A%col_ind,kind=i64) < 1_i64) return
 
     i32_max = int(huge(0_i32),i64)
-    if (minval(A%row_ptr) < 1 .or. minval(A%col_ind) < 1) return
-    if (int(maxval(A%row_ptr),i64) > i32_max) return
-    if (int(maxval(A%col_ind),i64) > i32_max) return
+    if (minval(A%row_ptr) < 1_i64 .or. minval(A%col_ind) < 1_i64) return
+    if (maxval(A%row_ptr) > i32_max) return
+    if (maxval(A%col_ind) > i32_max) return
     fits = .true.
   end function csr_pattern_values_fit_i32
 
