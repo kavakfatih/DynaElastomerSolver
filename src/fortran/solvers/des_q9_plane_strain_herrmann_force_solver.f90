@@ -6,7 +6,8 @@ module des_q9_plane_strain_herrmann_force_solver
                          DES_ERROR_CUTBACK_EXHAUSTED, &
                          DES_ERROR_UNSUPPORTED_LINEAR_BACKEND, &
                          DES_ERROR_LINE_SEARCH_FAILED, &
-                         DES_ERROR_NONLINEAR_DIVERGENCE
+                         DES_ERROR_NONLINEAR_DIVERGENCE, &
+                         DES_ERROR_NONFINITE_NONLINEAR
   use des_internal_mesh, only : internal_mesh_t, validate_internal_mesh
   use des_csr_matrix, only : csr_matrix_t, csr_apply_zero_dirichlet
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
@@ -25,7 +26,9 @@ module des_q9_plane_strain_herrmann_force_solver
                                  append_convergence_record, mark_last_convergence_status
   use des_nonlinear_solver, only : nonlinear_solver_settings_t, &
       nonlinear_solver_settings_valid, line_search_residual_accepted, &
-      next_residual_growth_streak
+      next_residual_growth_streak, nonlinear_values_finite, &
+      DES_NONFINITE_STAGE_NONE, DES_NONFINITE_STAGE_RESIDUAL, &
+      DES_NONFINITE_STAGE_CORRECTION, DES_NONFINITE_STAGE_TRIAL_STATE
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_3X3
@@ -256,6 +259,10 @@ contains
     ! backtracking yapılır. Line-search başarısızlığı increment cutback zincirine
     ! kontrollü nonlinear failure olarak aktarılır.
     !
+    ! B8.2 ile residual, Newton correction ve mixed trial state üzerinde NaN/Inf
+    ! değerleri explicit olarak reddedilir. Internal non-finite failure normal
+    ! adaptive rollback/cutback zincirine girer; non-finite girişler fail-fast olur.
+    !
     ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
     ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
     ! yalnız numeric values aşaması ve solve tekrarlanır.
@@ -286,8 +293,9 @@ contains
     real(dp) :: correction_scale, candidate_residual_norm, candidate_min_j
     integer :: ndisp, ntotal, nfree, status, failure_status, active_quadrature
     integer :: iteration, a, b, attempt, line_search_trial, line_search_trials
-    integer :: residual_growth_streak
+    integer :: residual_growth_streak, nonfinite_stage
     logical :: increment_converged, use_sparse_backend, line_search_accepted
+    logical :: finite_candidate_seen, nonfinite_candidate_seen
     real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
@@ -305,6 +313,20 @@ contains
     report%last_linear_report%backend = active_linear_settings%backend
     call clear_convergence_history(report%history)
     residual = 0.0_dp
+
+    if (.not. nonlinear_values_finite(initial_increment) .or. &
+        .not. nonlinear_values_finite(min_increment) .or. &
+        .not. nonlinear_values_finite(cutback_factor) .or. &
+        .not. nonlinear_values_finite(tolerance) .or. &
+        .not. nonlinear_values_finite(shear_modulus) .or. &
+        .not. nonlinear_values_finite(pressure_compliance) .or. &
+        .not. nonlinear_values_finite(external_force) .or. &
+        .not. nonlinear_values_finite(u) .or. &
+        .not. nonlinear_values_finite(pressure_coefficients)) then
+      report%status = DES_ERROR_NONFINITE_NONLINEAR
+      report%last_failure_status = DES_ERROR_NONFINITE_NONLINEAR
+      return
+    end if
 
     if (initial_increment <= 0.0_dp .or. initial_increment > 1.0_dp .or. &
         min_increment <= 0.0_dp .or. min_increment > initial_increment .or. &
@@ -370,8 +392,20 @@ contains
       failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
       previous_residual_norm = huge(1.0_dp)
       residual_growth_streak = 0
+      nonfinite_stage = DES_NONFINITE_STAGE_NONE
+      min_j = huge(1.0_dp)
 
       do iteration = 1,max_iterations
+        if (.not. nonlinear_values_finite(displacement_state%trial) .or. &
+            .not. nonlinear_values_finite(pressure_state%trial)) then
+          nonfinite_stage = DES_NONFINITE_STAGE_TRIAL_STATE
+          call add_herrmann_history(report,attempt,iteration,target_factor, &
+              accepted_step,huge(1.0_dp),min_j,DES_ERROR_NONFINITE_NONLINEAR,.false., &
+              nonfinite_stage=nonfinite_stage)
+          failure_status = DES_ERROR_NONFINITE_NONLINEAR
+          exit
+        end if
+
         if (use_sparse_backend) then
           call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
               mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
@@ -393,6 +427,16 @@ contains
         end if
 
         residual(1:ndisp) = residual(1:ndisp) - target_factor*external_force
+        if (.not. nonlinear_values_finite(residual) .or. &
+            .not. nonlinear_values_finite(min_j)) then
+          nonfinite_stage = DES_NONFINITE_STAGE_RESIDUAL
+          call add_herrmann_history(report,attempt,iteration,target_factor, &
+              accepted_step,huge(1.0_dp),min_j,DES_ERROR_NONFINITE_NONLINEAR,.false., &
+              nonfinite_stage=nonfinite_stage)
+          failure_status = DES_ERROR_NONFINITE_NONLINEAR
+          exit
+        end if
+
         residual_norm = maxval(abs(residual(free_dofs)))
         report%final_residual_norm = residual_norm
 
@@ -461,22 +505,42 @@ contains
         else
           correction = delta
         end if
+        if (.not. nonlinear_values_finite(correction)) then
+          nonfinite_stage = DES_NONFINITE_STAGE_CORRECTION
+          call add_herrmann_history(report,attempt,iteration,target_factor, &
+              accepted_step,residual_norm,min_j,DES_ERROR_NONFINITE_NONLINEAR,.false., &
+              nonfinite_stage=nonfinite_stage)
+          failure_status = DES_ERROR_NONFINITE_NONLINEAR
+          exit
+        end if
 
         if (.not. active_nonlinear_settings%line_search_enabled) then
           correction_scale = 1.0_dp
           line_search_trials = 0
-          call add_herrmann_history(report,attempt,iteration,target_factor, &
-              accepted_step,residual_norm,min_j,DES_STATUS_OK,.false., &
-              correction_scale,line_search_trials)
           call add_mixed_increment( &
               displacement_state%trial,pressure_state%trial,ndisp,free_dofs,correction)
           call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+          if (.not. nonlinear_values_finite(displacement_state%trial) .or. &
+              .not. nonlinear_values_finite(pressure_state%trial)) then
+            nonfinite_stage = DES_NONFINITE_STAGE_TRIAL_STATE
+            call add_herrmann_history(report,attempt,iteration,target_factor, &
+                accepted_step,residual_norm,min_j,DES_ERROR_NONFINITE_NONLINEAR,.false., &
+                correction_scale,line_search_trials,nonfinite_stage)
+            failure_status = DES_ERROR_NONFINITE_NONLINEAR
+            exit
+          end if
+          call add_herrmann_history(report,attempt,iteration,target_factor, &
+              accepted_step,residual_norm,min_j,DES_STATUS_OK,.false., &
+              correction_scale,line_search_trials)
         else
           base_u = displacement_state%trial
           base_pressure = pressure_state%trial
           correction_scale = 1.0_dp
           line_search_trials = 0
           line_search_accepted = .false.
+          finite_candidate_seen = .false.
+          nonfinite_candidate_seen = .false.
+          nonfinite_stage = DES_NONFINITE_STAGE_NONE
           candidate_residual_norm = huge(1.0_dp)
           candidate_min_j = min_j
 
@@ -491,6 +555,15 @@ contains
                 displacement_state%trial,pressure_state%trial,ndisp,free_dofs, &
                 correction_scale*correction)
             call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+
+            if (.not. nonlinear_values_finite(displacement_state%trial) .or. &
+                .not. nonlinear_values_finite(pressure_state%trial)) then
+              nonfinite_candidate_seen = .true.
+              nonfinite_stage = DES_NONFINITE_STAGE_TRIAL_STATE
+              correction_scale = correction_scale* &
+                  active_nonlinear_settings%line_search_reduction
+              cycle
+            end if
 
             if (use_sparse_backend) then
               call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
@@ -507,13 +580,20 @@ contains
 
             if (status == DES_STATUS_OK) then
               residual(1:ndisp) = residual(1:ndisp) - target_factor*external_force
-              candidate_residual_norm = maxval(abs(residual(free_dofs)))
-              if (candidate_residual_norm < tolerance .or. &
-                  line_search_residual_accepted( &
-                      residual_norm,candidate_residual_norm,correction_scale, &
-                      active_nonlinear_settings)) then
-                line_search_accepted = .true.
-                exit
+              if (nonlinear_values_finite(residual) .and. &
+                  nonlinear_values_finite(candidate_min_j)) then
+                finite_candidate_seen = .true.
+                candidate_residual_norm = maxval(abs(residual(free_dofs)))
+                if (candidate_residual_norm < tolerance .or. &
+                    line_search_residual_accepted( &
+                        residual_norm,candidate_residual_norm,correction_scale, &
+                        active_nonlinear_settings)) then
+                  line_search_accepted = .true.
+                  exit
+                end if
+              else
+                nonfinite_candidate_seen = .true.
+                nonfinite_stage = DES_NONFINITE_STAGE_RESIDUAL
               end if
             end if
 
@@ -525,11 +605,19 @@ contains
             displacement_state%trial = base_u
             pressure_state%trial = base_pressure
             call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
-            call add_herrmann_history(report,attempt,iteration,target_factor, &
-                accepted_step,residual_norm,candidate_min_j, &
-                DES_ERROR_LINE_SEARCH_FAILED,.false., &
-                correction_scale,line_search_trials)
-            failure_status = DES_ERROR_LINE_SEARCH_FAILED
+            if (nonfinite_candidate_seen .and. .not. finite_candidate_seen) then
+              call add_herrmann_history(report,attempt,iteration,target_factor, &
+                  accepted_step,residual_norm,candidate_min_j, &
+                  DES_ERROR_NONFINITE_NONLINEAR,.false., &
+                  correction_scale,line_search_trials,nonfinite_stage)
+              failure_status = DES_ERROR_NONFINITE_NONLINEAR
+            else
+              call add_herrmann_history(report,attempt,iteration,target_factor, &
+                  accepted_step,residual_norm,candidate_min_j, &
+                  DES_ERROR_LINE_SEARCH_FAILED,.false., &
+                  correction_scale,line_search_trials)
+              failure_status = DES_ERROR_LINE_SEARCH_FAILED
+            end if
             exit
           end if
 
@@ -850,13 +938,13 @@ contains
 
   subroutine add_herrmann_history( &
       report,attempt,iteration,load_factor,increment_size,residual_norm, &
-      min_j,status,accepted,correction_scale,line_search_trials)
+      min_j,status,accepted,correction_scale,line_search_trials,nonfinite_stage)
     type(newton_report_t), intent(inout) :: report
     integer, intent(in) :: attempt, iteration, status
     real(dp), intent(in) :: load_factor, increment_size, residual_norm, min_j
     logical, intent(in) :: accepted
     real(dp), intent(in), optional :: correction_scale
-    integer, intent(in), optional :: line_search_trials
+    integer, intent(in), optional :: line_search_trials, nonfinite_stage
     type(convergence_record_t) :: record
 
     record%attempt = attempt
@@ -867,8 +955,10 @@ contains
     record%min_j = min_j
     record%status = status
     record%accepted = accepted
+    record%cutback_index = report%cutback_count
     if (present(correction_scale)) record%correction_scale = correction_scale
     if (present(line_search_trials)) record%line_search_trials = line_search_trials
+    if (present(nonfinite_stage)) record%nonfinite_stage = nonfinite_stage
     call append_convergence_record(report%history,record)
   end subroutine add_herrmann_history
 
