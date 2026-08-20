@@ -766,3 +766,69 @@ B8.4 acceptance testleri en az şunları kapsayacaktır:
 B8.4 yalnız predictor foundation kapsamındadır; arc-length/Riks, trust-region veya farklı continuation yöntemleri bu pakete alınmayacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 13. 2026-08-20 B8.4 final kapanış ve B9.1 performance/scaling baseline başlangıç checkpoint'i
+
+B8.4 final teknik head'i:
+
+```text
+develop/v0.3 = 06e7e056d52cfd30b8529184504d4a74fb8058bd
+```
+
+B8.4 ile adaptive Q9/P1 mixed `u-P` production yoluna committed-state secant predictor foundation eklendi. Predictor varsayılan olarak kapalıdır; yalnız explicit enable ve iki başarılı committed mixed state mevcut olduğunda trial state için kullanılır. Displacement ve pressure aynı load-step ratio ile birlikte extrapolate edilir; committed state doğrudan değiştirilmez. Cutback retry'de predictor devre dışı kalır ve non-finite predictor state/step girdileri reddedilir.
+
+Production report API'sine predictor event sayısı ve maksimum predictor scale tanıları taşındı. Policy unit regression ve gerçek Q9/P1 predictor integration regression eklendi. Predictor açık/kapalı final displacement, pressure ve residual parity sözleşmesi korunur.
+
+Final CI, aynı `06e7e056d52cfd30b8529184504d4a74fb8058bd` SHA üzerinde:
+
+```text
+NORMAL / MUMPS-off
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS DIRECT / production preset
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                   = 8/8 SUCCESS
+```
+
+GitHub Actions run kimlikleri:
+
+```text
+Normal Fortran CI = 32378352842
+MUMPS Direct CI   = 32378352800
+```
+
+B8.4 acceptance sonucu:
+
+```text
+B8.4 = PASS
+```
+
+Bu kayıtla B8 nonlinear robustness paketi kapatılmış ve yeni küçük paket **B9.1 — Q9/P1 production performance/scaling baseline** başlatılmıştır.
+
+B9.1 kapsamı yalnız ölçüm ve raporlama foundation'ıdır; bu alt pakette agresif optimizasyon yapılmayacaktır. İlk hedefler:
+
+```text
+1. Q9/P1 mixed problem boyutunu (node/element/u/p/total DOF) görünür raporlamak
+2. CSR nonzero sayısı ve sparsity yoğunluğunu kaydetmek
+3. nonlinear increment/Newton ve linear solve sayaçlarını aynı benchmark kaydında toplamak
+4. wall-clock total solve süresini ve mümkünse assembly/linear-solve ana fazlarını ölçmek
+5. küçükten büyüğe deterministik mesh seviyeleriyle scaling baseline üretmek
+6. MUMPS production ve portable sparse yolunu aynı fizik probleminde karşılaştırılabilir metadata ile raporlamak
+7. timing sonuçlarını correctness gate'e dönüştürmemek; CI donanım gürültüsü nedeniyle katı süre threshold'u koymamak
+8. benchmark executable'ını normal CTest correctness paketinden ayrı tutmak
+```
+
+B9.1 kabulünde solver formulation, B8 nonlinear transaction semantics ve backend seçim politikası değiştirilmeyecektir. Ölçüm katmanı production sonuçlarını değiştirmemeli; aynı benchmark probleminin final mixed state/residual doğruluğu mevcut regression sözleşmeleriyle korunmalıdır.
+
+B9.1 sonrasında performans verisine göre B9.2 optimizasyon hedefleri seçilecektir; ölçüm yapılmadan speculative optimization yapılmayacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
