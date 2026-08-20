@@ -16,6 +16,8 @@ module des_status
   integer, parameter, public :: DES_ERROR_NEWTON_DID_NOT_CONVERGE = -302
   integer, parameter, public :: DES_ERROR_CUTBACK_EXHAUSTED = -303
   integer, parameter, public :: DES_ERROR_UNSUPPORTED_LINEAR_BACKEND = -304
+  integer, parameter, public :: DES_ERROR_LINE_SEARCH_FAILED = -305
+  integer, parameter, public :: DES_ERROR_NONLINEAR_DIVERGENCE = -306
 
   public :: des_status_message
 contains
@@ -53,6 +55,10 @@ contains
       message = 'Cutback/retry sınırı tükendi'
     case (DES_ERROR_UNSUPPORTED_LINEAR_BACKEND)
       message = 'Desteklenmeyen lineer solver backend seçildi'
+    case (DES_ERROR_LINE_SEARCH_FAILED)
+      message = 'Newton line-search yeterli residual azalması bulamadı'
+    case (DES_ERROR_NONLINEAR_DIVERGENCE)
+      message = 'Nonlinear residual ardışık olarak büyüyerek diverge etti'
     case default
       message = 'Bilinmeyen DES durum kodu'
     end select
