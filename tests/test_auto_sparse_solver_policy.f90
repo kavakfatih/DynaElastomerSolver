@@ -16,6 +16,8 @@ program test_auto_sparse_solver_policy
       DES_PROBLEM_CLASS_MIXED_U_P, DES_INDEX_CLASS_INT32
   implicit none
 
+  ! B7 kabul kapısı aynı testi iki build profilinde çalıştırır:
+  ! MUMPS-enabled -> sparse direct; MUMPS-disabled -> portable GMRES fallback.
   type(csr_matrix_t) :: A
   type(linear_solver_settings_t) :: settings
   type(linear_solver_report_t) :: report
