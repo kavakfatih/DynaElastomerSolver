@@ -1,9 +1,10 @@
 program test_auto_sparse_solver_policy
   use des_kinds, only : dp
-  use des_status, only : DES_STATUS_OK
+  use des_status, only : DES_STATUS_OK, DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_csr_matrix, only : csr_matrix_t, &
       initialize_csr_from_element_dof_maps, csr_add_local_matrix
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
+      production_linear_solver_settings, &
       DES_LINEAR_BACKEND_AUTO, DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
       DES_LINEAR_BACKEND_MUMPS_DIRECT, DES_LINEAR_FALLBACK_NONE, &
       DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE
@@ -16,9 +17,9 @@ program test_auto_sparse_solver_policy
       DES_PROBLEM_CLASS_MIXED_U_P, DES_INDEX_CLASS_INT32
   implicit none
 
-  ! B7 kabul kapısı aynı testi iki build profilinde çalıştırır:
-  ! MUMPS-enabled -> sparse direct; MUMPS-disabled -> portable GMRES fallback.
-  ! Backend availability kararı yalnız SparseSolverContext sınırında doğrulanır.
+  ! B7/B7b kabul kapısı aynı testi iki build profilinde çalıştırır:
+  ! MUMPS-enabled -> gerçek sparse direct; MUMPS-disabled -> portable GMRES fallback.
+  ! Explicit MUMPS isteği ise unavailable durumda sessiz fallback yapamaz.
   type(csr_matrix_t) :: A
   type(linear_solver_settings_t) :: settings
   type(linear_solver_report_t) :: report
@@ -40,8 +41,13 @@ program test_auto_sparse_solver_policy
   call csr_add_local_matrix(A,maps(1,:),A_dense,status)
   if (status /= DES_STATUS_OK) error stop 'AUTO policy CSR values assemble edemedi.'
 
-  settings = linear_solver_settings_t()
-  settings%backend = DES_LINEAR_BACKEND_AUTO
+  settings = production_linear_solver_settings()
+  if (settings%backend /= DES_LINEAR_BACKEND_AUTO .or. &
+      settings%direct_iterative_refinement_steps < 1 .or. &
+      settings%direct_error_analysis /= 2 .or. &
+      .not. settings%direct_null_pivot_detection) then
+    error stop 'Production solver profili direct-first kontrolleri tasimiyor.'
+  end if
   settings%relative_tolerance = 1.0e-11_dp
   settings%absolute_tolerance = 1.0e-12_dp
   settings%max_iterations = 30
@@ -109,6 +115,9 @@ program test_auto_sparse_solver_policy
     if (.not. report%direct_factorization_performed) then
       error stop 'AUTO MUMPS direct factorization flag raporlanmadi.'
     end if
+    if (report%direct_null_pivot_count /= 0) then
+      error stop 'AUTO MUMPS nonsingular testte null pivot raporladi.'
+    end if
   else
     if (report%direct_factorization_performed) then
       error stop 'AUTO GMRES direct factorization yapmis gibi raporlandi.'
@@ -116,8 +125,23 @@ program test_auto_sparse_solver_policy
   end if
 
   call release_sparse_solver_context(context)
+
+  if (.not. DES_MUMPS_AVAILABLE) then
+    settings = production_linear_solver_settings()
+    settings%backend = DES_LINEAR_BACKEND_MUMPS_DIRECT
+    call create_sparse_solver_context( &
+        context,settings,DES_MATRIX_CLASS_SYMMETRIC_INDEFINITE, &
+        DES_PROBLEM_CLASS_MIXED_U_P,DES_INDEX_CLASS_INT32,status)
+    if (status /= DES_ERROR_UNSUPPORTED_LINEAR_BACKEND) then
+      error stop 'Explicit MUMPS unavailable durumda fail-fast yapmadi.'
+    end if
+    if (context%fallback_used) then
+      error stop 'Explicit MUMPS istegi sessiz GMRES fallback yapti.'
+    end if
+  end if
+
   write(*,'(A,I0)') 'AUTO requested backend = ',DES_LINEAR_BACKEND_AUTO
   write(*,'(A,I0)') 'AUTO selected backend = ',expected_backend
   write(*,'(A,L1)') 'AUTO fallback used = ',diagnostics%fallback_used
-  write(*,'(A)') 'B7 AUTO sparse solver policy testi BASARILI.'
+  write(*,'(A)') 'B7b AUTO/production sparse solver policy testi BASARILI.'
 end program test_auto_sparse_solver_policy
