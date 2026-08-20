@@ -45,6 +45,7 @@ add_library(DynaElastomerCore STATIC
   solvers/des_solver_history.f90
   solvers/des_nonlinear_solver.f90
   solvers/des_adaptive_increment.f90
+  solvers/des_adaptive_predictor.f90
   solvers/des_q4_plane_strain_newton_solver.f90
   solvers/des_q4_plane_strain_force_solver.f90
   solvers/des_q4_plane_strain_mixed_up_force_solver.f90
