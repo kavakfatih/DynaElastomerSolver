@@ -989,3 +989,87 @@ B9.2 kapanış için aynı teknik davranış üzerinde şu kapılar zorunludur:
 ```
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 16. 2026-08-20 B9.2 final kapanış ve B9.3 faz-zamanlama başlangıç checkpoint'i
+
+B9.2 final teknik head'i:
+
+```text
+95c783f9e40814a9e6d74171ce03e811253da198
+```
+
+Final CI aynı teknik SHA üzerinde kapanmıştır:
+
+```text
+Normal Fortran CI = 32391481483
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS Direct CI = 32391481350
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                  = 8/8 SUCCESS
+```
+
+Normal Linux/gfortran artifact'ında row-equilibration sonrası portable CSR GMRES ölçümleri:
+
+```text
+Mesh      Free eq.   B9.1 wall(s)   B9.2 wall(s)   Değişim
+Q9 1x1          15       0.004711       0.004780     +%1.5
+Q9 2x2          52       0.028486       0.030167     +%5.9
+Q9 3x3         111       1.246115       0.811191     -%34.9
+Q9 4x4         192      11.000924       3.029243     -%72.5
+```
+
+Küçük vakalarda runner/timing gürültüsü seviyesinde hafif artış varken, B9.1'de darboğaz olarak belirlenen 3x3 ve 4x4 vakalarında belirgin iyileşme vardır. 3x3 yaklaşık 1.54x, 4x4 yaklaşık 3.63x hızlanmıştır. Benchmark timing sonuçları report-only kalır; katı wall-clock pass/fail threshold'u eklenmemiştir.
+
+MUMPS production Linux job artifact'ında aynı runner üzerinde GMRES ve MUMPS karşılaştırması da başarıyla üretilmiştir. 4x4 vaka için:
+
+```text
+GMRES wall = 0.874241 s
+MUMPS wall = 0.005339 s
+MUMPS/GMRES wall ratio = 0.006107
+```
+
+Bu timing oranı correctness gate değildir; production AUTO→MUMPS Direct önceliğini destekleyen performans kanıtı olarak kaydedilir.
+
+Aynı-runner correctness karşılaştırmasında maksimum farklar:
+
+```text
+max tip-y relative gap    = 8.448152123001485e-09
+max minimum-J relative gap = 8.901110489039245e-11
+acceptance limit           = 5e-6
+```
+
+Dolayısıyla GMRES row-equilibration final mixed state doğruluğunu bozmadı. Normal Linux CTest paketi 81/81 PASS olmuş; fully-incompressible Q9/P1, sparse CSR GMRES indefinite, adaptive increment/predictor ve production acceptance regressions başarıyla çalışmıştır. Original-system residual acceptance korunur; correctness toleransları gevşetilmemiştir.
+
+B9.2 acceptance sonucu:
+
+```text
+B9.2 = PASS
+```
+
+Bu kayıtla yeni küçük paket **B9.3 — Q9/P1 phase-level performance instrumentation** başlatılmıştır. B9.3'ün amacı yeni bir optimizasyon tekniği eklemek değil, B9.1/B9.2 toplam süre ölçümünü ana fazlara ayırarak sonraki optimizasyon hedefini kanıtla seçmektir.
+
+B9.3 kapsamı:
+
+```text
+1. assembly süresini görünür ölçmek
+2. linear solver toplam süresini görünür ölçmek
+3. mümkünse linear analyze/reorder/factorize/solve alt fazlarını backend-neutral diagnostics ile ayırmak
+4. GMRES ve MUMPS benchmark JSON'una aynı faz alanlarını eklemek
+5. timing alanlarını report-only tutmak; correctness threshold yapmamak
+6. mevcut solver formulation ve numerical policy'yi değiştirmemek
+7. normal + MUMPS 8/8 compiler matrisi ile doğrulamak
+```
+
+B9.3'te mixed `u-P` formulation, row-equilibration, production AUTO→MUMPS policy, nonlinear rollback/cutback/growth/predictor semantics ve correctness toleransları değiştirilmeyecektir. Faz ölçümü solver sonucunu etkilememeli ve native macOS Apple Silicon/Linux/Windows desteği korunmalıdır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
