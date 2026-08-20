@@ -81,6 +81,7 @@ des_add_fortran_test(test_sparse_linear_solver solver.sparse.csr_gmres_indefinit
 des_add_fortran_test(test_sparse_solver_context solver.sparse.context_lifecycle test_sparse_solver_context.f90)
 des_add_fortran_test(test_auto_sparse_solver_policy solver.sparse.auto_policy test_auto_sparse_solver_policy.f90)
 des_add_fortran_test(test_nonlinear_solver_policy solver.nonlinear.line_search_policy test_nonlinear_solver_policy.f90)
+des_add_fortran_test(test_adaptive_increment_policy solver.adaptive.increment_policy test_adaptive_increment_policy.f90)
 
 if(DES_ENABLE_MUMPS)
   des_add_fortran_test(
