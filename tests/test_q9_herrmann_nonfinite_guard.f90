@@ -76,7 +76,7 @@ program test_q9_herrmann_nonfinite_guard
     error stop 'NaN input sonrasi solution metrics gecersiz kalmadi.'
   end if
   if (maxval(abs(u)) > 0.0_dp .or. maxval(abs(p)) > 0.0_dp) then
-    error stop 'NaN input committed mixed state'i degistirdi.'
+    error stop 'NaN input committed mixed state degerini degistirdi.'
   end if
 
   write(*,'(A)') 'Q9/P1 adaptive NaN/Inf input guard testi BASARILI.'
