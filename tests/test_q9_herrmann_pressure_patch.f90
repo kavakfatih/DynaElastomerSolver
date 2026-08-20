@@ -2,6 +2,7 @@ program test_q9_herrmann_pressure_patch
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
+  use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
   use des_q9_plane_strain_herrmann_force_solver, only : &
@@ -25,6 +26,7 @@ program test_q9_herrmann_pressure_patch
   integer :: status,a,k
   type(internal_mesh_t) :: mesh
   type(newton_report_t) :: report
+  type(linear_solver_settings_t) :: dense_settings
 
   X(1,:) = [0.0_dp,0.0_dp]
   X(2,:) = [1.0_dp,0.0_dp]
@@ -55,6 +57,7 @@ program test_q9_herrmann_pressure_patch
   pressure_cases(2,:) = [ 0.00e0_dp, 8.00e-2_dp,  0.00e0_dp]
   pressure_cases(3,:) = [ 0.00e0_dp, 0.00e0_dp, -6.00e-2_dp]
   pressure_cases(4,:) = [ 1.50e-1_dp, 8.00e-2_dp, -6.00e-2_dp]
+  dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
 
   do k = 1,ncase
     p_target = 0.0_dp
@@ -80,7 +83,7 @@ program test_q9_herrmann_pressure_patch
     call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
         mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
         0.2_dp,0.0125_dp,0.5_dp,6,45,1.0e-11_dp, &
-        u,p,residual,report)
+        u,p,residual,report,linear_settings=dense_settings)
 
     if (.not. report%converged .or. report%status /= DES_STATUS_OK) then
       error stop 'Q9/P1 pressure patch nonlinear solver yakinsamadi.'
