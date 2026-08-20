@@ -18,6 +18,7 @@ module des_status
   integer, parameter, public :: DES_ERROR_UNSUPPORTED_LINEAR_BACKEND = -304
   integer, parameter, public :: DES_ERROR_LINE_SEARCH_FAILED = -305
   integer, parameter, public :: DES_ERROR_NONLINEAR_DIVERGENCE = -306
+  integer, parameter, public :: DES_ERROR_NONFINITE_NONLINEAR = -307
 
   public :: des_status_message
 contains
@@ -59,6 +60,8 @@ contains
       message = 'Newton line-search yeterli residual azalması bulamadı'
     case (DES_ERROR_NONLINEAR_DIVERGENCE)
       message = 'Nonlinear residual ardışık olarak büyüyerek diverge etti'
+    case (DES_ERROR_NONFINITE_NONLINEAR)
+      message = 'Nonlinear çözümde NaN/Inf değeri algılandı'
     case default
       message = 'Bilinmeyen DES durum kodu'
     end select
