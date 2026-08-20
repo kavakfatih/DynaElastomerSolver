@@ -387,8 +387,8 @@ contains
           results_value(i)%selected_backend,','
       write(unit,'(A,A,A)') '      "selected_backend": "', &
           trim(linear_backend_name(results_value(i)%selected_backend)),'",'
-      write(unit,'(A,L1,A)') '      "fallback_used": ', &
-          results_value(i)%fallback_used,','
+      write(unit,'(A,A,A)') '      "fallback_used": ', &
+          trim(json_boolean(results_value(i)%fallback_used)),','
       write(unit,'(A,ES24.16E3,A)') '      "tip_y_displacement": ', &
           results_value(i)%tip_y,','
       write(unit,'(A,ES24.16E3,A)') '      "final_residual_inf_norm": ', &
@@ -414,6 +414,17 @@ contains
     write(unit,'(A)') '  ]'
     write(unit,'(A)') '}'
   end subroutine write_json
+
+  pure function json_boolean(value) result(text)
+    logical, intent(in) :: value
+    character(len=5) :: text
+
+    if (value) then
+      text = 'true '
+    else
+      text = 'false'
+    end if
+  end function json_boolean
 
   function to_string(value) result(text)
     integer, intent(in) :: value
