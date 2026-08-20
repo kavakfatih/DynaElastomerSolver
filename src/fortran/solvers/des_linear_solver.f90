@@ -1,5 +1,5 @@
 module des_linear_solver
-  use des_kinds, only : dp, i32
+  use des_kinds, only : dp, i32, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
                          DES_ERROR_LINEAR_SOLVE, DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_csr_matrix, only : csr_matrix_t, csr_matvec
@@ -27,6 +27,7 @@ module des_linear_solver
   public :: solve_linear_system, solve_sparse_linear_system, linear_backend_name
   public :: linear_backend_is_sparse, linear_fallback_reason_name
   public :: production_linear_solver_settings
+  public :: stdlib_csr_index_range_supported
 
   type :: linear_solver_settings_t
     ! Dense LAPACK küçük doğrulama problemleri için reference/fallback olarak kalır.
@@ -244,8 +245,17 @@ contains
     real(dp) :: residual_limit, rhs_scale, row_max, inverse_row_scale
     integer :: matvec_status, kdim, row, first_entry, last_entry
 
+    if (.not. stdlib_csr_index_range_supported( &
+        int(A%nrows,i64),A%nnz_i64()) .or. &
+        .not. csr_pattern_values_fit_i32(A)) then
+      ! stdlib_sparse CSR bugün i32 rowptr/column depolaması kullanır. Büyük
+      ! problemde sessiz int(...,i32) narrowing yerine capability failure ver.
+      report%status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+      return
+    end if
+
     call A_stdlib%malloc( &
-        int(A%nrows,i32),int(A%ncols,i32),int(A%nnz(),i32))
+        int(A%nrows,i32),int(A%ncols,i32),int(A%nnz_i64(),i32))
     A_stdlib%rowptr = int(A%row_ptr,i32)
     A_stdlib%col = int(A%col_ind,i32)
 
@@ -307,6 +317,33 @@ contains
       report%converged = .false.
     end if
   end subroutine solve_stdlib_csr_gmres
+
+  pure logical function stdlib_csr_index_range_supported(n,nnz) result(supported)
+    ! stdlib CSR köprüsü Dyna'nın i64 cardinality bilgisini bugün i32'ye
+    ! dönüştürür. 1-based CSR rowptr son girdisi nnz+1 olduğu için nnz değeri
+    ! i32 maximumundan bir küçük veya daha az olmalıdır.
+    integer(i64), intent(in) :: n, nnz
+    integer(i64) :: i32_max
+
+    i32_max = int(huge(0_i32),i64)
+    supported = n >= 1_i64 .and. nnz >= 1_i64 .and. &
+                n <= i32_max .and. nnz < i32_max
+  end function stdlib_csr_index_range_supported
+
+  logical function csr_pattern_values_fit_i32(A) result(fits)
+    type(csr_matrix_t), intent(in) :: A
+    integer(i64) :: i32_max
+
+    fits = .false.
+    if (.not. allocated(A%row_ptr) .or. .not. allocated(A%col_ind)) return
+    if (size(A%row_ptr) < 2 .or. size(A%col_ind) < 1) return
+
+    i32_max = int(huge(0_i32),i64)
+    if (minval(A%row_ptr) < 1 .or. minval(A%col_ind) < 1) return
+    if (int(maxval(A%row_ptr),i64) > i32_max) return
+    if (int(maxval(A%col_ind),i64) > i32_max) return
+    fits = .true.
+  end function csr_pattern_values_fit_i32
 
   pure logical function linear_backend_is_sparse(backend)
     integer, intent(in) :: backend
