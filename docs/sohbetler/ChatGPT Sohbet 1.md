@@ -3,7 +3,7 @@
 **Proje:** DynaElastomerSolver  
 **Sürekli kayıt branch'i:** `main`  
 **Başlangıç:** 2026-08-17  
-**Son güncelleme:** 2026-08-19  
+**Son güncelleme:** 2026-08-20  
 
 ---
 
@@ -633,5 +633,44 @@ B6 kabul ilkeleri:
 - Windows x64 ve Linux x64 aynı backend abstraction ile korunacaktır.
 
 B6 sırasında MUMPS sürümü, checksum/provenance, CeCILL-C notice/source-access yükümlülükleri ve optional ordering bağımlılıkları açıkça kaydedilecektir. Bu kayıt hukuki görüş yerine geçmez; release öncesi third-party lisans kontrolü ayrıca zorunludur.
+
+Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 19. 2026-08-20 B6 final doğrulama turu başlangıç kaydı
+
+Kullanıcı `Devam edelim` diyerek B6 production sparse-direct çalışmasının final doğrulama turuna devam edilmesini istedi. Bu kayıt yeni teknik değişiklik veya görev planlamasından **önce** oluşturuldu.
+
+Canlı başlangıç checkpoint'i:
+
+```text
+develop/v0.3 head         = 92f16c14fa373473a6c796d3dc5458cf01248e9a
+PR #1                     = open / draft / merged=false / mergeable=true
+B6a direct backend        = MUMPS 5.9.1
+GNU static LAPACK/BLAS    = RESCAN link-group düzeltmesi uygulandı
+B6b Q9/P1 integration     = linear_backend_is_sparse() abstraction üzerinden bağlı
+```
+
+Bir önceki turda doğrulanan temel kanıtlar:
+
+- MUMPS direct-context altyapısı Linux/gfortran, macOS ARM64/gfortran, Windows/gfortran ve Windows/Intel ifx üzerinde çalışacak şekilde bağlandı.
+- GNU Linux/Windows statik Netlib LAPACK→BLAS link sırası problemi CMake `LINK_GROUP:RESCAN` ile giderildi.
+- Q9/P1 fixed ve adaptive Newton yolları vendor adını bilmeden sparse backend abstraction'ı üzerinden MUMPS kullanabilecek hale getirildi.
+- Linux/gfortran üzerinde final B6b head için direct-context, fixed Q9/P1 dense↔MUMPS parity ve adaptive/cutback parity testleri başarılı oldu.
+- MUMPS-kapalı dense/GMRES baseline yolunun korunması B6 kabul kriterinin parçası olmaya devam ediyor.
+
+Bu turun teknik kabul kapısı:
+
+```text
+1. final head üzerindeki normal dört-platform Fortran CI sonucunu kapat
+2. final head üzerindeki dört-platform MUMPS direct/parity matrisini kapat
+3. finite-compliance + cp=0, fixed + adaptive/cutback test adlarını/log kanıtlarını doğrula
+4. symbolic/reuse lifecycle ve backend diagnostics regresyonunun korunduğunu teyit et
+5. yalnız başarısız veya eksik kapı varsa minimal patch uygula
+6. bütün kapılar yeşilse B6'yı tamamlandı olarak kaydet ve B7 AUTO solver policy hazırlığına geç
+```
+
+macOS Apple Silicon ARM64 native MUMPS build/solve desteği zorunlu ürün kapısıdır. Windows x64 ve Linux x64 aynı backend abstraction altında korunacaktır.
 
 Kullanıcı açıkça istemeden PR #1 merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
