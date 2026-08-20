@@ -20,9 +20,13 @@ program test_q9_herrmann_mumps_failure_cutback
   ! - Adaptive solver her basarisiz trial'i revert etmeli, cutback uygulamali
   !   ve max_cutbacks+1 denemeden sonra committed u/p state'ini bozmadan
   !   DES_ERROR_CUTBACK_EXHAUSTED ile cikmalidir.
+  !
+  ! B8.2: her failure history kaydi, failure anindaki cutback index'ini de
+  ! tasimalidir. Index cutback uygulanmadan once kaydedildigi icin 0,1,2,...
+  ! sirasi retry zincirinin hangi seviyede bozuldugunu dogrudan gosterir.
 
   real(dp) :: X(9,2),u(9,2),p(1,3),external_force(18),residual(21)
-  integer :: connectivity(1,9),status
+  integer :: connectivity(1,9),status,h
   integer, parameter :: fixed_dofs(17) = [ &
       1,2,3,5,6,7,8,9,10,11,12,13,14,15,16,17,18 ]
   integer, parameter :: max_cutbacks = 2
@@ -97,6 +101,21 @@ program test_q9_herrmann_mumps_failure_cutback
   if (maxval(abs(p)) > 1.0e-14_dp) then
     error stop 'MUMPS factorization failure committed pressure stateini bozdu.'
   end if
+
+  if (report%history%count /= max_cutbacks+1) then
+    error stop 'MUMPS failure history kayit sayisi retry zinciriyle uyusmuyor.'
+  end if
+  do h = 1,report%history%count
+    if (report%history%records(h)%status /= DES_ERROR_LINEAR_SOLVE) then
+      error stop 'MUMPS failure history statusu beklenen linear-solve hatasi degil.'
+    end if
+    if (report%history%records(h)%cutback_index /= h-1) then
+      error stop 'MUMPS failure history cutback index sirasi hatali.'
+    end if
+    if (report%history%records(h)%nonfinite_stage /= 0) then
+      error stop 'Lineer failure yanlislikla non-finite event olarak isaretlendi.'
+    end if
+  end do
 
   write(*,'(A,I0)') 'MUMPS factorization failure cutback count = ',report%cutback_count
   write(*,'(A,I0)') 'MUMPS factorization failure revert count = ',report%state_revert_count
