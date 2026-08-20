@@ -1170,3 +1170,41 @@ B9.4 kabul sözleşmesi:
 ```
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 18. 2026-08-20 B9.4 devam turu — canlı checkpoint ve source-level inceleme başlangıcı
+
+Kullanıcı `Devam et` diyerek B9.4 geliştirmesinin sürdürülmesini onayladı. Bu teknik tura başlamadan önce canlı GitHub durumu tekrar doğrulandı ve bu kayıt herhangi bir solver kaynak değişikliğinden önce yazıldı.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 9ae7eb093708de73832d8fc9fdc5b491243afd08
+```
+
+Bu head, B9.3 teknik commit'i `f7cc6955c1daa97c8178503fd401901f8b986ff1` üzerine yalnız `docs/sohbetler/ChatGPT Sohbet 2.md` güncellemesi ekleyen checkpoint commit'idir; B9.4 solver kodu henüz değiştirilmemiştir.
+
+Bu turdaki dar B9.4 çalışma planı:
+
+```text
+1. Q9/P1 element/assembly kaynaklarında reference-geometry ve quadrature hesaplarının çağrı zincirini bul
+2. Newton iterasyonları arasında değişmeyen adayları açıkça ayır
+3. deformation-dependent veya constitutive-dependent hiçbir büyüklüğü cache etme
+4. önce en küçük güvenli invariant-cache adayını uygula
+5. aynı final displacement / pressure / residual / minimum-J / load-factor sonuçlarını regression ile koru
+6. normal + production MUMPS compiler matrisini çalıştır
+7. B9.3 benchmark şemasıyla assembly CPU etkisini yeniden ölç
+8. ölçülebilir kazanç yoksa optimizasyonu production olarak kabul etme
+```
+
+Cache için yalnız undeformed/reference mesh boyunca invariant olduğu kaynak seviyesinde kanıtlanan büyüklükler kabul edilecektir. Shape function değerleri/türevleri, reference Jacobian/determinant/inverse ve reference-coordinate gradient gibi adaylar incelenecektir; ancak deformed Jacobian, deformation gradient, `J`, constitutive stress/tangent, pressure state, residual/tangent katkıları ve Newton state'i cache edilmeyecektir.
+
+Q9/P1 formulation, 3x3 production quadrature kararı, B8 nonlinear transaction semantics, GMRES row-equilibration ve AUTO→MUMPS production policy bu turda değiştirilmeyecektir.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
