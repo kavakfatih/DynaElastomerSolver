@@ -148,6 +148,73 @@ void *des_mumps_c_create(
   return (void *)handle;
 }
 
+int des_mumps_c_configure(
+    void *opaque_handle, int ordering, double pivot_threshold,
+    int refinement_steps, double refinement_tolerance, int error_analysis,
+    int out_of_core, int null_pivot_detection, double null_pivot_tolerance,
+    int *info_primary, int *info_secondary)
+{
+  des_mumps_handle_t *handle = (des_mumps_handle_t *)opaque_handle;
+
+  if (handle == NULL || refinement_steps < 0 ||
+      error_analysis < 0 || error_analysis > 2 ||
+      (out_of_core != 0 && out_of_core != 1) ||
+      (null_pivot_detection != 0 && null_pivot_detection != 1)) {
+    return -1;
+  }
+
+  /*
+   * MUMPS production controls:
+   * ICNTL(7)  ordering
+   * CNTL(1)   numerical pivoting threshold
+   * ICNTL(10) internal iterative refinement
+   * CNTL(2)   refinement stopping tolerance
+   * ICNTL(11) backward-error analysis
+   * ICNTL(22) in-core/out-of-core numerical factorization
+   * ICNTL(24) null-pivot row detection
+   * CNTL(3)   null-pivot threshold
+   */
+  handle->id.icntl[6] = (MUMPS_INT)ordering;
+  handle->id.cntl[0] = pivot_threshold;
+  handle->id.icntl[9] = (MUMPS_INT)refinement_steps;
+  handle->id.cntl[1] = refinement_tolerance;
+  handle->id.icntl[10] = (MUMPS_INT)error_analysis;
+  handle->id.icntl[21] = (MUMPS_INT)out_of_core;
+  handle->id.icntl[23] = (MUMPS_INT)null_pivot_detection;
+  handle->id.cntl[2] = null_pivot_tolerance;
+
+  des_mumps_copy_info(handle, info_primary, info_secondary);
+  return 0;
+}
+
+int des_mumps_c_get_diagnostics(
+    void *opaque_handle, int *ordering_used, int *negative_pivots,
+    int *delayed_pivots, int *null_pivots, int *refinement_steps,
+    int *out_of_core, double *scaled_residual, double *backward_error_1,
+    double *backward_error_2)
+{
+  des_mumps_handle_t *handle = (des_mumps_handle_t *)opaque_handle;
+
+  if (handle == NULL || ordering_used == NULL || negative_pivots == NULL ||
+      delayed_pivots == NULL || null_pivots == NULL ||
+      refinement_steps == NULL || out_of_core == NULL ||
+      scaled_residual == NULL || backward_error_1 == NULL ||
+      backward_error_2 == NULL) {
+    return -1;
+  }
+
+  *ordering_used = (int)handle->id.infog[6];       /* INFOG(7)  */
+  *negative_pivots = (int)handle->id.infog[11];   /* INFOG(12) */
+  *delayed_pivots = (int)handle->id.infog[12];    /* INFOG(13) */
+  *refinement_steps = (int)handle->id.infog[14];  /* INFOG(15) */
+  *null_pivots = (int)handle->id.infog[27];       /* INFOG(28) */
+  *out_of_core = (handle->id.icntl[21] == 1) ? 1 : 0;
+  *scaled_residual = handle->id.rinfog[5];         /* RINFOG(6) */
+  *backward_error_1 = handle->id.rinfog[6];        /* RINFOG(7) */
+  *backward_error_2 = handle->id.rinfog[7];        /* RINFOG(8) */
+  return 0;
+}
+
 int des_mumps_c_set_pattern(
     void *opaque_handle, int n, int nnz, const int *row_ptr,
     const int *col_ind, int *info_primary, int *info_secondary)
