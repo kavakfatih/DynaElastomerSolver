@@ -18,22 +18,40 @@ module des_linear_solver
   integer, parameter, public :: DES_LINEAR_FALLBACK_NONE = 0
   integer, parameter, public :: DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE = 1
 
+  integer, parameter, public :: DES_DIRECT_ORDERING_AUTO = 0
+  integer, parameter, public :: DES_DIRECT_ORDERING_AMD = 1
+  integer, parameter, public :: DES_DIRECT_ORDERING_AMF = 2
+  integer, parameter, public :: DES_DIRECT_ORDERING_QAMD = 3
+
   public :: linear_solver_settings_t, linear_solver_report_t
   public :: solve_linear_system, solve_sparse_linear_system, linear_backend_name
   public :: linear_backend_is_sparse, linear_fallback_reason_name
+  public :: production_linear_solver_settings
 
   type :: linear_solver_settings_t
     ! Dense LAPACK küçük doğrulama problemleri için reference/fallback olarak kalır.
     ! CSR GMRES yolu sparse mimariyi doğrulayan portable bootstrap backend'dir.
     ! MUMPS direct backend yalnız stateful sparse context arkasından çağrılır.
-    ! AUTO explicit seçilirse karar SparseSolverContext içinde verilir; varsayılan
-    ! dense davranış B7'de geriye uyumluluk için bilinçli olarak değiştirilmez.
+    ! Generic type default dense kalır; ürün kodu production_linear_solver_settings()
+    ! ile AUTO => available MUMPS Direct politikasını açıkça ister.
     integer :: backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     real(dp) :: relative_tolerance = 1.0e-10_dp
     real(dp) :: absolute_tolerance = 1.0e-12_dp
     integer :: max_iterations = 200
     integer :: krylov_dimension = 50
     logical :: compact_krylov = .true.
+
+    ! Production sparse-direct kontrolleri vendor-bağımsız solver sözleşmesidir.
+    ! GMRES/dense bu alanları görmezden gelir; MUMPS adapter bunları kendi
+    ! ICNTL/CNTL parametrelerine çevirir.
+    integer :: direct_ordering = DES_DIRECT_ORDERING_AUTO
+    real(dp) :: direct_pivot_threshold = -1.0_dp
+    integer :: direct_iterative_refinement_steps = 2
+    real(dp) :: direct_refinement_tolerance = -1.0_dp
+    integer :: direct_error_analysis = 2
+    logical :: direct_out_of_core = .false.
+    logical :: direct_null_pivot_detection = .true.
+    real(dp) :: direct_null_pivot_tolerance = 0.0_dp
   end type linear_solver_settings_t
 
   type :: linear_solver_report_t
@@ -60,9 +78,38 @@ module des_linear_solver
     ! kullanıcı-facing kontrol akışını yönetir; bu iki alan backend teşhisidir.
     integer :: backend_info_primary = 0
     integer :: backend_info_secondary = 0
+
+    ! First-class sparse-direct telemetry. MUMPS INFOG/RINFOG verileri generic
+    ! rapora taşınır; diğer backend'lerde nötr değerlerde kalır.
+    integer :: direct_ordering_used = -1
+    integer :: direct_negative_pivot_count = 0
+    integer :: direct_delayed_pivot_count = 0
+    integer :: direct_null_pivot_count = 0
+    integer :: direct_internal_refinement_steps = 0
+    logical :: direct_out_of_core = .false.
+    real(dp) :: direct_scaled_residual = huge(1.0_dp)
+    real(dp) :: direct_backward_error_1 = huge(1.0_dp)
+    real(dp) :: direct_backward_error_2 = huge(1.0_dp)
   end type linear_solver_report_t
 
 contains
+
+  pure function production_linear_solver_settings() result(settings)
+    ! Ürün çözümleri için canonical profil. Generic type default'unun dense
+    ! kalması legacy/reference API uyumluluğu içindir.
+    type(linear_solver_settings_t) :: settings
+
+    settings = linear_solver_settings_t()
+    settings%backend = DES_LINEAR_BACKEND_AUTO
+    settings%direct_ordering = DES_DIRECT_ORDERING_AUTO
+    settings%direct_pivot_threshold = -1.0_dp
+    settings%direct_iterative_refinement_steps = 2
+    settings%direct_refinement_tolerance = -1.0_dp
+    settings%direct_error_analysis = 2
+    settings%direct_out_of_core = .false.
+    settings%direct_null_pivot_detection = .true.
+    settings%direct_null_pivot_tolerance = 0.0_dp
+  end function production_linear_solver_settings
 
   subroutine solve_linear_system(A, b, x, settings, report)
     real(dp), intent(in) :: A(:,:), b(:)
