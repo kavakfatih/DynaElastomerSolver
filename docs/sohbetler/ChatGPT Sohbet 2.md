@@ -1263,3 +1263,64 @@ source parity/regression
 ```
 
 Ölçülebilir assembly kazancı görülmeden B9.4 production PASS olarak işaretlenmeyecektir. Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 merge edilmeyecek; `release/v0.3`, `v0.3.0` tag ve GitHub Release kullanıcı açıkça istemeden oluşturulmayacaktır.
+
+---
+
+## 20. 2026-08-20 B9.4 final kapanış kaydı
+
+B9.4 final teknik head'i:
+
+```text
+develop/v0.3 = 2b0a2a4016301a1463ca914fee6f9c6b0d53e931
+```
+
+Canlı GitHub doğrulamasında PR #1 durumu korunmuştur:
+
+```text
+state       = open
+draft       = true
+merged      = false
+head branch = develop/v0.3
+```
+
+B9.4 ile Q9/P1 reference-mesh invariant cache production solver yaşam süresine bağlandı. Solver-owned `q9_herrmann_mesh_reference_cache_t` solve başlangıcında bir kez hazırlanır ve fixed Newton, adaptive Newton, line-search trial ve final assembly çağrılarında yeniden kullanılır. Global/module `SAVE` cache kullanılmaz; cache yaşam süresi ilgili solve çağrısı ile sınırlıdır. Cache verilmediğinde mevcut optional fallback assembly davranışı korunur.
+
+Cache yalnız undeformed/reference mesh boyunca invariant büyüklükleri taşır. Deformation gradient, current `J`, constitutive stress/tangent, pressure state, residual/tangent katkıları ve Newton state'i her nonlinear evaluation'da yeniden hesaplanmaya devam eder. Mixed `u-P` formulation, 3x3 quadrature kararı, B8 rollback/cutback/growth/predictor semantics, GMRES row-equilibration ve AUTO→MUMPS production policy değiştirilmemiştir.
+
+Final combined CI, aynı `2b0a2a4016301a1463ca914fee6f9c6b0d53e931` SHA üzerinde:
+
+```text
+Normal Fortran CI = 32408510234
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS Direct CI = 32408510268
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                  = 8/8 SUCCESS
+```
+
+Production MUMPS Linux aynı benchmarkında B9.3 → B9.4 assembly CPU değişimi:
+
+```text
+Mesh   B9.3 assembly(s)   B9.4 assembly(s)   Değişim
+1x1          0.000254           0.000231       -9.1%
+2x2          0.000950           0.000885       -6.8%
+3x3          0.002087           0.001913       -8.3%
+4x4          0.003680           0.003379       -8.2%
+```
+
+Özellikle assembly-dominant 3x3 ve 4x4 production MUMPS vakalarında yaklaşık %8 seviyesinde tutarlı CPU iyileşmesi ölçülmüştür. Aynı teknik davranışta final displacement, pressure, residual, minimum-J, final load factor, nonlinear iteration ve linear-solve sayaçları parity sözleşmesini korumuştur. Timing değerleri correctness gate değildir; doğruluk toleransları gevşetilmemiştir.
+
+B9.4 acceptance sonucu:
+
+```text
+B9.4 = PASS
+```
+
+Bu kapanış commercial ANSYS/Marc parity anlamına gelmez. Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
