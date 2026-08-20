@@ -2,6 +2,7 @@ program test_q9_herrmann_force_solver
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK, DES_ERROR_CUTBACK_EXHAUSTED
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
+  use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
   use des_q9_plane_strain_herrmann_force_solver, only : &
@@ -23,6 +24,7 @@ program test_q9_herrmann_force_solver
   integer :: status,a
   type(internal_mesh_t) :: mesh
   type(newton_report_t) :: report_fixed,report_adaptive,report_fail
+  type(linear_solver_settings_t) :: dense_settings
 
   X(1,:) = [0.0_dp,0.0_dp]
   X(2,:) = [1.0_dp,0.0_dp]
@@ -56,12 +58,14 @@ program test_q9_herrmann_force_solver
     error stop 'Q9 target pressure constraint residual sıfır değil.'
   end if
   external_force = residual_target(1:18)
+  dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
 
   u_fixed = 0.0_dp
   p_fixed = 0.0_dp
   call solve_q9_internal_mesh_herrmann_force_control( &
       mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
-      5,30,1.0e-10_dp,u_fixed,p_fixed,residual_fixed,report_fixed)
+      5,30,1.0e-10_dp,u_fixed,p_fixed,residual_fixed,report_fixed, &
+      linear_settings=dense_settings)
 
   if (.not. report_fixed%converged .or. report_fixed%status /= DES_STATUS_OK) then
     error stop 'Q9/P1 sabit artımlı Herrmann solver yakınsamadı.'
@@ -81,7 +85,8 @@ program test_q9_herrmann_force_solver
   call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
       mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
       0.2_dp,0.025_dp,0.5_dp,4,30,1.0e-10_dp, &
-      u_adaptive,p_adaptive,residual_adaptive,report_adaptive)
+      u_adaptive,p_adaptive,residual_adaptive,report_adaptive, &
+      linear_settings=dense_settings)
 
   if (.not. report_adaptive%converged .or. &
       report_adaptive%status /= DES_STATUS_OK) then
@@ -104,7 +109,7 @@ program test_q9_herrmann_force_solver
   call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
       mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
       1.0_dp,0.125_dp,0.5_dp,2,1,1.0e-12_dp, &
-      u_fail,p_fail,residual_fail,report_fail)
+      u_fail,p_fail,residual_fail,report_fail,linear_settings=dense_settings)
 
   if (report_fail%status /= DES_ERROR_CUTBACK_EXHAUSTED) then
     error stop 'Q9/P1 cutback exhaustion status hatalı.'
