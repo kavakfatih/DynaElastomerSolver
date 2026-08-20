@@ -573,3 +573,98 @@ Recovery sözleşmesi:
 ```
 
 Bu recovery turunda PR #1 merge edilmeyecek, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır. Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır.
+
+---
+
+## 11. 2026-08-20 B8.2 final kapanış ve B8.3 adaptive increment başlangıç checkpoint'i
+
+B8.2 final teknik head'i:
+
+```text
+develop/v0.3 = da3f7a75b75313e0384fdd12c999f2fe678d71a4
+```
+
+Recovery sonrası test-string sözdizimi düzeltildi ve non-finite policy katmanı ayrıca sağlamlaştırıldı. B8.2 final kapsamı:
+
+- `DES_ERROR_NONFINITE_NONLINEAR = -307`,
+- residual, Newton correction ve trial displacement/pressure state üzerinde NaN/Inf rejection,
+- nonlinear settings içinde non-finite gerçek sayıların reddi,
+- line-search merit ve residual-growth helper girdilerinde non-finite koruması,
+- doğrudan non-finite input için fail-fast/no-cutback,
+- Newton sırasında üretilen non-finite değer için rollback → cutback/retry,
+- committed mixed `u-P` state'in korunması,
+- convergence history içinde `cutback_index` ve non-finite stage tanısı,
+- production report içinde `nonfinite_event_count` ve `last_nonfinite_stage`,
+- MUMPS failure/cutback regression ile cutback sırasının korunması.
+
+Bağımsız GNU Fortran 14 doğrulamalarında nonlinear IEEE/policy katmanı ve yeni status-message yolu başarıyla derlenip çalıştırıldı.
+
+Final CI, aynı `da3f7a75b75313e0384fdd12c999f2fe678d71a4` SHA üzerinde:
+
+```text
+NORMAL / MUMPS-off
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS DIRECT / production preset
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                   = 8/8 SUCCESS
+```
+
+GitHub Actions run kimlikleri:
+
+```text
+Normal Fortran CI = 32369907212
+MUMPS Direct CI   = 32369907178
+```
+
+B8.2 acceptance sonucu:
+
+```text
+B8.2 = PASS
+```
+
+Bu kayıtla yeni küçük paket **B8.3 — adaptive increment growth/shrink policy** başlatılmıştır. Mevcut başarısızlık davranışı korunacaktır:
+
+```text
+failure
+→ rollback
+→ step = step * cutback_factor
+→ retry
+```
+
+B8.3 yalnız commit edilmiş başarılı increment sonrasında kontrollü büyütme ekleyecektir. Güvenlik sözleşmesi:
+
+```text
+growth default = disabled
+explicit enable gerekir
+başarılı ve kolay Newton increment'i → growth adayı
+aynı increment içinde cutback olmuşsa → growth yok
+iteration threshold aşılmışsa → growth yok
+next step <= configured maximum increment
+next step <= remaining load
+load factor 1.0 overshoot yok
+rollback / mixed u-P transaction değişmez
+predictor bu pakete dahil değildir
+```
+
+B8.3 için ayrı `adaptive_increment_settings_t` policy tipi tercih edilecektir; nonlinear line-search settings ile kavramsal olarak karıştırılmayacaktır. Existing caller API geriye uyumlu kalacak şekilde yeni optional argümanlar sonda eklenecektir.
+
+Acceptance testleri en az şunları kapsayacaktır:
+
+- default-disabled davranışın mevcut increment dizisini koruması,
+- explicit enabled easy-convergence growth,
+- cutback sonrası no-growth,
+- iteration threshold no-growth,
+- maximum/remaining-load cap,
+- final load factor = 1,
+- dense/GMRES/MUMPS mevcut regressions'ın bozulmaması,
+- yeni policy + integration testinin production MUMPS CI içinde de çalışması.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
