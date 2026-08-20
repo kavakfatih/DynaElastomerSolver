@@ -9,7 +9,10 @@ module des_q9_plane_strain_herrmann_sparse_mesh
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_TOTAL_DOF, &
       Q9_HERRMANN_QUADRATURE_3X3, &
-      evaluate_q9_plane_strain_herrmann_element_with_quadrature
+      evaluate_q9_plane_strain_herrmann_element_with_quadrature, &
+      evaluate_q9_plane_strain_herrmann_element_with_cache
+  use des_q9_plane_strain_herrmann_mesh, only : &
+      q9_herrmann_mesh_reference_cache_t
   implicit none
   private
 
@@ -90,10 +93,11 @@ contains
 
   subroutine assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
       X, connectivity, u, pressure_coefficients, shear_modulus, pressure_compliance, &
-      quadrature_order, residual, tangent, status, min_j)
+      quadrature_order, residual, tangent, status, min_j, reference_cache)
     ! Dense global tangent olusturmadan Q9/P1 element bloklarini dogrudan CSR
     ! values dizisine scatter eder. Element residual/tangent matematigi dense
     ! yolla ayni rutinden gelir; bu katman yalniz global storage/assembly'i ayirir.
+    ! B9.4 reference_cache verilmezse eski direct geometri yolu aynen korunur.
     real(dp), intent(in) :: X(:,:), u(:,:), pressure_coefficients(:,:)
     integer, intent(in) :: connectivity(:,:)
     real(dp), intent(in) :: shear_modulus, pressure_compliance
@@ -102,6 +106,7 @@ contains
     type(csr_matrix_t), intent(inout) :: tangent
     integer, intent(out) :: status
     real(dp), intent(out) :: min_j
+    type(q9_herrmann_mesh_reference_cache_t), intent(in), optional :: reference_cache
 
     real(dp) :: Xe(9,2), ue(9,2), pe(Q9_HERRMANN_P_DOF)
     real(dp) :: re(Q9_HERRMANN_TOTAL_DOF)
@@ -111,6 +116,7 @@ contains
     integer :: nnode, nelem, ndisp, npres, ntotal
     integer :: count_status, map_status, element_status, scatter_status
     integer :: e, a, lr, gr, node
+    logical :: use_reference_cache
 
     residual = 0.0_dp
     status = DES_STATUS_OK
@@ -137,6 +143,21 @@ contains
       return
     end if
 
+    use_reference_cache = present(reference_cache)
+    if (use_reference_cache) then
+      if (.not. reference_cache%initialized .or. &
+          reference_cache%quadrature_order /= quadrature_order .or. &
+          reference_cache%element_count /= nelem .or. &
+          .not. allocated(reference_cache%element)) then
+        status = DES_ERROR_INVALID_CONSTRAINT
+        return
+      end if
+      if (size(reference_cache%element) /= nelem) then
+        status = DES_ERROR_INVALID_CONSTRAINT
+        return
+      end if
+    end if
+
     call mixed_global_equation_counts( &
         nnode,nelem,2,Q9_HERRMANN_P_DOF,ndisp,npres,ntotal,count_status)
     if (count_status /= DES_STATUS_OK .or. ntotal /= ndisp+npres) then
@@ -160,8 +181,8 @@ contains
     do e = 1,nelem
       do a = 1,9
         node = connectivity(e,a)
-        Xe(a,:) = X(node,:)
         ue(a,:) = u(node,:)
+        if (.not. use_reference_cache) Xe(a,:) = X(node,:)
       end do
       pe = pressure_coefficients(e,:)
 
@@ -172,9 +193,15 @@ contains
         return
       end if
 
-      call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
-          Xe,ue,pe,shear_modulus,pressure_compliance,quadrature_order, &
-          re,Ke,element_status,element_min_j)
+      if (use_reference_cache) then
+        call evaluate_q9_plane_strain_herrmann_element_with_cache( &
+            ue,pe,shear_modulus,pressure_compliance, &
+            reference_cache%element(e),re,Ke,element_status,element_min_j)
+      else
+        call evaluate_q9_plane_strain_herrmann_element_with_quadrature( &
+            Xe,ue,pe,shear_modulus,pressure_compliance,quadrature_order, &
+            re,Ke,element_status,element_min_j)
+      end if
       if (element_status /= DES_STATUS_OK) then
         status = element_status
         return
