@@ -108,7 +108,6 @@ jobs:
       - name: fypp 3.2 kur
         run: python -m pip install --disable-pip-version-check fypp==3.2
 
-      # fortran-lang/setup-fortran v1.9.0
       - name: Fortran derleyicisini kur
         id: setup_fortran
         uses: fortran-lang/setup-fortran@2a1b9c55897d827a9dfeb114408f3615e53b2b72
@@ -174,6 +173,7 @@ jobs:
             test_auto_sparse_solver_policy \
             test_nonlinear_solver_policy \
             test_q9_herrmann_convergence_report \
+            test_q9_herrmann_nonfinite_guard \
             test_q9_herrmann_sparse_force_solver \
             test_q9_herrmann_sparse_adaptive_force_solver \
             test_q9_herrmann_mumps_failure_cutback \
@@ -184,7 +184,7 @@ jobs:
         shell: bash
         run: |
           ctest --preset dyna-production \
-            -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
+            -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
             --output-on-failure
 
       - name: MUMPS platform status yayınla
