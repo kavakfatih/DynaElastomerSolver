@@ -37,6 +37,9 @@ module des_q9_plane_strain_herrmann_force_solver
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_3X3
+  use des_q9_plane_strain_herrmann_mesh, only : &
+      q9_herrmann_mesh_reference_cache_t, &
+      initialize_q9_plane_strain_herrmann_mesh_reference_cache
   use des_q9_internal_mesh_herrmann_assembly, only : &
       assemble_q9_internal_mesh_herrmann_with_quadrature
   use des_q9_plane_strain_herrmann_sparse_mesh, only : &
@@ -70,6 +73,9 @@ contains
     ! korur. CSR backend seçildiğinde ise global tangent dense NxN matrise hiç
     ! dönüştürülmeden assemble edilir ve sıfır Dirichlet increment koşulları CSR
     ! üzerinde uygulanarak tam mixed sistem çözülür.
+    !
+    ! B9.4 reference cache solve ömrüne aittir. Undeformed Q9 geometri/quadrature
+    ! verileri bir kez hazırlanır; nonlinear state her assembly çağrısında yenilenir.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -88,6 +94,7 @@ contains
     real(dp), allocatable :: rhs_full(:), delta_full(:)
     type(csr_matrix_t) :: K_csr
     type(sparse_solver_context_t) :: sparse_context
+    type(q9_herrmann_mesh_reference_cache_t) :: reference_cache
     real(dp) :: min_j, load_factor, residual_norm, increment_size
     integer :: ndisp, ntotal, nfree, status, active_quadrature
     integer :: increment, iteration, a, b
@@ -117,6 +124,14 @@ contains
     nfree = size(free_dofs)
     increment_size = 1.0_dp/real(n_increments,dp)
     report%increments_requested = n_increments
+
+    call initialize_q9_plane_strain_herrmann_mesh_reference_cache( &
+        mesh%coordinates,mesh%q9_connectivity,active_quadrature,reference_cache,status)
+    if (status /= DES_STATUS_OK) then
+      report%status = status
+      report%last_failure_status = status
+      return
+    end if
 
     if (use_sparse_backend) then
       allocate(rhs_full(ntotal),delta_full(ntotal))
@@ -150,11 +165,11 @@ contains
           call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
               mesh%coordinates,mesh%q9_connectivity,u,pressure_coefficients, &
               shear_modulus,pressure_compliance,active_quadrature, &
-              residual,K_csr,status,min_j)
+              residual,K_csr,status,min_j,reference_cache)
         else
           call assemble_q9_internal_mesh_herrmann_with_quadrature( &
               mesh,u,pressure_coefficients,shear_modulus,pressure_compliance, &
-              active_quadrature,residual,K,status,min_j)
+              active_quadrature,residual,K,status,min_j,reference_cache)
         end if
         report%min_j = min(report%min_j,min_j)
 
@@ -249,12 +264,14 @@ contains
     if (use_sparse_backend) then
       call finalize_q9_herrmann_solution_sparse( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-          tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report)
+          tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report, &
+          reference_cache)
       call release_sparse_solver_context(sparse_context)
     else
       call finalize_q9_herrmann_solution( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-          tolerance,active_quadrature,u,pressure_coefficients,residual,K,report)
+          tolerance,active_quadrature,u,pressure_coefficients,residual,K,report, &
+          reference_cache)
     end if
   end subroutine solve_q9_internal_mesh_herrmann_force_control
 
@@ -290,6 +307,9 @@ contains
     ! analyze/ordering'i ilk factorization çağrısında ertelendiği için ilk
     ! linear_factorization_cpu_seconds örneği symbolic + numeric işi birlikte içerir.
     !
+    ! B9.4 reference cache solve başlangıcında bir kez hazırlanır. Newton ve
+    ! line-search boyunca yalnız undeformed geometri/quadrature verisi yeniden kullanılır.
+    !
     ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
     ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
     ! yalnız numeric values aşaması ve solve tekrarlanır.
@@ -322,6 +342,7 @@ contains
     real(dp), allocatable :: previous_committed_u(:,:), previous_committed_pressure(:,:)
     type(csr_matrix_t) :: K_csr
     type(sparse_solver_context_t) :: sparse_context
+    type(q9_herrmann_mesh_reference_cache_t) :: reference_cache
     type(solution_state_t) :: displacement_state, pressure_state
     real(dp) :: min_j, load_factor, target_factor, step, next_step, remaining_load
     real(dp) :: residual_norm, accepted_step, previous_residual_norm
@@ -410,6 +431,14 @@ contains
     allocate(previous_committed_u(size(u,1),size(u,2)))
     allocate(previous_committed_pressure( &
         size(pressure_coefficients,1),size(pressure_coefficients,2)))
+
+    call initialize_q9_plane_strain_herrmann_mesh_reference_cache( &
+        mesh%coordinates,mesh%q9_connectivity,active_quadrature,reference_cache,status)
+    if (status /= DES_STATUS_OK) then
+      report%status = status
+      report%last_failure_status = status
+      return
+    end if
 
     if (use_sparse_backend) then
       allocate(rhs_full(ntotal),delta_full(ntotal))
@@ -506,12 +535,12 @@ contains
           call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
               mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
               pressure_state%trial,shear_modulus,pressure_compliance, &
-              active_quadrature,residual,K_csr,status,min_j)
+              active_quadrature,residual,K_csr,status,min_j,reference_cache)
         else
           call assemble_q9_internal_mesh_herrmann_with_quadrature( &
               mesh,displacement_state%trial,pressure_state%trial, &
               shear_modulus,pressure_compliance,active_quadrature, &
-              residual,K,status,min_j)
+              residual,K,status,min_j,reference_cache)
         end if
         call cpu_time(phase_cpu_end)
         timing%assembly_cpu_seconds = timing%assembly_cpu_seconds + &
@@ -686,12 +715,12 @@ contains
               call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
                   mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
                   pressure_state%trial,shear_modulus,pressure_compliance, &
-                  active_quadrature,residual,K_csr,status,candidate_min_j)
+                  active_quadrature,residual,K_csr,status,candidate_min_j,reference_cache)
             else
               call assemble_q9_internal_mesh_herrmann_with_quadrature( &
                   mesh,displacement_state%trial,pressure_state%trial, &
                   shear_modulus,pressure_compliance,active_quadrature, &
-                  residual,K,status,candidate_min_j)
+                  residual,K,status,candidate_min_j,reference_cache)
             end if
             call cpu_time(phase_cpu_end)
             timing%assembly_cpu_seconds = timing%assembly_cpu_seconds + &
@@ -821,19 +850,22 @@ contains
     if (use_sparse_backend) then
       call finalize_q9_herrmann_solution_sparse( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-          tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report)
+          tolerance,active_quadrature,u,pressure_coefficients,residual,K_csr,report, &
+          reference_cache)
       call release_sparse_solver_context(sparse_context)
     else
       call finalize_q9_herrmann_solution( &
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-          tolerance,active_quadrature,u,pressure_coefficients,residual,K,report)
+          tolerance,active_quadrature,u,pressure_coefficients,residual,K,report, &
+          reference_cache)
     end if
     if (present(phase_timing)) phase_timing = timing
   end subroutine solve_q9_internal_mesh_herrmann_adaptive_force_control
 
   subroutine finalize_q9_herrmann_solution( &
       mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-      tolerance,quadrature_order,u,pressure_coefficients,residual,K,report)
+      tolerance,quadrature_order,u,pressure_coefficients,residual,K,report, &
+      reference_cache)
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:), free_dofs(:), quadrature_order
@@ -842,6 +874,7 @@ contains
     real(dp), intent(out) :: residual(:)
     real(dp), intent(inout) :: K(:,:)
     type(newton_report_t), intent(inout) :: report
+    type(q9_herrmann_mesh_reference_cache_t), intent(in) :: reference_cache
 
     real(dp) :: min_j
     integer :: ndisp, status
@@ -850,7 +883,7 @@ contains
     call enforce_zero_displacement_dofs(u,fixed_dofs)
     call assemble_q9_internal_mesh_herrmann_with_quadrature( &
         mesh,u,pressure_coefficients,shear_modulus,pressure_compliance, &
-        quadrature_order,residual,K,status,min_j)
+        quadrature_order,residual,K,status,min_j,reference_cache)
     report%min_j = min(report%min_j,min_j)
     if (status /= DES_STATUS_OK) then
       report%status = status
@@ -872,7 +905,8 @@ contains
 
   subroutine finalize_q9_herrmann_solution_sparse( &
       mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
-      tolerance,quadrature_order,u,pressure_coefficients,residual,K,report)
+      tolerance,quadrature_order,u,pressure_coefficients,residual,K,report, &
+      reference_cache)
     ! Sparse finalization yalnız residual ve min(J) için yeniden assemble eder;
     ! final rapor üretmek amacıyla dense global tangent materialize edilmez.
     type(internal_mesh_t), intent(in) :: mesh
@@ -883,6 +917,7 @@ contains
     real(dp), intent(out) :: residual(:)
     type(csr_matrix_t), intent(inout) :: K
     type(newton_report_t), intent(inout) :: report
+    type(q9_herrmann_mesh_reference_cache_t), intent(in) :: reference_cache
 
     real(dp) :: min_j
     integer :: ndisp, status
@@ -891,7 +926,8 @@ contains
     call enforce_zero_displacement_dofs(u,fixed_dofs)
     call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
         mesh%coordinates,mesh%q9_connectivity,u,pressure_coefficients, &
-        shear_modulus,pressure_compliance,quadrature_order,residual,K,status,min_j)
+        shear_modulus,pressure_compliance,quadrature_order,residual,K,status,min_j, &
+        reference_cache)
     report%min_j = min(report%min_j,min_j)
     if (status /= DES_STATUS_OK) then
       report%status = status
