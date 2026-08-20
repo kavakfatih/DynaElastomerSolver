@@ -13,7 +13,7 @@ module des_q9_herrmann_solver_report
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_2X2, &
       Q9_HERRMANN_QUADRATURE_3X3, Q9_HERRMANN_QUADRATURE_4X4
   use des_q9_plane_strain_herrmann_force_solver, only : &
-      solve_q9_internal_mesh_herrmann_adaptive_force_control
+      herrmann_phase_timing_t, solve_q9_internal_mesh_herrmann_adaptive_force_control
   use des_q9_herrmann_geometry, only : q9_reference_gradient
   use des_herrmann_pressure_interpolation, only : herrmann_p1_pressure_basis
   use des_herrmann_pressure_constraint, only : herrmann_constraint_response_t, &
@@ -33,6 +33,7 @@ module des_q9_herrmann_solver_report
     real(dp) :: maximum_accepted_increment = 0.0_dp
     integer :: predictor_event_count = 0
     real(dp) :: maximum_predictor_scale = 0.0_dp
+    type(herrmann_phase_timing_t) :: phase_timing
     logical :: metrics_valid = .false.
   end type herrmann_solver_report_t
 
@@ -57,6 +58,7 @@ contains
     ! aynı production-facing API üzerinden görünür yapar.
     ! B8.4 secant predictor ayarı, olay sayısı ve maksimum predictor scale tanısı
     ! aynı production-facing rapor sınırından geçirilir.
+    ! B9.3 phase timing yalnız gözlem telemetrisidir; convergence kararına girmez.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -103,7 +105,8 @@ contains
             maximum_accepted_increment=report%maximum_accepted_increment, &
             predictor_settings=active_predictor_settings, &
             predictor_event_count=report%predictor_event_count, &
-            maximum_predictor_scale=report%maximum_predictor_scale)
+            maximum_predictor_scale=report%maximum_predictor_scale, &
+            phase_timing=report%phase_timing)
       else
         call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
@@ -116,7 +119,8 @@ contains
             maximum_accepted_increment=report%maximum_accepted_increment, &
             predictor_settings=active_predictor_settings, &
             predictor_event_count=report%predictor_event_count, &
-            maximum_predictor_scale=report%maximum_predictor_scale)
+            maximum_predictor_scale=report%maximum_predictor_scale, &
+            phase_timing=report%phase_timing)
       end if
     else
       if (present(quadrature_order)) then
@@ -131,7 +135,8 @@ contains
             maximum_accepted_increment=report%maximum_accepted_increment, &
             predictor_settings=active_predictor_settings, &
             predictor_event_count=report%predictor_event_count, &
-            maximum_predictor_scale=report%maximum_predictor_scale)
+            maximum_predictor_scale=report%maximum_predictor_scale, &
+            phase_timing=report%phase_timing)
       else
         call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
@@ -143,7 +148,8 @@ contains
             maximum_accepted_increment=report%maximum_accepted_increment, &
             predictor_settings=active_predictor_settings, &
             predictor_event_count=report%predictor_event_count, &
-            maximum_predictor_scale=report%maximum_predictor_scale)
+            maximum_predictor_scale=report%maximum_predictor_scale, &
+            phase_timing=report%phase_timing)
       end if
     end if
 
@@ -312,7 +318,6 @@ contains
   subroutine set_gauss_rule(order,n_gauss,coordinate,weight,status)
     integer, intent(in) :: order
     integer, intent(out) :: n_gauss,status
-    real(dp), intent(out) :: coordinate(4),weight(4)
     real(dp), parameter :: gp3 = 0.77459666924148337704_dp
     real(dp), parameter :: gp2 = 0.57735026918962576451_dp
     real(dp), parameter :: gp4_outer = 0.86113631159405257522_dp
