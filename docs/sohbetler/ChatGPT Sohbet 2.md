@@ -468,3 +468,62 @@ B8.1 kabul ilkeleri:
 Bu checkpoint commercial ANSYS/Marc parity iddiası değildir. B12/LEVEL 3 açık kalır.
 
 Kullanıcı açıkça istemeden PR #1 merge edilmeyecek, `release/v0.3` oluşturulmayacak, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır.
+
+---
+
+## 9. 2026-08-20 B8.1 final kapanış ve B8.2 başlangıç checkpoint'i
+
+B8.1 final teknik head'i:
+
+```text
+develop/v0.3 = 74bf35256ae353d85a225f77f1f11fabd503bfad
+```
+
+B8.1 ile Q9/P1 adaptive mixed `u-P` Newton yoluna controlled damping/backtracking line-search ve residual-growth/divergence detection altyapısı eklendi. Displacement ve pressure correction aynı `alpha` ile ölçeklenir; `alpha=1` yeterli olduğunda Full Newton korunur. Line-search başarısızlığı ve nonlinear divergence kontrollü solver error olarak rollback → cutback zincirine taşınabilir.
+
+Convergence history tarafında correction scale ve line-search trial diagnostics korunur. Production report wrapper nonlinear settings'i dış API'ye taşır. Policy regression ve Q9 convergence-history regression testleri eklendi. MUMPS Direct CI path filtresi B8 nonlinear dosyalarını kapsayacak şekilde güncellendi ve robustness testleri production MUMPS presetinde de çalıştırılmaktadır.
+
+Final CI doğrulaması, aynı `74bf35256ae353d85a225f77f1f11fabd503bfad` SHA üzerinde:
+
+```text
+NORMAL / MUMPS-off
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS DIRECT / production preset
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                   = 8/8 SUCCESS
+```
+
+GitHub Actions run kimlikleri:
+
+```text
+Normal Fortran CI = 32356579972
+MUMPS Direct CI   = 32356580007
+```
+
+B8.1 acceptance sonucu:
+
+```text
+B8.1 = PASS
+```
+
+Bu geliştirme turunda sıradaki küçük paket **B8.2 — NaN/Inf rejection + cutback diagnostics** olarak sınırlandırılmıştır. B8.2'nin amacı:
+
+```text
+1. nonlinear residual / correction / trial state üzerinde non-finite değerleri erken yakalamak
+2. NaN/Inf durumunu deterministic solver error'a dönüştürmek
+3. adaptive solver'da rollback → cutback/retry davranışını açık şekilde raporlamak
+4. convergence/cutback diagnostics içinde son failure nedeni ve non-finite olayını görünür kılmak
+5. dedicated regression testleriyle committed displacement/pressure state'in bozulmadığını kanıtlamak
+```
+
+B8.2 kapsamına adaptive increment growth/shrink optimizasyonu ve predictor alınmayacaktır; bunlar ayrı alt paketlerde ele alınacaktır.
+
+PR #1 `open + draft` kalacaktır. Kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır. Commercial ANSYS/Marc LEVEL 3/B12 parity hâlâ OPEN'dır.
