@@ -86,6 +86,11 @@ if(DES_ENABLE_MUMPS)
     solver.sparse.mumps_direct_context
     test_mumps_sparse_solver_context.f90
   )
+  des_add_fortran_test(
+    test_q9_herrmann_mumps_failure_cutback
+    solver.q9.plane_strain.herrmann.mumps_failure_cutback
+    test_q9_herrmann_mumps_failure_cutback.f90
+  )
 
   # Aynı Q9/P1 parity executable'ları varsayılan olarak GMRES'i korur. MUMPS
   # build'inde `mumps` argümanı ile direct backend'i aynı fizik ve lifecycle
