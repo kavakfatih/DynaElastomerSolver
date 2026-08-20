@@ -1,11 +1,11 @@
 program test_auto_sparse_solver_policy
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i32, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_csr_matrix, only : csr_matrix_t, &
       initialize_csr_from_element_dof_maps, csr_add_local_matrix
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
-      production_linear_solver_settings, &
+      production_linear_solver_settings, stdlib_csr_index_range_supported, &
       DES_LINEAR_BACKEND_AUTO, DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
       DES_LINEAR_BACKEND_MUMPS_DIRECT, DES_LINEAR_FALLBACK_NONE, &
       DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE
@@ -33,7 +33,27 @@ program test_auto_sparse_solver_policy
   type(sparse_solver_context_t) :: context
   type(sparse_solver_diagnostics_t) :: diagnostics
   integer :: maps(1,3), status, expected_backend
+  integer(i64) :: i32_max
   real(dp) :: A_dense(3,3), b(3), x(3), expected(3)
+
+  ! B9.5: stdlib sparse köprüsü halen i32 index contract'ına sahiptir.
+  ! Büyük sayıları gerçekten allocate etmeden sınır davranışını deterministik test et.
+  i32_max = int(huge(0_i32),i64)
+  if (.not. stdlib_csr_index_range_supported(3_i64,9_i64)) then
+    error stop 'stdlib CSR normal i32 boyutunu desteklemiyor.'
+  end if
+  if (.not. stdlib_csr_index_range_supported(i32_max,i32_max-1_i64)) then
+    error stop 'stdlib CSR gecerli i32 sinirini gereksiz reddetti.'
+  end if
+  if (stdlib_csr_index_range_supported(i32_max,i32_max)) then
+    error stop 'stdlib CSR nnz+1 rowptr tasma sinirini kabul etti.'
+  end if
+  if (stdlib_csr_index_range_supported(i32_max+1_i64,1_i64)) then
+    error stop 'stdlib CSR equation count narrowing sinirini kabul etti.'
+  end if
+  if (stdlib_csr_index_range_supported(1_i64,0_i64)) then
+    error stop 'stdlib CSR sifir nnz boyutunu gecerli kabul etti.'
+  end if
 
   maps(1,:) = [1,2,3]
   call initialize_csr_from_element_dof_maps(A,3,3,maps,status)
