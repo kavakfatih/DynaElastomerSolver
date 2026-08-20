@@ -22,10 +22,19 @@ program test_nonlinear_solver_policy
   if (.not. line_search_residual_accepted(10.0_dp,4.0_dp,0.5_dp,settings)) then
     error stop 'Backtracking adimi yeterli residual azalmasina ragmen reddedildi.'
   end if
+  if (line_search_residual_accepted(10.0_dp,1.0_dp,0.0_dp,settings)) then
+    error stop 'Sifir correction scale line-search tarafindan kabul edildi.'
+  end if
 
   settings%line_search_reduction = 1.0_dp
   if (nonlinear_solver_settings_valid(settings)) then
     error stop 'Gecersiz line-search reduction ayari kabul edildi.'
+  end if
+
+  settings = nonlinear_solver_settings_t()
+  settings%residual_growth_factor = 1.0_dp
+  if (nonlinear_solver_settings_valid(settings)) then
+    error stop 'Gecersiz residual growth factor ayari kabul edildi.'
   end if
 
   settings = nonlinear_solver_settings_t()
