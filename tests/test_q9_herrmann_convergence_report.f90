@@ -91,6 +91,9 @@ contains
         report%nonlinear%status /= DES_STATUS_OK) then
       error stop 'Reported Q9/P1 Herrmann solver yakinsamadi.'
     end if
+    if (report%nonfinite_event_count /= 0 .or. report%last_nonfinite_stage /= 0) then
+      error stop 'Basarili Q9 solve yanlis non-finite diagnostics uretmis.'
+    end if
 
     ! B8.1: production adaptive yolunun line-search policy'sinden gerçekten geçtiğini
     ! history üzerinden doğrula. Bu manufactured durumda alpha=1 kabul edilebilir;
@@ -98,6 +101,12 @@ contains
     ! kaydedilmesi ve en az bir line-search residual denemesinin yapılmasıdır.
     line_search_records = 0
     do h = 1,report%nonlinear%history%count
+      if (report%nonlinear%history%records(h)%cutback_index < 0) then
+        error stop 'Q9 convergence history negatif cutback index uretti.'
+      end if
+      if (report%nonlinear%history%records(h)%nonfinite_stage /= 0) then
+        error stop 'Basarili Q9 convergence history non-finite stage tasiyor.'
+      end if
       if (report%nonlinear%history%records(h)%line_search_trials > 0) then
         line_search_records = line_search_records + 1
         if (report%nonlinear%history%records(h)%correction_scale <= 0.0_dp .or. &
