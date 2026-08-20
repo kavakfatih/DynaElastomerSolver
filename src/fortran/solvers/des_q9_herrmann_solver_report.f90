@@ -318,6 +318,7 @@ contains
   subroutine set_gauss_rule(order,n_gauss,coordinate,weight,status)
     integer, intent(in) :: order
     integer, intent(out) :: n_gauss,status
+    real(dp), intent(out) :: coordinate(4),weight(4)
     real(dp), parameter :: gp3 = 0.77459666924148337704_dp
     real(dp), parameter :: gp2 = 0.57735026918962576451_dp
     real(dp), parameter :: gp4_outer = 0.86113631159405257522_dp
