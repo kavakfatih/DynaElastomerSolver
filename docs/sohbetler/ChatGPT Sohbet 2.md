@@ -236,3 +236,69 @@ ANSYS/Marc ile hedeflenen mimari seviye ile **commercial parity iddiası birbiri
 Bu turda önce B7a'nın açık kalan CI işi kapatıldı; ardından B7b production sparse-direct geliştirmesi başlayacaktır.
 
 PR #1 draft/open kalacaktır. Kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 6. 2026-08-20 B7b 8/8 SUCCESS checkpoint ve production-default düzeltme turu
+
+Yeni geliştirme turuna başlamadan önce canlı GitHub durumu yeniden doğrulandı.
+
+Başlangıç checkpoint'i:
+
+```text
+PR #1                     = open
+draft                     = true
+merged                    = false
+mergeable                 = false
+PR head                   = 37c3a234c786e3970529f496ddfa5238532c2fa0
+```
+
+Aynı head için combined CI status doğrulaması:
+
+```text
+Normal Fortran / MUMPS-off
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS Direct / MUMPS-enabled
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                   = 8/8 SUCCESS
+```
+
+B7b henüz kapatılmayacaktır. Canlı kod/handoff incelemesinde kalan kritik production-default problemi şudur:
+
+```text
+src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90
+```
+
+Q9/P1 fixed ve adaptive solver yolları caller `linear_settings` vermediğinde generic `linear_solver_settings_t()` default'unu kullanmaktadır. Generic default geriye uyumluluk için dense reference kalabilse de Q9/P1 production solver'ın no-settings davranışının dense olması istenmemektedir.
+
+Bu turdaki acceptance hedefi:
+
+```text
+Q9/P1 no-settings
+→ production_linear_solver_settings()
+→ requested backend = AUTO
+→ MUMPS-enabled build: selected = MUMPS DIRECT
+→ MUMPS-disabled build: selected = CSR GMRES + MUMPS_UNAVAILABLE fallback
+```
+
+Caller explicit seçim verirse davranış korunacaktır:
+
+```text
+if (present(linear_settings)) active_linear_settings = linear_settings
+```
+
+Dense reference testleri explicit dense seçmeli; GMRES/MUMPS parity testleri explicit backend kullanmalı; yalnız production-default regression settings vermeden çalışmalıdır.
+
+Adaptive direct factorization/solve failure davranışı ayrıca rollback → cutback → retry zincirinde doğrulanacak; unsupported backend ise physics failure gibi tekrarlı cutback'e çevrilmeden fail-fast kalacaktır.
+
+Production build/preset tarafında MUMPS'ın explicit `ON` olduğu doğrulanmadan B7b kapanmış sayılmayacaktır.
+
+Kullanıcı açıkça istemeden PR #1 merge edilmeyecek, `release/v0.3` oluşturulmayacak, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır.
