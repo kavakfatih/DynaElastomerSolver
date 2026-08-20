@@ -1,11 +1,13 @@
 program test_nonlinear_solver_policy
   use des_kinds, only : dp
+  use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan, ieee_positive_inf
   use des_nonlinear_solver, only : nonlinear_solver_settings_t, &
       nonlinear_solver_settings_valid, line_search_residual_accepted, &
-      next_residual_growth_streak
+      next_residual_growth_streak, nonlinear_values_finite
   implicit none
 
   type(nonlinear_solver_settings_t) :: settings
+  real(dp) :: values(3), matrix_values(2,2), nan_value, inf_value
   integer :: streak
 
   settings = nonlinear_solver_settings_t()
@@ -65,5 +67,33 @@ program test_nonlinear_solver_policy
     error stop 'Kapali residual growth detection sayac uretmeye devam etti.'
   end if
 
-  write(*,'(A)') 'Nonlinear solver line-search policy testi BASARILI.'
+  ! B8.2: IEEE finite policy scalar, vector ve matrix girdilerinde ayni semantigi
+  ! korumalidir. NaN/Inf, residual normu veya Newton state'ine ulasmadan reddedilir.
+  values = [1.0_dp,-2.0_dp,3.0_dp]
+  matrix_values = reshape([1.0_dp,2.0_dp,3.0_dp,4.0_dp],[2,2])
+  if (.not. nonlinear_values_finite(1.0_dp)) then
+    error stop 'Finite scalar non-finite olarak isaretlendi.'
+  end if
+  if (.not. nonlinear_values_finite(values)) then
+    error stop 'Finite vector non-finite olarak isaretlendi.'
+  end if
+  if (.not. nonlinear_values_finite(matrix_values)) then
+    error stop 'Finite matrix non-finite olarak isaretlendi.'
+  end if
+
+  nan_value = ieee_value(0.0_dp,ieee_quiet_nan)
+  inf_value = ieee_value(0.0_dp,ieee_positive_inf)
+  if (nonlinear_values_finite(nan_value)) then
+    error stop 'NaN scalar finite olarak kabul edildi.'
+  end if
+  values(2) = inf_value
+  if (nonlinear_values_finite(values)) then
+    error stop 'Inf iceren vector finite olarak kabul edildi.'
+  end if
+  matrix_values(2,1) = nan_value
+  if (nonlinear_values_finite(matrix_values)) then
+    error stop 'NaN iceren matrix finite olarak kabul edildi.'
+  end if
+
+  write(*,'(A)') 'Nonlinear solver line-search ve finite policy testi BASARILI.'
 end program test_nonlinear_solver_policy
