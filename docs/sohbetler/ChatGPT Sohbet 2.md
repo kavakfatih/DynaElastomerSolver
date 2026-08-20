@@ -302,3 +302,127 @@ Adaptive direct factorization/solve failure davranışı ayrıca rollback → cu
 Production build/preset tarafında MUMPS'ın explicit `ON` olduğu doğrulanmadan B7b kapanmış sayılmayacaktır.
 
 Kullanıcı açıkça istemeden PR #1 merge edilmeyecek, `release/v0.3` oluşturulmayacak, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır.
+
+---
+
+## 7. 2026-08-20 B7b production sparse-direct final kapanış kaydı
+
+B7b çalışma paketi küçük alt adımlara bölünerek canlı GitHub üzerinden tekrar doğrulandı ve final acceptance head'i aşağıdaki seviyeye ulaştı:
+
+```text
+develop/v0.3 = 64148feec2c98743b7ecabd7111c4decc629ef14
+```
+
+Final PR durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+```
+
+Kapanan kritik production-default problemi:
+
+```text
+Q9/P1 fixed/adaptive no-settings
+→ production_linear_solver_settings()
+→ requested backend = AUTO
+```
+
+Build policy sonucu:
+
+```text
+MUMPS-enabled production build
+→ selected backend = MUMPS DIRECT
+→ direct_factorization_performed = true
+→ fallback = false
+
+MUMPS-disabled development build
+→ selected backend = CSR GMRES
+→ fallback_used = true
+→ fallback_reason = MUMPS_UNAVAILABLE
+```
+
+Explicit caller backend seçimi korunmaktadır. Explicit `MUMPS_DIRECT` isteği MUMPS unavailable build'de sessiz GMRES fallback yapmaz; `DES_ERROR_UNSUPPORTED_LINEAR_BACKEND` ile fail-fast davranışı regression ile korunur.
+
+Reference/production test intent ayrımı netleştirildi:
+
+- dense reference testleri explicit `DES_LINEAR_BACKEND_STDLIB_DENSE` kullanır,
+- GMRES parity testleri explicit GMRES kullanır,
+- MUMPS parity testleri explicit MUMPS kullanır,
+- production-default regression settings vermeden AUTO policy'yi zorlar.
+
+`tests/test_auto_sparse_solver_policy.f90` Q9/P1 fixed ve adaptive no-settings davranışını iki build profilinde de doğrular. Ayrıca MUMPS unavailable durumda explicit MUMPS isteğinin nonlinear cutback döngüsüne girmeden fail-fast kaldığını kontrol eder.
+
+Direct failure → nonlinear rollback/cutback zinciri için dedicated regression eklendi:
+
+```text
+tests/test_q9_herrmann_mumps_failure_cutback.f90
+```
+
+Bu test gerçek rank-deficient mixed sistem ile MUMPS numeric factorization failure üretir ve şu sözleşmeyi doğrular:
+
+```text
+factorization failure
+→ DES_ERROR_LINEAR_SOLVE
+→ trial u/p revert
+→ cutback
+→ retry
+→ max_cutbacks+1 denemeden sonra CUTBACK_EXHAUSTED
+→ commit_count = 0
+→ revert_count = max_cutbacks + 1
+→ committed u/p bozulmaz
+```
+
+Production/development build profilleri ayrıştırıldı:
+
+```text
+CMakePresets.json
+
+dyna-development-minimal
+→ DES_ENABLE_MUMPS=OFF
+
+dyna-production
+→ DES_ENABLE_MUMPS=ON
+```
+
+MUMPS Direct CI artık `dyna-production` preset'ini kullanır ve production sparse-direct context, AUTO/Q9 default policy, fixed/adaptive MUMPS parity ve MUMPS failure→cutback regression testlerini çalıştırır.
+
+Final combined CI status, `64148feec2c98743b7ecabd7111c4decc629ef14` üzerinde:
+
+```text
+NORMAL / MUMPS-off
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS DIRECT / production preset
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                   = 8/8 SUCCESS
+```
+
+GitHub Actions run kimlikleri:
+
+```text
+Normal Fortran CI = 32348462977
+MUMPS Direct CI   = 32348463043
+```
+
+B7b acceptance sonucu:
+
+```text
+B7b = PASS
+```
+
+Bu PASS commercial ANSYS/Marc parity anlamına gelmez. Commercial LEVEL 3/B12 gerçek ANSYS PLANE183 ve Hexagon Marc benchmarkları yapılana kadar OPEN kalır.
+
+Sonraki paket B8 nonlinear robustness'tır; bu kapanış turunda B8 teknik implementasyonuna başlanmamıştır.
+
+Kullanıcı açıkça istemeden PR #1 merge edilmedi, `release/v0.3` oluşturulmadı, `v0.3.0` tag atılmadı ve GitHub Release oluşturulmadı.
