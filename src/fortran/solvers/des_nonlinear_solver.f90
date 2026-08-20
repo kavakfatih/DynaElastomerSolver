@@ -1,12 +1,25 @@
 module des_nonlinear_solver
   use des_kinds, only : dp
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   implicit none
   private
+
+  integer, parameter, public :: DES_NONFINITE_STAGE_NONE = 0
+  integer, parameter, public :: DES_NONFINITE_STAGE_RESIDUAL = 1
+  integer, parameter, public :: DES_NONFINITE_STAGE_CORRECTION = 2
+  integer, parameter, public :: DES_NONFINITE_STAGE_TRIAL_STATE = 3
 
   public :: nonlinear_solver_settings_t
   public :: nonlinear_solver_settings_valid
   public :: line_search_residual_accepted
   public :: next_residual_growth_streak
+  public :: nonlinear_values_finite
+
+  interface nonlinear_values_finite
+    module procedure nonlinear_scalar_finite
+    module procedure nonlinear_vector_finite
+    module procedure nonlinear_matrix_finite
+  end interface nonlinear_values_finite
 
   type :: nonlinear_solver_settings_t
     ! Production adaptive Newton yolu için kontrollü damping/backtracking ayarları.
@@ -72,5 +85,23 @@ contains
       streak = previous_streak + 1
     end if
   end function next_residual_growth_streak
+
+  pure logical function nonlinear_scalar_finite(value) result(finite)
+    real(dp), intent(in) :: value
+
+    finite = ieee_is_finite(value)
+  end function nonlinear_scalar_finite
+
+  pure logical function nonlinear_vector_finite(values) result(finite)
+    real(dp), intent(in) :: values(:)
+
+    finite = all(ieee_is_finite(values))
+  end function nonlinear_vector_finite
+
+  pure logical function nonlinear_matrix_finite(values) result(finite)
+    real(dp), intent(in) :: values(:,:)
+
+    finite = all(ieee_is_finite(values))
+  end function nonlinear_matrix_finite
 
 end module des_nonlinear_solver
