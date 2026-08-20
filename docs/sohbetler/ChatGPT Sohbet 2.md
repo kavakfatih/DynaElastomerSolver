@@ -668,3 +668,101 @@ Acceptance testleri en az şunları kapsayacaktır:
 - yeni policy + integration testinin production MUMPS CI içinde de çalışması.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 12. 2026-08-20 B8.3 final kapanış ve B8.4 predictor başlangıç checkpoint'i
+
+B8.3 final teknik head'i:
+
+```text
+develop/v0.3 = 03571d94c7061ba3466ffdbab9b7a5a8cd5cb161
+```
+
+B8.3 ile adaptive Q9/P1 mixed `u-P` production yoluna commit-sonrası kontrollü increment growth policy eklendi. Ayrı `adaptive_increment_settings_t` tipi kullanıldı; growth varsayılan olarak kapalı bırakılarak mevcut caller davranışı korundu.
+
+Final B8.3 sözleşmesi:
+
+```text
+başarılı mixed u-P commit
+→ iteration threshold uygunsa
+→ aynı increment içinde cutback yoksa
+→ configured growth factor uygula
+→ maximum increment cap uygula
+→ remaining-load cap uygula
+→ load factor 1.0 overshoot etme
+```
+
+Rollback/cutback yolu değiştirilmedi:
+
+```text
+failure
+→ displacement + pressure revert
+→ step = step * cutback_factor
+→ retry
+```
+
+Production report API'sine growth event sayısı ve maksimum kabul edilen increment tanıları taşındı. Policy unit regression ve gerçek Q9/P1 adaptive integration regression eklendi; growth açık/kapalı final mixed state parity ve final load-factor sözleşmesi korunmaktadır. Yeni testler MUMPS production CI robustness kapısına da alındı.
+
+Final CI, aynı `03571d94c7061ba3466ffdbab9b7a5a8cd5cb161` SHA üzerinde:
+
+```text
+NORMAL / MUMPS-off
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS DIRECT / production preset
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                   = 8/8 SUCCESS
+```
+
+GitHub Actions run kimlikleri:
+
+```text
+Normal Fortran CI = 32373137069
+MUMPS Direct CI   = 32373137067
+```
+
+B8.3 acceptance sonucu:
+
+```text
+B8.3 = PASS
+```
+
+Bu kayıtla yeni küçük paket **B8.4 — committed-state secant predictor foundation** başlatılmıştır.
+
+B8.4 kapsamı:
+
+```text
+predictor default = disabled
+explicit enable gerekir
+predictor yalnız iki converged committed mixed state mevcutsa çalışır
+u ve p aynı load-step ratio ile birlikte extrapolate edilir
+predictor yalnız trial state'e uygulanır; committed state doğrudan değişmez
+cutback/retry denemesinde predictor tekrar uygulanmaz
+predictor scale configured upper bound ile sınırlandırılır
+non-finite predictor adayı reddedilir
+predictor başarısızlığı mevcut rollback/cutback zincirini bozamaz
+existing API yeni optional argümanlar sonda eklenerek geriye uyumlu kalır
+```
+
+B8.4 acceptance testleri en az şunları kapsayacaktır:
+
+- default-disabled no-op,
+- history yetersizken predictor no-op,
+- aynı scale ile coupled `u-p` secant extrapolation,
+- predictor scale cap,
+- non-finite predictor input rejection,
+- gerçek Q9/P1 adaptive çözümde predictor event oluşması ve final state parity,
+- rollback/cutback transaction'ın bozulmaması,
+- normal + production MUMPS CI kapılarının korunması.
+
+B8.4 yalnız predictor foundation kapsamındadır; arc-length/Riks, trust-region veya farklı continuation yöntemleri bu pakete alınmayacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
