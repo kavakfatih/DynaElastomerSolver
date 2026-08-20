@@ -1,7 +1,8 @@
 program test_q9_herrmann_nonfinite_guard
   use des_kinds, only : dp
   use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
-  use des_status, only : DES_STATUS_OK, DES_ERROR_NONFINITE_NONLINEAR
+  use des_status, only : DES_STATUS_OK, DES_STATUS_NOT_EVALUATED, &
+                         DES_ERROR_NONFINITE_NONLINEAR
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q9_herrmann_solver_report, only : herrmann_solver_report_t, &
@@ -70,7 +71,8 @@ program test_q9_herrmann_nonfinite_guard
   if (report%last_nonfinite_stage /= 0) then
     error stop 'Fail-fast input yanlis internal non-finite stage ile raporlandi.'
   end if
-  if (report%metrics_valid .or. report%metrics_status /= 1) then
+  if (report%metrics_valid .or. &
+      report%metrics_status /= DES_STATUS_NOT_EVALUATED) then
     error stop 'NaN input sonrasi solution metrics gecersiz kalmadi.'
   end if
   if (maxval(abs(u)) > 0.0_dp .or. maxval(abs(p)) > 0.0_dp) then
