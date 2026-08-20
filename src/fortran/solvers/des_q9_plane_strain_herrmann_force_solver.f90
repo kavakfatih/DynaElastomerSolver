@@ -29,6 +29,8 @@ module des_q9_plane_strain_herrmann_force_solver
       next_residual_growth_streak, nonlinear_values_finite, &
       DES_NONFINITE_STAGE_NONE, DES_NONFINITE_STAGE_RESIDUAL, &
       DES_NONFINITE_STAGE_CORRECTION, DES_NONFINITE_STAGE_TRIAL_STATE
+  use des_adaptive_increment, only : adaptive_increment_settings_t, &
+      adaptive_increment_settings_valid, select_next_adaptive_increment
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_3X3
@@ -249,7 +251,8 @@ contains
       mesh, shear_modulus, pressure_compliance, fixed_dofs, external_force, &
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
       max_iterations, tolerance, u, pressure_coefficients, residual, report, &
-      linear_settings, quadrature_order, nonlinear_settings)
+      linear_settings, quadrature_order, nonlinear_settings, adaptive_increment_settings, &
+      growth_event_count, maximum_accepted_increment)
     ! Q9/P1 Herrmann için adaptive production yolu.
     ! Displacement ve pressure trial state'leri aynı increment transaction'ının
     ! parçasıdır. Bir Newton denemesi başarısız olursa ikisi de committed state'e döner.
@@ -262,6 +265,10 @@ contains
     ! B8.2 ile residual, Newton correction ve mixed trial state üzerinde NaN/Inf
     ! değerleri explicit olarak reddedilir. Internal non-finite failure normal
     ! adaptive rollback/cutback zincirine girer; non-finite girişler fail-fast olur.
+    !
+    ! B8.3 growth policy yalnız başarılı mixed u-p commit'inden sonra çalışır.
+    ! Aynı load increment'i içinde cutback görülmüşse veya Newton correction sayısı
+    ! configured threshold'u aşıyorsa bir sonraki step büyütülmez.
     !
     ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
     ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
@@ -279,6 +286,9 @@ contains
     type(linear_solver_settings_t), intent(in), optional :: linear_settings
     integer, intent(in), optional :: quadrature_order
     type(nonlinear_solver_settings_t), intent(in), optional :: nonlinear_settings
+    type(adaptive_increment_settings_t), intent(in), optional :: adaptive_increment_settings
+    integer, intent(out), optional :: growth_event_count
+    real(dp), intent(out), optional :: maximum_accepted_increment
 
     logical, allocatable :: is_fixed(:)
     integer, allocatable :: free_dofs(:)
@@ -288,7 +298,7 @@ contains
     type(csr_matrix_t) :: K_csr
     type(sparse_solver_context_t) :: sparse_context
     type(solution_state_t) :: displacement_state, pressure_state
-    real(dp) :: min_j, load_factor, target_factor, step
+    real(dp) :: min_j, load_factor, target_factor, step, next_step, remaining_load
     real(dp) :: residual_norm, accepted_step, previous_residual_norm
     real(dp) :: correction_scale, candidate_residual_norm, candidate_min_j
     integer :: ndisp, ntotal, nfree, status, failure_status, active_quadrature
@@ -296,15 +306,23 @@ contains
     integer :: residual_growth_streak, nonfinite_stage
     logical :: increment_converged, use_sparse_backend, line_search_accepted
     logical :: finite_candidate_seen, nonfinite_candidate_seen
+    logical :: increment_had_cutback, growth_applied
     real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
     type(nonlinear_solver_settings_t) :: active_nonlinear_settings
+    type(adaptive_increment_settings_t) :: active_adaptive_settings
 
     active_linear_settings = production_linear_solver_settings()
     if (present(linear_settings)) active_linear_settings = linear_settings
     active_nonlinear_settings = nonlinear_solver_settings_t()
     if (present(nonlinear_settings)) active_nonlinear_settings = nonlinear_settings
+    active_adaptive_settings = adaptive_increment_settings_t()
+    if (present(adaptive_increment_settings)) then
+      active_adaptive_settings = adaptive_increment_settings
+    end if
+    if (present(growth_event_count)) growth_event_count = 0
+    if (present(maximum_accepted_increment)) maximum_accepted_increment = 0.0_dp
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
     use_sparse_backend = linear_backend_is_sparse(active_linear_settings%backend)
@@ -332,7 +350,10 @@ contains
         min_increment <= 0.0_dp .or. min_increment > initial_increment .or. &
         cutback_factor <= 0.0_dp .or. cutback_factor >= 1.0_dp .or. &
         max_cutbacks < 0 .or. &
-        .not. nonlinear_solver_settings_valid(active_nonlinear_settings)) then
+        .not. nonlinear_solver_settings_valid(active_nonlinear_settings) .or. &
+        .not. adaptive_increment_settings_valid(active_adaptive_settings) .or. &
+        (active_adaptive_settings%growth_enabled .and. &
+         initial_increment > active_adaptive_settings%maximum_increment+load_tol)) then
       report%status = DES_ERROR_INVALID_CONSTRAINT
       return
     end if
@@ -376,6 +397,7 @@ contains
 
     load_factor = 0.0_dp
     step = initial_increment
+    increment_had_cutback = .false.
     report%increments_requested = ceiling(1.0_dp/initial_increment)
 
     do while (load_factor < 1.0_dp-load_tol)
@@ -636,6 +658,19 @@ contains
         report%increments_converged = report%increments_converged + 1
         report%final_load_factor = load_factor
         report%last_accepted_increment = accepted_step
+        if (present(maximum_accepted_increment)) then
+          maximum_accepted_increment = max(maximum_accepted_increment,accepted_step)
+        end if
+
+        remaining_load = max(0.0_dp,1.0_dp-load_factor)
+        call select_next_adaptive_increment( &
+            step,remaining_load,max(0,iteration-1),increment_had_cutback, &
+            active_adaptive_settings,next_step,growth_applied)
+        if (growth_applied .and. present(growth_event_count)) then
+          growth_event_count = growth_event_count + 1
+        end if
+        step = next_step
+        increment_had_cutback = .false.
       else
         if (failure_status == DES_ERROR_NEWTON_DID_NOT_CONVERGE) then
           call mark_last_convergence_status(report%history,failure_status)
@@ -670,6 +705,7 @@ contains
           report%status = DES_ERROR_CUTBACK_EXHAUSTED
           return
         end if
+        increment_had_cutback = .true.
       end if
 
       call copy_mixed_state_counters(displacement_state,pressure_state,report)
