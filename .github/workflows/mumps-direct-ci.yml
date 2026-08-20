@@ -5,6 +5,7 @@ on:
     branches: ['develop/v0.3']
     paths:
       - 'CMakeLists.txt'
+      - 'CMakePresets.json'
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/solvers/des_linear_solver.f90'
@@ -21,6 +22,7 @@ on:
     branches: [main]
     paths:
       - 'CMakeLists.txt'
+      - 'CMakePresets.json'
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/solvers/des_linear_solver.f90'
@@ -137,17 +139,14 @@ jobs:
             > lapack-build.log 2>&1
           cat lapack-build.log
 
-      - name: MUMPS-enabled CMake configure
+      - name: Production MUMPS preset CMake configure
         id: configure
         shell: bash
         run: |
-          cmake -S . -B build-mumps -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
+          cmake --preset dyna-production \
             -DCMAKE_Fortran_COMPILER="$FC" \
             -DCMAKE_PREFIX_PATH="$PWD/third-party/lapack-install" \
             -DLAPACK_VENDOR=Netlib \
-            -DDES_BUILD_TESTS=ON \
-            -DDES_ENABLE_MUMPS=ON \
             > cmake-mumps-configure.log 2>&1
           cat cmake-mumps-configure.log
 
@@ -156,7 +155,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          cmake --build build-mumps --target \
+          cmake --build --preset dyna-production --target \
             test_mumps_sparse_solver_context \
             test_auto_sparse_solver_policy \
             test_q9_herrmann_sparse_force_solver \
@@ -167,9 +166,9 @@ jobs:
         id: ctest
         shell: bash
         run: |
-          ctest --test-dir build-mumps \
+          ctest --preset dyna-production \
             -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity)$' \
-            --output-on-failure --build-config Debug
+            --output-on-failure
 
       - name: MUMPS platform status yayınla
         if: always()
