@@ -18,6 +18,7 @@ program test_auto_sparse_solver_policy
 
   ! B7 kabul kapısı aynı testi iki build profilinde çalıştırır:
   ! MUMPS-enabled -> sparse direct; MUMPS-disabled -> portable GMRES fallback.
+  ! Backend availability kararı yalnız SparseSolverContext sınırında doğrulanır.
   type(csr_matrix_t) :: A
   type(linear_solver_settings_t) :: settings
   type(linear_solver_report_t) :: report
