@@ -2,6 +2,7 @@ program test_q9_herrmann_convergence_report
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
+  use des_linear_solver, only : linear_solver_settings_t, DES_LINEAR_BACKEND_STDLIB_DENSE
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
   use des_q9_herrmann_solver_report, only : herrmann_solver_report_t, &
       solve_q9_internal_mesh_herrmann_adaptive_reported
@@ -45,6 +46,7 @@ contains
     real(dp) :: residual_target(21),residual(21),K_target(21,21),external_force(18)
     integer :: a,local_status
     type(herrmann_solver_report_t) :: report
+    type(linear_solver_settings_t) :: dense_settings
 
     if (fully_incompressible) then
       beta = 1.0_dp/(1.0_dp+alpha)-1.0_dp
@@ -76,13 +78,14 @@ contains
       error stop 'Convergence target pressure residual sifir degil.'
     end if
     external_force = residual_target(1:18)
+    dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
 
     u = 0.0_dp
     p = 0.0_dp
     call solve_q9_internal_mesh_herrmann_adaptive_reported( &
         mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
         0.2_dp,0.0125_dp,0.5_dp,6,40,1.0e-10_dp, &
-        u,p,residual,report)
+        u,p,residual,report,linear_settings=dense_settings)
 
     if (.not. report%nonlinear%converged .or. &
         report%nonlinear%status /= DES_STATUS_OK) then
