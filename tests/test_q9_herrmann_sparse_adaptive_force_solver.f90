@@ -4,6 +4,7 @@ program test_q9_herrmann_sparse_adaptive_force_solver
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_linear_solver, only : linear_solver_settings_t, &
+                                DES_LINEAR_BACKEND_STDLIB_DENSE, &
                                 DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
                                 DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
@@ -69,7 +70,7 @@ contains
     real(dp) :: min_j,J_target,u_gap,p_gap,residual_gap
     integer :: a,local_status
     type(newton_report_t) :: dense_report,sparse_report
-    type(linear_solver_settings_t) :: sparse_settings
+    type(linear_solver_settings_t) :: dense_settings,sparse_settings
 
     if (fully_incompressible) then
       ! J=1 hedefi Kpp=0 saddle-point yolunu zorlar.
@@ -102,12 +103,13 @@ contains
     end if
     external_force = residual_target(1:18)
 
+    dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     u_dense = 0.0_dp
     p_dense = 0.0_dp
     call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
         mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
         0.2_dp,0.025_dp,0.5_dp,4,40,1.0e-10_dp, &
-        u_dense,p_dense,residual_dense,dense_report)
+        u_dense,p_dense,residual_dense,dense_report,linear_settings=dense_settings)
 
     if (.not. dense_report%converged .or. dense_report%status /= DES_STATUS_OK) then
       error stop 'Q9 dense adaptive parity referansi yakinsamadi.'
@@ -223,7 +225,7 @@ contains
     real(dp) :: K_target(21,21),external_force(18)
     integer :: a,local_status
     type(newton_report_t) :: dense_report,sparse_report
-    type(linear_solver_settings_t) :: sparse_settings
+    type(linear_solver_settings_t) :: dense_settings,sparse_settings
 
     do a = 1,9
       u_target(a,1) = alpha*mesh%coordinates(a,1)
@@ -241,12 +243,13 @@ contains
     end if
     external_force = residual_target(1:18)
 
+    dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     u_dense = 0.0_dp
     p_dense = 0.0_dp
     call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
         mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
         1.0_dp,0.125_dp,0.5_dp,max_cutbacks,1,1.0e-12_dp, &
-        u_dense,p_dense,residual_dense,dense_report)
+        u_dense,p_dense,residual_dense,dense_report,linear_settings=dense_settings)
 
     call configure_sparse_settings(sparse_settings,sparse_backend)
     u_sparse = 0.0_dp
