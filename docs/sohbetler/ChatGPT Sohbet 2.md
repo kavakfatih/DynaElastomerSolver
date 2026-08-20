@@ -527,3 +527,49 @@ Bu geliştirme turunda sıradaki küçük paket **B8.2 — NaN/Inf rejection + c
 B8.2 kapsamına adaptive increment growth/shrink optimizasyonu ve predictor alınmayacaktır; bunlar ayrı alt paketlerde ele alınacaktır.
 
 PR #1 `open + draft` kalacaktır. Kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır. Commercial ANSYS/Marc LEVEL 3/B12 parity hâlâ OPEN'dır.
+
+---
+
+## 10. 2026-08-20 B8.2 CI failure recovery checkpoint
+
+Kullanıcı geliştirme akışının CI doğrulaması beklenirken yarıda kalmamasını ve sürümün zarar görmeden ilerlemesini istedi. Bu nedenle recovery turunda canlı GitHub durumu ve başarısız job logları doğrudan incelendi; teknik düzeltmeden önce bu checkpoint kaydedildi.
+
+Canlı recovery başlangıcı:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = b10a7b1c496d16ff5a9f5f9fb4f6c3c35e450a4f
+```
+
+Aynı head üzerindeki CI sonucu:
+
+```text
+Normal Fortran CI = 32359317836  → 4/4 FAILURE
+MUMPS Direct CI   = 32359317942  → 4/4 FAILURE
+Toplam                               8/8 FAILURE
+```
+
+Kök neden solver numeriği veya mixed `u-P` formulation değildir. Bütün platformlar yeni regression testini derlerken aynı Fortran string sözdizimi hatasında durmuştur:
+
+```text
+tests/test_q9_herrmann_nonfinite_guard.f90
+```
+
+Türkçe hata mesajındaki `state'i` ifadesi tek tırnakla açılmış Fortran stringini erken kapatmıştır. Solver çekirdeği bu test compile noktasına kadar derlenmiştir; ortak failure bir test-source syntax problemidir.
+
+Recovery sözleşmesi:
+
+```text
+1. yalnız hatalı test stringi düzeltilecek
+2. live develop/v0.3 head her write öncesi yeniden doğrulanacak
+3. yeni head için normal + MUMPS CI takip edilecek
+4. CI pending iken statik kaynak incelemesi ve mümkün olan yerel build/test doğrulaması sürdürülecek
+5. yeni failure varsa log açılıp aynı B8.2 paketi içinde kök neden düzeltilecek
+6. yalnız final 8/8 SUCCESS sonrası B8.2 = PASS yazılacak
+```
+
+Bu recovery turunda PR #1 merge edilmeyecek, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır. Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır.
