@@ -2,7 +2,7 @@ module des_q9_herrmann_solver_report
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK, DES_STATUS_NOT_EVALUATED, &
                          DES_ERROR_INVALID_PARAMETERS, DES_ERROR_INVALID_CONNECTIVITY, &
-                         DES_ERROR_INVALID_CONSTRAINT
+                         DES_ERROR_INVALID_CONSTRAINT, DES_ERROR_NONFINITE_NONLINEAR
   use des_internal_mesh, only : internal_mesh_t, validate_internal_mesh
   use des_linear_solver, only : linear_solver_settings_t
   use des_nonlinear_solver, only : nonlinear_solver_settings_t
@@ -25,6 +25,8 @@ module des_q9_herrmann_solver_report
     real(dp) :: pressure_residual_inf_norm = huge(1.0_dp)
     real(dp) :: volumetric_constraint_inf_norm = huge(1.0_dp)
     integer :: metrics_status = DES_STATUS_NOT_EVALUATED
+    integer :: nonfinite_event_count = 0
+    integer :: last_nonfinite_stage = 0
     logical :: metrics_valid = .false.
   end type herrmann_solver_report_t
 
@@ -42,6 +44,8 @@ contains
     ! kalır; bu katman mixed formulationa özgü convergence metriklerini ekler.
     ! B8.1 nonlinear settings optional olarak bu sınırdan da geçirildi; mevcut
     ! çağrılar son argüman optional olduğu için geriye uyumludur.
+    ! B8.2 non-finite olay sayısı ve son yakalama aşamasını history/status
+    ! üzerinden özetleyerek production-facing raporda doğrudan görünür kılar.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -98,6 +102,7 @@ contains
       end if
     end if
 
+    call summarize_nonfinite_diagnostics(report)
     if (.not. report%nonlinear%converged) return
 
     call evaluate_q9_herrmann_solution_metrics( &
@@ -107,6 +112,29 @@ contains
         report%metrics_status)
     report%metrics_valid = report%metrics_status == DES_STATUS_OK
   end subroutine solve_q9_internal_mesh_herrmann_adaptive_reported
+
+  subroutine summarize_nonfinite_diagnostics(report)
+    type(herrmann_solver_report_t), intent(inout) :: report
+    integer :: h
+
+    report%nonfinite_event_count = 0
+    report%last_nonfinite_stage = 0
+
+    do h = 1,report%nonlinear%history%count
+      if (report%nonlinear%history%records(h)%status == DES_ERROR_NONFINITE_NONLINEAR) then
+        report%nonfinite_event_count = report%nonfinite_event_count + 1
+        report%last_nonfinite_stage = &
+            report%nonlinear%history%records(h)%nonfinite_stage
+      end if
+    end do
+
+    ! Non-finite caller inputlari state transaction baslamadan fail-fast olur ve
+    ! bu nedenle history kaydi olusturmaz. Production raporda olay yine kaybolmaz.
+    if (report%nonfinite_event_count == 0 .and. &
+        report%nonlinear%last_failure_status == DES_ERROR_NONFINITE_NONLINEAR) then
+      report%nonfinite_event_count = 1
+    end if
+  end subroutine summarize_nonfinite_diagnostics
 
   subroutine evaluate_q9_herrmann_solution_metrics( &
       mesh,u,pressure_coefficients,pressure_compliance,fixed_dofs,residual, &
