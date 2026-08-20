@@ -12,10 +12,12 @@ module des_solver_history
     integer :: attempt = 0
     integer :: iteration = 0
     integer :: status = DES_STATUS_OK
+    integer :: line_search_trials = 0
     real(dp) :: load_factor = 0.0_dp
     real(dp) :: increment_size = 0.0_dp
     real(dp) :: residual_norm = huge(1.0_dp)
     real(dp) :: min_j = huge(1.0_dp)
+    real(dp) :: correction_scale = 0.0_dp
     logical :: accepted = .false.
   end type convergence_record_t
 
