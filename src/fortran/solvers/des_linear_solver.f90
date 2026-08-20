@@ -10,18 +10,24 @@ module des_linear_solver
   implicit none
   private
 
+  integer, parameter, public :: DES_LINEAR_BACKEND_AUTO = 0
   integer, parameter, public :: DES_LINEAR_BACKEND_STDLIB_DENSE = 1
   integer, parameter, public :: DES_LINEAR_BACKEND_STDLIB_CSR_GMRES = 2
   integer, parameter, public :: DES_LINEAR_BACKEND_MUMPS_DIRECT = 3
 
+  integer, parameter, public :: DES_LINEAR_FALLBACK_NONE = 0
+  integer, parameter, public :: DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE = 1
+
   public :: linear_solver_settings_t, linear_solver_report_t
   public :: solve_linear_system, solve_sparse_linear_system, linear_backend_name
-  public :: linear_backend_is_sparse
+  public :: linear_backend_is_sparse, linear_fallback_reason_name
 
   type :: linear_solver_settings_t
     ! Dense LAPACK küçük doğrulama problemleri için reference/fallback olarak kalır.
     ! CSR GMRES yolu sparse mimariyi doğrulayan portable bootstrap backend'dir.
     ! MUMPS direct backend yalnız stateful sparse context arkasından çağrılır.
+    ! AUTO explicit seçilirse karar SparseSolverContext içinde verilir; varsayılan
+    ! dense davranış B7'de geriye uyumluluk için bilinçli olarak değiştirilmez.
     integer :: backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     real(dp) :: relative_tolerance = 1.0e-10_dp
     real(dp) :: absolute_tolerance = 1.0e-12_dp
@@ -32,7 +38,10 @@ module des_linear_solver
 
   type :: linear_solver_report_t
     integer :: status = DES_STATUS_OK
+    integer :: requested_backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     integer :: backend = DES_LINEAR_BACKEND_STDLIB_DENSE
+    logical :: fallback_used = .false.
+    integer :: fallback_reason = DES_LINEAR_FALLBACK_NONE
     integer :: equation_count = 0
     real(dp) :: residual_inf_norm = huge(1.0_dp)
     logical :: converged = .false.
@@ -67,6 +76,7 @@ contains
     if (present(settings)) active_settings = settings
 
     report = linear_solver_report_t()
+    report%requested_backend = active_settings%backend
     report%backend = active_settings%backend
     report%equation_count = size(b)
     x = 0.0_dp
@@ -101,6 +111,7 @@ contains
     if (present(settings)) active_settings = settings
 
     report = linear_solver_report_t()
+    report%requested_backend = active_settings%backend
     report%backend = active_settings%backend
     report%equation_count = size(b)
     x = 0.0_dp
@@ -216,6 +227,7 @@ contains
     integer, intent(in) :: backend
 
     linear_backend_is_sparse = &
+        backend == DES_LINEAR_BACKEND_AUTO .or. &
         backend == DES_LINEAR_BACKEND_STDLIB_CSR_GMRES .or. &
         backend == DES_LINEAR_BACKEND_MUMPS_DIRECT
   end function linear_backend_is_sparse
@@ -225,6 +237,8 @@ contains
     character(len=48) :: name
 
     select case (backend)
+    case (DES_LINEAR_BACKEND_AUTO)
+      name = 'AUTO sparse policy'
     case (DES_LINEAR_BACKEND_STDLIB_DENSE)
       name = 'stdlib/LAPACK dense'
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
@@ -235,5 +249,19 @@ contains
       name = 'desteklenmeyen lineer solver backend'
     end select
   end function linear_backend_name
+
+  pure function linear_fallback_reason_name(reason) result(name)
+    integer, intent(in) :: reason
+    character(len=64) :: name
+
+    select case (reason)
+    case (DES_LINEAR_FALLBACK_NONE)
+      name = 'fallback yok'
+    case (DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE)
+      name = 'MUMPS kullanilabilir degil; portable GMRES secildi'
+    case default
+      name = 'bilinmeyen fallback nedeni'
+    end select
+  end function linear_fallback_reason_name
 
 end module des_linear_solver

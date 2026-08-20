@@ -78,6 +78,7 @@ des_add_fortran_test(test_dense_linear solver.dense_linear test_dense_linear.f90
 des_add_fortran_test(test_linear_solver_interface solver.linear.interface test_linear_solver_interface.f90)
 des_add_fortran_test(test_sparse_linear_solver solver.sparse.csr_gmres_indefinite test_sparse_linear_solver.f90)
 des_add_fortran_test(test_sparse_solver_context solver.sparse.context_lifecycle test_sparse_solver_context.f90)
+des_add_fortran_test(test_auto_sparse_solver_policy solver.sparse.auto_policy test_auto_sparse_solver_policy.f90)
 
 if(DES_ENABLE_MUMPS)
   des_add_fortran_test(

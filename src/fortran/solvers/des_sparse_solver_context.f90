@@ -7,8 +7,11 @@ module des_sparse_solver_context
   use des_linear_solver, only : linear_solver_settings_t, &
                                 linear_solver_report_t, &
                                 solve_sparse_linear_system, &
+                                DES_LINEAR_BACKEND_AUTO, &
                                 DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
-                                DES_LINEAR_BACKEND_MUMPS_DIRECT
+                                DES_LINEAR_BACKEND_MUMPS_DIRECT, &
+                                DES_LINEAR_FALLBACK_NONE, &
+                                DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE
   use des_mumps_backend, only : DES_MUMPS_AVAILABLE, mumps_backend_handle_t, &
                                 mumps_backend_create, &
                                 mumps_backend_set_pattern, &
@@ -32,7 +35,10 @@ module des_sparse_solver_context
   integer, parameter, public :: DES_INDEX_CLASS_INT64 = 2
 
   type, public :: sparse_solver_diagnostics_t
+    integer :: requested_backend = 0
     integer :: backend = 0
+    logical :: fallback_used = .false.
+    integer :: fallback_reason = DES_LINEAR_FALLBACK_NONE
     integer :: matrix_class = DES_MATRIX_CLASS_UNKNOWN
     integer :: problem_class = DES_PROBLEM_CLASS_UNKNOWN
     integer :: index_class = DES_INDEX_CLASS_INT32
@@ -58,6 +64,9 @@ module des_sparse_solver_context
 
   type, public :: sparse_solver_context_t
     type(linear_solver_settings_t) :: settings
+    integer :: requested_backend = 0
+    logical :: fallback_used = .false.
+    integer :: fallback_reason = DES_LINEAR_FALLBACK_NONE
     integer :: matrix_class = DES_MATRIX_CLASS_UNKNOWN
     integer :: problem_class = DES_PROBLEM_CLASS_UNKNOWN
     integer :: index_class = DES_INDEX_CLASS_INT32
@@ -105,10 +114,14 @@ contains
     integer, intent(out) :: status
 
     context%settings = settings
+    context%requested_backend = settings%backend
+    context%fallback_used = .false.
+    context%fallback_reason = DES_LINEAR_FALLBACK_NONE
     context%matrix_class = matrix_class
     context%problem_class = problem_class
     context%index_class = index_class
     context%last_linear_report = linear_solver_report_t()
+    context%last_linear_report%requested_backend = settings%backend
     context%last_linear_report%backend = settings%backend
     status = DES_STATUS_OK
 
@@ -119,7 +132,13 @@ contains
       return
     end if
 
-    select case (settings%backend)
+    call resolve_sparse_backend(context,status)
+    if (status /= DES_STATUS_OK) return
+    context%last_linear_report%backend = context%settings%backend
+    context%last_linear_report%fallback_used = context%fallback_used
+    context%last_linear_report%fallback_reason = context%fallback_reason
+
+    select case (context%settings%backend)
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
       ! stdlib CSR köprüsü bugün int32 ile sınırlıdır.
       context%supports_int64 = .false.
@@ -142,7 +161,7 @@ contains
 
     if (index_class == DES_INDEX_CLASS_INT64 .and. &
         .not. context%supports_int64) then
-      if (settings%backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+      if (context%settings%backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
         call mumps_backend_destroy(context%mumps_handle)
       end if
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
@@ -306,7 +325,10 @@ contains
     integer :: matvec_status, backend_status
 
     report = linear_solver_report_t()
+    report%requested_backend = context%requested_backend
     report%backend = context%settings%backend
+    report%fallback_used = context%fallback_used
+    report%fallback_reason = context%fallback_reason
     report%equation_count = size(b)
     x = 0.0_dp
 
@@ -378,7 +400,10 @@ contains
     integer :: step, matvec_status
 
     report = linear_solver_report_t()
+    report%requested_backend = context%requested_backend
     report%backend = context%settings%backend
+    report%fallback_used = context%fallback_used
+    report%fallback_reason = context%fallback_reason
     report%equation_count = size(b)
 
     if (max_steps < 0 .or. tolerance <= 0.0_dp .or. &
@@ -435,7 +460,10 @@ contains
     type(sparse_solver_context_t), intent(in) :: context
     type(sparse_solver_diagnostics_t), intent(out) :: diagnostics
 
+    diagnostics%requested_backend = context%requested_backend
     diagnostics%backend = context%settings%backend
+    diagnostics%fallback_used = context%fallback_used
+    diagnostics%fallback_reason = context%fallback_reason
     diagnostics%matrix_class = context%matrix_class
     diagnostics%problem_class = context%problem_class
     diagnostics%index_class = context%index_class
@@ -482,6 +510,10 @@ contains
     type(sparse_solver_context_t), intent(in) :: context
     type(linear_solver_report_t), intent(inout) :: report
 
+    report%requested_backend = context%requested_backend
+    report%backend = context%settings%backend
+    report%fallback_used = context%fallback_used
+    report%fallback_reason = context%fallback_reason
     report%pattern_analysis_count = context%pattern_analysis_count
     report%reorder_count = context%reorder_count
     report%factorization_count = context%factorization_count
@@ -555,6 +587,36 @@ contains
     valid_index_class = index_class == DES_INDEX_CLASS_INT32 .or. &
                         index_class == DES_INDEX_CLASS_INT64
   end function valid_index_class
+
+  subroutine resolve_sparse_backend(context, status)
+    type(sparse_solver_context_t), intent(inout) :: context
+    integer, intent(out) :: status
+
+    status = DES_STATUS_OK
+    select case (context%requested_backend)
+    case (DES_LINEAR_BACKEND_AUTO)
+      ! B7 workstation politikasında kullanılabilir production direct backend
+      ! MUMPS'tır. Matris sınıfı MUMPS symmetry modunu belirler; MUMPS build
+      ! dışında kaldığında aynı sparse sözleşme portable GMRES'e düşer.
+      select case (context%matrix_class)
+      case (DES_MATRIX_CLASS_SPD, DES_MATRIX_CLASS_SYMMETRIC_INDEFINITE, &
+            DES_MATRIX_CLASS_UNSYMMETRIC)
+        if (DES_MUMPS_AVAILABLE) then
+          context%settings%backend = DES_LINEAR_BACKEND_MUMPS_DIRECT
+        else
+          context%settings%backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
+          context%fallback_used = .true.
+          context%fallback_reason = DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE
+        end if
+      case default
+        status = DES_ERROR_INVALID_CONSTRAINT
+      end select
+    case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, DES_LINEAR_BACKEND_MUMPS_DIRECT)
+      context%settings%backend = context%requested_backend
+    case default
+      status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+    end select
+  end subroutine resolve_sparse_backend
 
   integer function mumps_symmetry_mode(matrix_class)
     integer, intent(in) :: matrix_class
