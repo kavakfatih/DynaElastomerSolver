@@ -4,7 +4,9 @@ module des_q9_plane_strain_herrmann_force_solver
                          DES_ERROR_INVALID_CONNECTIVITY, DES_ERROR_INVALID_CONSTRAINT, &
                          DES_ERROR_NEWTON_DID_NOT_CONVERGE, &
                          DES_ERROR_CUTBACK_EXHAUSTED, &
-                         DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+                         DES_ERROR_UNSUPPORTED_LINEAR_BACKEND, &
+                         DES_ERROR_LINE_SEARCH_FAILED, &
+                         DES_ERROR_NONLINEAR_DIVERGENCE
   use des_internal_mesh, only : internal_mesh_t, validate_internal_mesh
   use des_csr_matrix, only : csr_matrix_t, csr_apply_zero_dirichlet
   use des_linear_solver, only : linear_solver_settings_t, linear_solver_report_t, &
@@ -21,6 +23,9 @@ module des_q9_plane_strain_herrmann_force_solver
                                  revert_solution_state
   use des_solver_history, only : convergence_record_t, clear_convergence_history, &
                                  append_convergence_record, mark_last_convergence_status
+  use des_nonlinear_solver, only : nonlinear_solver_settings_t, &
+      nonlinear_solver_settings_valid, line_search_residual_accepted, &
+      next_residual_growth_streak
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_3X3
@@ -241,10 +246,15 @@ contains
       mesh, shear_modulus, pressure_compliance, fixed_dofs, external_force, &
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
       max_iterations, tolerance, u, pressure_coefficients, residual, report, &
-      linear_settings, quadrature_order)
+      linear_settings, quadrature_order, nonlinear_settings)
     ! Q9/P1 Herrmann için adaptive production yolu.
     ! Displacement ve pressure trial state'leri aynı increment transaction'ının
     ! parçasıdır. Bir Newton denemesi başarısız olursa ikisi de committed state'e döner.
+    !
+    ! B8.1 ile her mixed [du,dp] Newton correction aynı damping katsayısı ile
+    ! ölçeklenir. Full Newton alpha=1 ilk adaydır; residual yeterince azalmazsa
+    ! backtracking yapılır. Line-search başarısızlığı increment cutback zincirine
+    ! kontrollü nonlinear failure olarak aktarılır.
     !
     ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
     ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
@@ -261,25 +271,32 @@ contains
     type(newton_report_t), intent(out) :: report
     type(linear_solver_settings_t), intent(in), optional :: linear_settings
     integer, intent(in), optional :: quadrature_order
+    type(nonlinear_solver_settings_t), intent(in), optional :: nonlinear_settings
 
     logical, allocatable :: is_fixed(:)
     integer, allocatable :: free_dofs(:)
     real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), delta(:)
-    real(dp), allocatable :: rhs_full(:), delta_full(:)
+    real(dp), allocatable :: rhs_full(:), delta_full(:), correction(:)
+    real(dp), allocatable :: base_u(:,:), base_pressure(:,:)
     type(csr_matrix_t) :: K_csr
     type(sparse_solver_context_t) :: sparse_context
     type(solution_state_t) :: displacement_state, pressure_state
     real(dp) :: min_j, load_factor, target_factor, step
-    real(dp) :: residual_norm, accepted_step
+    real(dp) :: residual_norm, accepted_step, previous_residual_norm
+    real(dp) :: correction_scale, candidate_residual_norm, candidate_min_j
     integer :: ndisp, ntotal, nfree, status, failure_status, active_quadrature
-    integer :: iteration, a, b, attempt
-    logical :: increment_converged, use_sparse_backend
+    integer :: iteration, a, b, attempt, line_search_trial, line_search_trials
+    integer :: residual_growth_streak
+    logical :: increment_converged, use_sparse_backend, line_search_accepted
     real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
+    type(nonlinear_solver_settings_t) :: active_nonlinear_settings
 
     active_linear_settings = production_linear_solver_settings()
     if (present(linear_settings)) active_linear_settings = linear_settings
+    active_nonlinear_settings = nonlinear_solver_settings_t()
+    if (present(nonlinear_settings)) active_nonlinear_settings = nonlinear_settings
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
     use_sparse_backend = linear_backend_is_sparse(active_linear_settings%backend)
@@ -292,7 +309,8 @@ contains
     if (initial_increment <= 0.0_dp .or. initial_increment > 1.0_dp .or. &
         min_increment <= 0.0_dp .or. min_increment > initial_increment .or. &
         cutback_factor <= 0.0_dp .or. cutback_factor >= 1.0_dp .or. &
-        max_cutbacks < 0) then
+        max_cutbacks < 0 .or. &
+        .not. nonlinear_solver_settings_valid(active_nonlinear_settings)) then
       report%status = DES_ERROR_INVALID_CONSTRAINT
       return
     end if
@@ -306,6 +324,9 @@ contains
     ndisp = 2*mesh%node_count()
     ntotal = ndisp + Q9_HERRMANN_P_DOF*mesh%element_count()
     nfree = size(free_dofs)
+    allocate(correction(nfree))
+    allocate(base_u(size(u,1),size(u,2)))
+    allocate(base_pressure(size(pressure_coefficients,1),size(pressure_coefficients,2)))
 
     if (use_sparse_backend) then
       allocate(rhs_full(ntotal),delta_full(ntotal))
@@ -347,6 +368,8 @@ contains
 
       increment_converged = .false.
       failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
+      previous_residual_norm = huge(1.0_dp)
+      residual_growth_streak = 0
 
       do iteration = 1,max_iterations
         if (use_sparse_backend) then
@@ -372,6 +395,20 @@ contains
         residual(1:ndisp) = residual(1:ndisp) - target_factor*external_force
         residual_norm = maxval(abs(residual(free_dofs)))
         report%final_residual_norm = residual_norm
+
+        if (iteration > 1) then
+          residual_growth_streak = next_residual_growth_streak( &
+              previous_residual_norm,residual_norm,residual_growth_streak, &
+              active_nonlinear_settings)
+          if (residual_growth_streak >= &
+              active_nonlinear_settings%residual_growth_patience) then
+            call add_herrmann_history(report,attempt,iteration,target_factor, &
+                accepted_step,residual_norm,min_j,DES_ERROR_NONLINEAR_DIVERGENCE,.false.)
+            failure_status = DES_ERROR_NONLINEAR_DIVERGENCE
+            exit
+          end if
+        end if
+        previous_residual_norm = residual_norm
 
         if (residual_norm < tolerance) then
           call add_herrmann_history(report,attempt,iteration,target_factor, &
@@ -419,18 +456,88 @@ contains
           exit
         end if
 
-        call add_herrmann_history(report,attempt,iteration,target_factor, &
-            accepted_step,residual_norm,min_j,DES_STATUS_OK,.false.)
-
         if (use_sparse_backend) then
-          call add_mixed_increment( &
-              displacement_state%trial,pressure_state%trial,ndisp,free_dofs, &
-              delta_full(free_dofs))
+          correction = delta_full(free_dofs)
         else
-          call add_mixed_increment( &
-              displacement_state%trial,pressure_state%trial,ndisp,free_dofs,delta)
+          correction = delta
         end if
-        call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+
+        if (.not. active_nonlinear_settings%line_search_enabled) then
+          correction_scale = 1.0_dp
+          line_search_trials = 0
+          call add_herrmann_history(report,attempt,iteration,target_factor, &
+              accepted_step,residual_norm,min_j,DES_STATUS_OK,.false., &
+              correction_scale,line_search_trials)
+          call add_mixed_increment( &
+              displacement_state%trial,pressure_state%trial,ndisp,free_dofs,correction)
+          call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+        else
+          base_u = displacement_state%trial
+          base_pressure = pressure_state%trial
+          correction_scale = 1.0_dp
+          line_search_trials = 0
+          line_search_accepted = .false.
+          candidate_residual_norm = huge(1.0_dp)
+          candidate_min_j = min_j
+
+          do line_search_trial = 1,active_nonlinear_settings%line_search_max_trials
+            if (correction_scale < &
+                active_nonlinear_settings%line_search_min_scale-load_tol) exit
+
+            line_search_trials = line_search_trial
+            displacement_state%trial = base_u
+            pressure_state%trial = base_pressure
+            call add_mixed_increment( &
+                displacement_state%trial,pressure_state%trial,ndisp,free_dofs, &
+                correction_scale*correction)
+            call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+
+            if (use_sparse_backend) then
+              call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
+                  mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
+                  pressure_state%trial,shear_modulus,pressure_compliance, &
+                  active_quadrature,residual,K_csr,status,candidate_min_j)
+            else
+              call assemble_q9_internal_mesh_herrmann_with_quadrature( &
+                  mesh,displacement_state%trial,pressure_state%trial, &
+                  shear_modulus,pressure_compliance,active_quadrature, &
+                  residual,K,status,candidate_min_j)
+            end if
+            report%min_j = min(report%min_j,candidate_min_j)
+
+            if (status == DES_STATUS_OK) then
+              residual(1:ndisp) = residual(1:ndisp) - target_factor*external_force
+              candidate_residual_norm = maxval(abs(residual(free_dofs)))
+              if (candidate_residual_norm < tolerance .or. &
+                  line_search_residual_accepted( &
+                      residual_norm,candidate_residual_norm,correction_scale, &
+                      active_nonlinear_settings)) then
+                line_search_accepted = .true.
+                exit
+              end if
+            end if
+
+            correction_scale = correction_scale* &
+                active_nonlinear_settings%line_search_reduction
+          end do
+
+          if (.not. line_search_accepted) then
+            displacement_state%trial = base_u
+            pressure_state%trial = base_pressure
+            call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+            call add_herrmann_history(report,attempt,iteration,target_factor, &
+                accepted_step,residual_norm,candidate_min_j, &
+                DES_ERROR_LINE_SEARCH_FAILED,.false., &
+                correction_scale,line_search_trials)
+            failure_status = DES_ERROR_LINE_SEARCH_FAILED
+            exit
+          end if
+
+          call add_herrmann_history(report,attempt,iteration,target_factor, &
+              accepted_step,residual_norm,candidate_min_j,DES_STATUS_OK,.false., &
+              correction_scale,line_search_trials)
+        end if
+
         report%total_iterations = report%total_iterations + 1
       end do
 
@@ -743,11 +850,13 @@ contains
 
   subroutine add_herrmann_history( &
       report,attempt,iteration,load_factor,increment_size,residual_norm, &
-      min_j,status,accepted)
+      min_j,status,accepted,correction_scale,line_search_trials)
     type(newton_report_t), intent(inout) :: report
     integer, intent(in) :: attempt, iteration, status
     real(dp), intent(in) :: load_factor, increment_size, residual_norm, min_j
     logical, intent(in) :: accepted
+    real(dp), intent(in), optional :: correction_scale
+    integer, intent(in), optional :: line_search_trials
     type(convergence_record_t) :: record
 
     record%attempt = attempt
@@ -758,6 +867,8 @@ contains
     record%min_j = min_j
     record%status = status
     record%accepted = accepted
+    if (present(correction_scale)) record%correction_scale = correction_scale
+    if (present(line_search_trials)) record%line_search_trials = line_search_trials
     call append_convergence_record(report%history,record)
   end subroutine add_herrmann_history
 
