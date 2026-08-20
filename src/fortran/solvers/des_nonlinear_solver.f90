@@ -42,7 +42,14 @@ contains
   pure logical function nonlinear_solver_settings_valid(settings) result(valid)
     type(nonlinear_solver_settings_t), intent(in) :: settings
 
-    valid = settings%line_search_reduction > 0.0_dp .and. &
+    ! B8.2: range kontrolü tek başına yeterli değildir. Özellikle +Inf bazı
+    ! eşitsizlikleri geçebileceği için bütün real policy girdileri önce finite
+    ! olmalıdır; NaN/Inf solver davranışını sessizce değiştiremez.
+    valid = ieee_is_finite(settings%line_search_reduction) .and. &
+            ieee_is_finite(settings%line_search_min_scale) .and. &
+            ieee_is_finite(settings%line_search_armijo) .and. &
+            ieee_is_finite(settings%residual_growth_factor) .and. &
+            settings%line_search_reduction > 0.0_dp .and. &
             settings%line_search_reduction < 1.0_dp .and. &
             settings%line_search_min_scale > 0.0_dp .and. &
             settings%line_search_min_scale <= 1.0_dp .and. &
