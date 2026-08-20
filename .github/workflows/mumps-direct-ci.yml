@@ -28,6 +28,7 @@ on:
       - 'tests/test_status_message.f90'
       - 'tests/test_q9_herrmann_*.f90'
       - 'tests/test_v03_herrmann_*.f90'
+      - 'tests/benchmark_v03_herrmann_performance.f90'
       - '.github/workflows/mumps-direct-ci.yml'
   pull_request:
     branches: [main]
@@ -56,6 +57,7 @@ on:
       - 'tests/test_status_message.f90'
       - 'tests/test_q9_herrmann_*.f90'
       - 'tests/test_v03_herrmann_*.f90'
+      - 'tests/benchmark_v03_herrmann_performance.f90'
       - '.github/workflows/mumps-direct-ci.yml'
   workflow_dispatch:
 
@@ -171,7 +173,7 @@ jobs:
             > cmake-mumps-configure.log 2>&1
           cat cmake-mumps-configure.log
 
-      - name: MUMPS context, AUTO ve B8 robustness targetlarini derle
+      - name: MUMPS context, B8 robustness ve B9 baseline targetlarini derle
         id: build
         shell: bash
         run: |
@@ -189,6 +191,7 @@ jobs:
             test_q9_herrmann_sparse_force_solver \
             test_q9_herrmann_sparse_adaptive_force_solver \
             test_q9_herrmann_mumps_failure_cutback \
+            benchmark_v03_herrmann_performance \
             --parallel 2 --verbose 2>&1 | tee mumps-build.log
 
       - name: MUMPS direct, AUTO, B8 robustness ve Q9/P1 parity regression
@@ -198,6 +201,20 @@ jobs:
           ctest --preset dyna-production \
             -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.adaptive\.increment_policy|solver\.adaptive\.predictor_policy|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.adaptive_increment_growth|solver\.q9\.plane_strain\.herrmann\.adaptive_predictor|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
             --output-on-failure
+
+      - name: Q9/P1 Herrmann MUMPS performance baseline ölç
+        id: perf
+        if: matrix.os == 'ubuntu-24.04' && steps.ctest.outcome == 'success'
+        shell: bash
+        run: |
+          cd build/presets/production/tests
+          /usr/bin/time -v -o V0.3_HERRMANN_PERFORMANCE_MUMPS_RSS.txt \
+            ./benchmark_v03_herrmann_performance mumps
+          echo '=== Q9/P1 Herrmann MUMPS performance JSON ==='
+          cat V0.3_HERRMANN_PERFORMANCE_MUMPS_RESULTS.json
+          echo
+          echo '=== Herrmann MUMPS process peak RSS (/usr/bin/time -v) ==='
+          cat V0.3_HERRMANN_PERFORMANCE_MUMPS_RSS.txt
 
       - name: MUMPS platform status yayınla
         if: always()
@@ -209,16 +226,22 @@ jobs:
           CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+          PERF_OUTCOME: ${{ steps.perf.outcome }}
         run: |
+          $perfOk = $true
+          if ('${{ matrix.os }}' -eq 'ubuntu-24.04') {
+            $perfOk = ($env:PERF_OUTCOME -eq 'success')
+          }
           $passed = (
             $env:SETUP_OUTCOME -eq 'success' -and
             $env:LAPACK_OUTCOME -eq 'success' -and
             $env:CONFIGURE_OUTCOME -eq 'success' -and
             $env:BUILD_OUTCOME -eq 'success' -and
-            $env:CTEST_OUTCOME -eq 'success'
+            $env:CTEST_OUTCOME -eq 'success' -and
+            $perfOk
           )
           $state = if ($passed) { 'success' } else { 'failure' }
-          $description = "setup=$($env:SETUP_OUTCOME); lapack=$($env:LAPACK_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
+          $description = "setup=$($env:SETUP_OUTCOME); lapack=$($env:LAPACK_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME); perf=$($env:PERF_OUTCOME)"
           if ($description.Length -gt 140) {
             $description = $description.Substring(0, 140)
           }
@@ -240,7 +263,7 @@ jobs:
             -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' `
             -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
 
-      - name: Dependency, configure ve build loglarını sakla
+      - name: Dependency, configure, build ve performance loglarini sakla
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -250,5 +273,7 @@ jobs:
             lapack-build.log
             cmake-mumps-configure.log
             mumps-build.log
+            build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_MUMPS_RESULTS.json
+            build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_MUMPS_RSS.txt
           if-no-files-found: warn
           retention-days: 7
