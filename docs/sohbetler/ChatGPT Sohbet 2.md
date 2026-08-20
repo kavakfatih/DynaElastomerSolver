@@ -1324,3 +1324,73 @@ B9.4 = PASS
 ```
 
 Bu kapanış commercial ANSYS/Marc parity anlamına gelmez. Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 21. 2026-08-20 B9.5 devam turu — CI checkpoint ve int64 migration sınırı
+
+Kullanıcı `Devam` diyerek B9.5 large-scale sparse foundation çalışmasının sürdürülmesini onayladı. Bu yeni teknik turda ilk repo write olarak sohbet kaydı güncellendi; sonraki kaynak değişiklikleri bu checkpoint'ten sonra yapılacaktır.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = e6775eb9e68927695c8faff2008774d45c33c48f
+```
+
+B9.5'in önceki turda uygulanmış ilk foundation adımları:
+
+```text
+6eb3f46ee62750641aa22b6d225ab332f7f6db6e
+→ des_kinds: i64/int64 kind
+→ csr_matrix_t: nnz_i64() 64-bit-safe structural cardinality query
+
+eee0727bbdc2dcb63fbca0efd29c188c235e0654
+→ MUMPS C adapter sınırında n/nnz/index narrowing fail-fast guard
+→ C-int aralığı aşılırsa silent overflow/corruption yerine unsupported-backend status
+
+e6775eb9e68927695c8faff2008774d45c33c48f
+→ B9 CSR/MUMPS kaynaklarının production MUMPS CI path kapsamına alınması
+```
+
+Canlı combined status'ta normal Fortran CI run `32412688685` 4/4 SUCCESS olarak kapanmıştır:
+
+```text
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+Bu checkpoint anında production MUMPS custom status context'leri henüz aynı head üzerinde yayımlanmamıştır. Bu nedenle B9.5 **PASS değildir** ve full int64 sparse backend desteği iddia edilmemektedir.
+
+Gerçek int64 migration için kalan sınırlar source-level olarak açık tutulacaktır:
+
+```text
+CSR row_ptr / col_ind storage
+CSR pattern-build candidate/count/pointer scratch alanları
+SparseSolverContext structural_nnz / equation_count metadata
+SparseSolverContext cached pattern_row_ptr / pattern_col_ind
+MUMPS Fortran↔C adapter ABI n/nnz/index genişliği
+backend supports_int64 capability flag
+```
+
+Bu turdaki güvenlik sözleşmesi:
+
+- mixed `u-P` formulation değişmeyecek,
+- Q9/P1 element/assembly matematiği değişmeyecek,
+- B8 rollback/cutback/growth/predictor semantics değişmeyecek,
+- GMRES row-equilibration korunacak,
+- AUTO→MUMPS production policy değişmeyecek,
+- int64 desteği tamamlanmadan `supports_int64 = true` yapılmayacak,
+- narrowing/overflow sessizce kabul edilmeyecek,
+- normal + production MUMPS compiler matrisi korunacak,
+- commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalacak.
+
+İlk sonraki kapı, aynı `e6775eb9e68927695c8faff2008774d45c33c48f` head üzerindeki MUMPS 4/4 sonucunu doğrulamaktır. Ardından gerçek CSR index-width migration küçük ve geri alınabilir alt paketlere bölünecektir.
+
+PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
