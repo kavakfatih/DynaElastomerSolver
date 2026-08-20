@@ -1,4 +1,5 @@
 program test_mumps_sparse_solver_context
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
   use des_kinds, only : dp
   use des_status, only : DES_STATUS_OK
   use des_csr_matrix, only : csr_matrix_t, &
@@ -6,6 +7,7 @@ program test_mumps_sparse_solver_context
                              csr_add_local_matrix
   use des_linear_solver, only : linear_solver_settings_t, &
                                 linear_solver_report_t, &
+                                production_linear_solver_settings, &
                                 DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_sparse_solver_context, only : sparse_solver_context_t, &
       sparse_solver_diagnostics_t, create_sparse_solver_context, &
@@ -32,7 +34,7 @@ program test_mumps_sparse_solver_context
     error stop 'MUMPS context CSR graph kuramadi.'
   end if
 
-  settings = linear_solver_settings_t()
+  settings = production_linear_solver_settings()
   settings%backend = DES_LINEAR_BACKEND_MUMPS_DIRECT
   settings%relative_tolerance = 1.0e-11_dp
   settings%absolute_tolerance = 1.0e-12_dp
@@ -81,6 +83,25 @@ program test_mumps_sparse_solver_context
   end if
   if (report%backend_info_primary < 0) then
     error stop 'MUMPS basarili cozumde negatif INFOG(1) raporladi.'
+  end if
+  if (report%direct_ordering_used < 0) then
+    error stop 'MUMPS production ordering telemetry raporlanmadi.'
+  end if
+  if (report%direct_null_pivot_count /= 0) then
+    error stop 'Nonsingular saddle-point sistemde null pivot raporlandi.'
+  end if
+  if (report%direct_negative_pivot_count < 0 .or. &
+      report%direct_delayed_pivot_count < 0 .or. &
+      report%direct_internal_refinement_steps < 0) then
+    error stop 'MUMPS pivot/refinement telemetry gecersiz.'
+  end if
+  if (.not. ieee_is_finite(report%direct_scaled_residual) .or. &
+      .not. ieee_is_finite(report%direct_backward_error_1) .or. &
+      .not. ieee_is_finite(report%direct_backward_error_2)) then
+    error stop 'MUMPS backward-error telemetry finite degil.'
+  end if
+  if (report%direct_out_of_core) then
+    error stop 'Production workstation default beklenmedik OOC kullandi.'
   end if
 
   ! Aynı graph üzerinde yeni Newton values seti: symbolic analysis/order tekrar
@@ -132,6 +153,12 @@ program test_mumps_sparse_solver_context
   if (.not. diagnostics%direct_factorization_performed) then
     error stop 'MUMPS diagnostic direct factorization flag yanlis.'
   end if
+  if (diagnostics%direct_null_pivot_count /= 0) then
+    error stop 'MUMPS diagnostic null pivot sayaci sifir olmaliydi.'
+  end if
+  if (diagnostics%direct_ordering_used < 0) then
+    error stop 'MUMPS diagnostic ordering bilgisi eksik.'
+  end if
 
   write(*,'(A,I0)') 'MUMPS pattern analysis count = ', &
       diagnostics%pattern_analysis_count
@@ -142,7 +169,16 @@ program test_mumps_sparse_solver_context
       report%residual_inf_norm
   write(*,'(A,I0,A,I0)') 'MUMPS INFOG(1/2) = ', &
       report%backend_info_primary,' / ',report%backend_info_secondary
+  write(*,'(A,I0)') 'MUMPS ordering used = ',report%direct_ordering_used
+  write(*,'(A,I0)') 'MUMPS negative pivots = ',report%direct_negative_pivot_count
+  write(*,'(A,I0)') 'MUMPS delayed pivots = ',report%direct_delayed_pivot_count
+  write(*,'(A,I0)') 'MUMPS null pivots = ',report%direct_null_pivot_count
+  write(*,'(A,I0)') 'MUMPS internal refinement steps = ', &
+      report%direct_internal_refinement_steps
+  write(*,'(A,ES12.4)') 'MUMPS scaled residual = ',report%direct_scaled_residual
+  write(*,'(A,ES12.4)') 'MUMPS backward error 1 = ',report%direct_backward_error_1
+  write(*,'(A,ES12.4)') 'MUMPS backward error 2 = ',report%direct_backward_error_2
 
   call release_sparse_solver_context(context)
-  write(*,'(A)') 'MUMPS stateful sparse-direct context testi BASARILI.'
+  write(*,'(A)') 'MUMPS production stateful sparse-direct context testi BASARILI.'
 end program test_mumps_sparse_solver_context
