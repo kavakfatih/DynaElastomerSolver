@@ -1,9 +1,10 @@
 module des_mumps_backend
   use, intrinsic :: iso_c_binding, only : c_associated, c_double, c_int, &
                                          c_null_ptr, c_ptr
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
-                         DES_ERROR_LINEAR_SOLVE
+                         DES_ERROR_LINEAR_SOLVE, &
+                         DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_csr_matrix, only : csr_matrix_t
   implicit none
   private
@@ -34,6 +35,7 @@ module des_mumps_backend
   public :: mumps_backend_factorize
   public :: mumps_backend_solve
   public :: mumps_backend_destroy
+  public :: mumps_backend_c_index_range_supported
 
   interface
     function des_mumps_c_create(symmetry_mode,info_primary,info_secondary) &
@@ -227,6 +229,7 @@ contains
 
     integer(c_int), allocatable :: row_ptr(:), col_ind(:)
     integer(c_int) :: rc, c_info_primary, c_info_secondary
+    integer(i64) :: n_i64, nnz_i64
 
     status = DES_STATUS_OK
     info_primary = 0
@@ -239,12 +242,22 @@ contains
       return
     end if
 
+    n_i64 = int(matrix%nrows,i64)
+    nnz_i64 = matrix%nnz_i64()
+    if (.not. mumps_backend_c_index_range_supported(n_i64,nnz_i64) .or. &
+        .not. csr_pattern_values_fit_c_int(matrix)) then
+      ! C adapter halen c_int n/nnz/index aliyor. B9 int64 gecisi tamamlanana
+      ! kadar sessiz narrowing/corruption yerine explicit capability failure.
+      status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
+      return
+    end if
+
     allocate(row_ptr(size(matrix%row_ptr)),col_ind(size(matrix%col_ind)))
     row_ptr = int(matrix%row_ptr,c_int)
     col_ind = int(matrix%col_ind,c_int)
 
     rc = des_mumps_c_set_pattern( &
-        handle%ptr,int(matrix%nrows,c_int),int(size(matrix%col_ind),c_int), &
+        handle%ptr,int(n_i64,c_int),int(nnz_i64,c_int), &
         row_ptr,col_ind,c_info_primary,c_info_secondary)
     info_primary = int(c_info_primary)
     info_secondary = int(c_info_secondary)
@@ -259,17 +272,19 @@ contains
 
     real(c_double), allocatable :: values(:)
     integer(c_int) :: rc, c_info_primary, c_info_secondary
+    integer(i64) :: nnz_i64
 
     call validate_numeric_input(handle,matrix,status)
     info_primary = 0
     info_secondary = 0
     if (status /= DES_STATUS_OK) return
 
+    nnz_i64 = matrix%nnz_i64()
     allocate(values(size(matrix%values)))
     values = real(matrix%values,c_double)
 
     rc = des_mumps_c_analyze( &
-        handle%ptr,int(size(values),c_int),values, &
+        handle%ptr,int(nnz_i64,c_int),values, &
         c_info_primary,c_info_secondary)
     info_primary = int(c_info_primary)
     info_secondary = int(c_info_secondary)
@@ -283,17 +298,19 @@ contains
 
     real(c_double), allocatable :: values(:)
     integer(c_int) :: rc, c_info_primary, c_info_secondary
+    integer(i64) :: nnz_i64
 
     call validate_numeric_input(handle,matrix,status)
     info_primary = 0
     info_secondary = 0
     if (status /= DES_STATUS_OK) return
 
+    nnz_i64 = matrix%nnz_i64()
     allocate(values(size(matrix%values)))
     values = real(matrix%values,c_double)
 
     rc = des_mumps_c_factorize( &
-        handle%ptr,int(size(values),c_int),values, &
+        handle%ptr,int(nnz_i64,c_int),values, &
         c_info_primary,c_info_secondary)
     info_primary = int(c_info_primary)
     info_secondary = int(c_info_secondary)
@@ -309,15 +326,21 @@ contains
 
     real(c_double), allocatable :: rhs(:), solution(:)
     integer(c_int) :: rc, c_info_primary, c_info_secondary
+    integer(i64) :: n_i64
 
     status = DES_STATUS_OK
     info_primary = 0
     info_secondary = 0
     x = 0.0_dp
 
-    if (.not. c_associated(handle%ptr) .or. size(b) < 1 .or. &
-        size(x) /= size(b)) then
+    n_i64 = size(b,kind=i64)
+    if (.not. c_associated(handle%ptr) .or. n_i64 < 1_i64 .or. &
+        size(x,kind=i64) /= n_i64) then
       status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+    if (.not. mumps_backend_c_index_range_supported(n_i64,1_i64)) then
+      status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
       return
     end if
 
@@ -326,7 +349,7 @@ contains
     solution = 0.0_c_double
 
     rc = des_mumps_c_solve( &
-        handle%ptr,int(size(b),c_int),rhs,solution, &
+        handle%ptr,int(n_i64,c_int),rhs,solution, &
         c_info_primary,c_info_secondary)
     info_primary = int(c_info_primary)
     info_secondary = int(c_info_secondary)
@@ -351,11 +374,48 @@ contains
     type(csr_matrix_t), intent(in) :: matrix
     integer, intent(out) :: status
 
+    integer(i64) :: n_i64, nnz_i64
+
     status = DES_STATUS_OK
     if (.not. c_associated(handle%ptr) .or. &
         .not. allocated(matrix%values) .or. size(matrix%values) < 1) then
       status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    n_i64 = int(matrix%nrows,i64)
+    nnz_i64 = matrix%nnz_i64()
+    if (.not. mumps_backend_c_index_range_supported(n_i64,nnz_i64)) then
+      status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
     end if
   end subroutine validate_numeric_input
+
+  logical function mumps_backend_c_index_range_supported(n,nnz) result(supported)
+    ! Mevcut Dyna->MUMPS C adapter ABI'si n ve nnz icin C int kullanir.
+    ! 64-bit CSR migration tamamlanana kadar bu sinir explicit olarak test edilir;
+    ! int(...,c_int) ile sessiz tasma yapilmasina izin verilmez.
+    integer(i64), intent(in) :: n, nnz
+    integer(i64) :: c_int_max
+
+    c_int_max = int(huge(0_c_int),i64)
+    supported = n >= 1_i64 .and. nnz >= 1_i64 .and. &
+                n <= c_int_max .and. nnz <= c_int_max
+  end function mumps_backend_c_index_range_supported
+
+  logical function csr_pattern_values_fit_c_int(matrix) result(fits)
+    type(csr_matrix_t), intent(in) :: matrix
+    integer(i64) :: c_int_max
+
+    fits = .false.
+    if (.not. allocated(matrix%row_ptr) .or. &
+        .not. allocated(matrix%col_ind)) return
+    if (size(matrix%row_ptr) < 2 .or. size(matrix%col_ind) < 1) return
+
+    c_int_max = int(huge(0_c_int),i64)
+    if (minval(matrix%row_ptr) < 1 .or. minval(matrix%col_ind) < 1) return
+    if (int(maxval(matrix%row_ptr),i64) > c_int_max) return
+    if (int(maxval(matrix%col_ind),i64) > c_int_max) return
+    fits = .true.
+  end function csr_pattern_values_fit_c_int
 
 end module des_mumps_backend

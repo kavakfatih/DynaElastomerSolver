@@ -1,6 +1,7 @@
 program test_mumps_sparse_solver_context
   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
-  use des_kinds, only : dp
+  use, intrinsic :: iso_c_binding, only : c_int
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK
   use des_csr_matrix, only : csr_matrix_t, &
                              initialize_csr_from_element_dof_maps, &
@@ -9,6 +10,7 @@ program test_mumps_sparse_solver_context
                                 linear_solver_report_t, &
                                 production_linear_solver_settings, &
                                 DES_LINEAR_BACKEND_MUMPS_DIRECT
+  use des_mumps_backend, only : mumps_backend_c_index_range_supported
   use des_sparse_solver_context, only : sparse_solver_context_t, &
       sparse_solver_diagnostics_t, create_sparse_solver_context, &
       analyze_sparse_pattern, reorder_sparse_pattern, &
@@ -25,8 +27,29 @@ program test_mumps_sparse_solver_context
   type(sparse_solver_context_t) :: context
   type(sparse_solver_diagnostics_t) :: diagnostics
   integer :: maps(1,3), status
+  integer(i64) :: c_int_max
   real(dp) :: A_dense(3,3), b(3), x(3), expected(3)
   logical :: reused
+
+  ! B9.5: C adapter su anda n/nnz/index icin c_int ABI'si kullaniyor.
+  ! 64-bit CSR migration tamamlanmadan once bu narrowing siniri sessiz tasma
+  ! yerine explicit capability check ile korunmalidir.
+  if (.not. mumps_backend_c_index_range_supported(3_i64,5_i64)) then
+    error stop 'MUMPS C-index preflight kucuk matrisi reddetti.'
+  end if
+  if (mumps_backend_c_index_range_supported(0_i64,5_i64) .or. &
+      mumps_backend_c_index_range_supported(3_i64,0_i64)) then
+    error stop 'MUMPS C-index preflight gecersiz cardinality kabul etti.'
+  end if
+  if (bit_size(0_c_int) < bit_size(0_i64)) then
+    c_int_max = int(huge(0_c_int),i64)
+    if (mumps_backend_c_index_range_supported(c_int_max+1_i64,5_i64)) then
+      error stop 'MUMPS C-index preflight equation overflowunu kabul etti.'
+    end if
+    if (mumps_backend_c_index_range_supported(3_i64,c_int_max+1_i64)) then
+      error stop 'MUMPS C-index preflight nnz overflowunu kabul etti.'
+    end if
+  end if
 
   maps(1,:) = [1,2,3]
   call initialize_csr_from_element_dof_maps(A,3,3,maps,status)
