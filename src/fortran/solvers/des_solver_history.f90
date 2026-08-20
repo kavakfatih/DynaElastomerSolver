@@ -13,6 +13,8 @@ module des_solver_history
     integer :: iteration = 0
     integer :: status = DES_STATUS_OK
     integer :: line_search_trials = 0
+    integer :: cutback_index = 0
+    integer :: nonfinite_stage = 0
     real(dp) :: load_factor = 0.0_dp
     real(dp) :: increment_size = 0.0_dp
     real(dp) :: residual_norm = huge(1.0_dp)
