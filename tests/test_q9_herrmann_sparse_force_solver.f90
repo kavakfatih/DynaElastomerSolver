@@ -4,6 +4,7 @@ program test_q9_herrmann_sparse_force_solver
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_linear_solver, only : linear_solver_settings_t, &
+                                DES_LINEAR_BACKEND_STDLIB_DENSE, &
                                 DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
                                 DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_q9_internal_mesh_herrmann_assembly, only : assemble_q9_internal_mesh_herrmann
@@ -65,7 +66,7 @@ contains
     real(dp) :: u_gap,p_gap,residual_gap
     integer :: a,local_status
     type(newton_report_t) :: dense_report,sparse_report
-    type(linear_solver_settings_t) :: sparse_settings
+    type(linear_solver_settings_t) :: dense_settings,sparse_settings
 
     if (fully_incompressible) then
       ! J=1 tam olarak korunur; pressure bilinmeyeni hydrostatic stress seviyesini
@@ -99,11 +100,13 @@ contains
     end if
     external_force = residual_target(1:18)
 
+    dense_settings%backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     u_dense = 0.0_dp
     p_dense = 0.0_dp
     call solve_q9_internal_mesh_herrmann_force_control( &
         mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
-        5,40,1.0e-10_dp,u_dense,p_dense,residual_dense,dense_report)
+        5,40,1.0e-10_dp,u_dense,p_dense,residual_dense,dense_report, &
+        linear_settings=dense_settings)
     if (.not. dense_report%converged .or. dense_report%status /= DES_STATUS_OK) then
       error stop 'Q9 dense nonlinear parity referansi yakinsamadi.'
     end if
