@@ -20,6 +20,7 @@ program test_auto_sparse_solver_policy
   ! B7/B7b kabul kapısı aynı testi iki build profilinde çalıştırır:
   ! MUMPS-enabled -> gerçek sparse direct; MUMPS-disabled -> portable GMRES fallback.
   ! Explicit MUMPS isteği ise unavailable durumda sessiz fallback yapamaz.
+  ! Bu dosya B7b final dört-platform acceptance matrisinin ortak policy gate'idir.
   type(csr_matrix_t) :: A
   type(linear_solver_settings_t) :: settings
   type(linear_solver_report_t) :: report
