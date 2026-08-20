@@ -165,6 +165,9 @@ program test_mumps_sparse_solver_context
   end if
 
   call get_sparse_solver_diagnostics(context,diagnostics)
+  if (diagnostics%equation_count /= 3_i64 .or. diagnostics%nnz /= 9_i64) then
+    error stop 'MUMPS context 64-bit cardinality metadata yanlis.'
+  end if
   if (diagnostics%pattern_analysis_count /= 1) then
     error stop 'MUMPS pattern analysis reuse boyunca tekrarlandi.'
   end if
@@ -190,6 +193,9 @@ program test_mumps_sparse_solver_context
     error stop 'MUMPS diagnostic ordering bilgisi eksik.'
   end if
 
+  write(*,'(A,I0)') 'MUMPS context equation count (int64) = ', &
+      diagnostics%equation_count
+  write(*,'(A,I0)') 'MUMPS context structural nnz (int64) = ',diagnostics%nnz
   write(*,'(A,I0)') 'MUMPS pattern analysis count = ', &
       diagnostics%pattern_analysis_count
   write(*,'(A,I0)') 'MUMPS reorder count = ',diagnostics%reorder_count

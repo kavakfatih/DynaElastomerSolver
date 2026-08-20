@@ -1,5 +1,5 @@
 module des_sparse_solver_context
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
                          DES_ERROR_LINEAR_SOLVE, &
                          DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
@@ -50,8 +50,8 @@ module des_sparse_solver_context
     integer :: matrix_class = DES_MATRIX_CLASS_UNKNOWN
     integer :: problem_class = DES_PROBLEM_CLASS_UNKNOWN
     integer :: index_class = DES_INDEX_CLASS_INT32
-    integer :: equation_count = 0
-    integer :: nnz = 0
+    integer(i64) :: equation_count = 0_i64
+    integer(i64) :: nnz = 0_i64
     integer :: pattern_analysis_count = 0
     integer :: reorder_count = 0
     integer :: factorization_count = 0
@@ -87,8 +87,8 @@ module des_sparse_solver_context
     integer :: matrix_class = DES_MATRIX_CLASS_UNKNOWN
     integer :: problem_class = DES_PROBLEM_CLASS_UNKNOWN
     integer :: index_class = DES_INDEX_CLASS_INT32
-    integer :: equation_count = 0
-    integer :: structural_nnz = 0
+    integer(i64) :: equation_count = 0_i64
+    integer(i64) :: structural_nnz = 0_i64
     integer :: pattern_analysis_count = 0
     integer :: reorder_count = 0
     integer :: factorization_count = 0
@@ -249,8 +249,8 @@ contains
     allocate(context%pattern_col_ind(size(matrix%col_ind)))
     context%pattern_row_ptr = matrix%row_ptr
     context%pattern_col_ind = matrix%col_ind
-    context%equation_count = matrix%nrows
-    context%structural_nnz = size(matrix%col_ind)
+    context%equation_count = int(matrix%nrows,i64)
+    context%structural_nnz = matrix%nnz_i64()
     context%pattern_analysis_count = context%pattern_analysis_count + 1
     context%pattern_analyzed = .true.
     context%ordering_ready = .false.
@@ -645,8 +645,8 @@ contains
     same_sparse_pattern = .false.
     if (.not. context%pattern_analyzed) return
     if (.not. valid_csr_structure(matrix)) return
-    if (matrix%nrows /= context%equation_count) return
-    if (size(matrix%col_ind) /= context%structural_nnz) return
+    if (int(matrix%nrows,i64) /= context%equation_count) return
+    if (matrix%nnz_i64() /= context%structural_nnz) return
     if (size(matrix%row_ptr) /= size(context%pattern_row_ptr)) return
     if (size(matrix%col_ind) /= size(context%pattern_col_ind)) return
     if (any(matrix%row_ptr /= context%pattern_row_ptr)) return

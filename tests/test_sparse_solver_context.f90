@@ -1,5 +1,5 @@
 program test_sparse_solver_context
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK, &
                          DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_csr_matrix, only : csr_matrix_t, &
@@ -108,6 +108,9 @@ program test_sparse_solver_context
   end if
 
   call get_sparse_solver_diagnostics(context,diagnostics)
+  if (diagnostics%equation_count /= 3_i64 .or. diagnostics%nnz /= 9_i64) then
+    error stop 'Sparse context 64-bit cardinality metadata yanlis.'
+  end if
   if (diagnostics%pattern_analysis_count /= 1) then
     error stop 'Symbolic analysis Newton reuse boyunca tekrarlandi.'
   end if
@@ -148,6 +151,9 @@ program test_sparse_solver_context
     error stop 'GMRES int64 kapasite sinirini dogru raporlamadi.'
   end if
 
+  write(*,'(A,I0)') 'B4 context equation count (int64) = ', &
+      diagnostics%equation_count
+  write(*,'(A,I0)') 'B4 context structural nnz (int64) = ',diagnostics%nnz
   write(*,'(A,I0)') 'B4 pattern analysis count = ', &
       diagnostics%pattern_analysis_count
   write(*,'(A,I0)') 'B4 symbolic reuse count = ', &
