@@ -10,6 +10,9 @@ program test_nonlinear_solver_policy
   real(dp) :: values(3), matrix_values(2,2), nan_value, inf_value
   integer :: streak
 
+  nan_value = ieee_value(0.0_dp,ieee_quiet_nan)
+  inf_value = ieee_value(0.0_dp,ieee_positive_inf)
+
   settings = nonlinear_solver_settings_t()
   if (.not. nonlinear_solver_settings_valid(settings)) then
     error stop 'Varsayilan nonlinear solver ayarlari gecersiz.'
@@ -37,6 +40,18 @@ program test_nonlinear_solver_policy
   settings%residual_growth_factor = 1.0_dp
   if (nonlinear_solver_settings_valid(settings)) then
     error stop 'Gecersiz residual growth factor ayari kabul edildi.'
+  end if
+
+  settings = nonlinear_solver_settings_t()
+  settings%line_search_reduction = nan_value
+  if (nonlinear_solver_settings_valid(settings)) then
+    error stop 'NaN line-search reduction ayari kabul edildi.'
+  end if
+
+  settings = nonlinear_solver_settings_t()
+  settings%residual_growth_factor = inf_value
+  if (nonlinear_solver_settings_valid(settings)) then
+    error stop 'Inf residual growth factor ayari kabul edildi.'
   end if
 
   settings = nonlinear_solver_settings_t()
@@ -81,8 +96,6 @@ program test_nonlinear_solver_policy
     error stop 'Finite matrix non-finite olarak isaretlendi.'
   end if
 
-  nan_value = ieee_value(0.0_dp,ieee_quiet_nan)
-  inf_value = ieee_value(0.0_dp,ieee_positive_inf)
   if (nonlinear_values_finite(nan_value)) then
     error stop 'NaN scalar finite olarak kabul edildi.'
   end if
