@@ -467,7 +467,7 @@ B8.1 kabul ilkeleri:
 
 Bu checkpoint commercial ANSYS/Marc parity iddiası değildir. B12/LEVEL 3 açık kalır.
 
-Kullanıcı açıkça istemeden PR #1 merge edilmeyecek, `release/v0.3` oluşturulmayacak, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır.
+Kullanıcı açıkça istemeden PR #1 merge edilmeyecek, `release/v0.3`, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır.
 
 ---
 
@@ -830,5 +830,90 @@ B9.1 kapsamı yalnız ölçüm ve raporlama foundation'ıdır; bu alt pakette ag
 B9.1 kabulünde solver formulation, B8 nonlinear transaction semantics ve backend seçim politikası değiştirilmeyecektir. Ölçüm katmanı production sonuçlarını değiştirmemeli; aynı benchmark probleminin final mixed state/residual doğruluğu mevcut regression sözleşmeleriyle korunmalıdır.
 
 B9.1 sonrasında performans verisine göre B9.2 optimizasyon hedefleri seçilecektir; ölçüm yapılmadan speculative optimization yapılmayacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 14. 2026-08-20 B9.1 final kapanış ve B9.2 başlangıç checkpoint'i
+
+B9.1 final acceptance head'i:
+
+```text
+develop/v0.3 = afd34bbfa320e49dfbe7a92b5bf7353a8df635d0
+```
+
+Canlı GitHub doğrulamasında PR #1 durumu:
+
+```text
+state       = open
+draft       = true
+merged      = false
+head branch = develop/v0.3
+```
+
+B9.1 measurement-only sözleşmesi tamamlandı. Q9/P1 benchmark katmanı solver formulation, nonlinear transaction semantics ve backend selection policy'sini değiştirmeden deterministik scaling verisi üretmektedir.
+
+Normal CI final sonucu:
+
+```text
+Normal Fortran CI = 32384923935
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+Production MUMPS CI final sonucu:
+
+```text
+MUMPS Direct CI = 32384923939
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+İlk Linux/MUMPS job'u `96477292005`, Fortran toolchain indirme/provisioning aşamasındaki transient timeout nedeniyle kod build/test aşamasına ulaşmadan başarısız oldu. Solver kodunda düzeltme yapılmadı. Yalnız başarısız Linux job'u aynı acceptance SHA üzerinde yeniden çalıştırıldı; retry job'u `96484352673` toolchain, LAPACK, MUMPS production configure/build, production regressions ve B9 same-runner performance baseline adımlarının tamamında SUCCESS oldu.
+
+Toplam kabul matrisi:
+
+```text
+Normal  = 4/4 SUCCESS
+MUMPS   = 4/4 SUCCESS
+Toplam  = 8/8 SUCCESS
+```
+
+Linux/gfortran normal benchmark artifact'ından ölçülen portable CSR GMRES baseline'ı:
+
+```text
+Mesh      Free eq.   Wall time (s)   Peak RSS (KiB)   Newton   Linear solve
+Q9 1x1          15        0.004711             4416        4              4
+Q9 2x2          52        0.028486             4876        4              4
+Q9 3x3         111        1.246115             4876        8              8
+Q9 4x4         192       11.000924             4876        8              8
+```
+
+Bütün dört mesh başarılı solve status'u üretmiştir. MUMPS CI Linux retry'sinde aynı runner üzerinde MUMPS ve GMRES benchmark JSON üretim adımı SUCCESS olmuştur. CI logunda kalıcı olarak yayımlanmayan MUMPS sayısal timing değerleri bu kayıtta uydurulmamıştır; yalnız doğrulanmış step sonucu kaydedilmiştir.
+
+B9.1 acceptance sonucu:
+
+```text
+B9.1 = PASS
+```
+
+Bu kayıtla yeni küçük paket **B9.2 — ölçüme dayalı production performance optimization** başlatılmıştır. B9.2'de önce canlı kaynak üzerinde GMRES/MUMPS/assembly zaman maliyetinin hangi kod yolunda oluştuğu incelenecek; optimizasyon hedefi ancak bu source-level profiling incelemesinden sonra daraltılacaktır. B9.1 ölçümleri, özellikle 111 ve 192 serbest denklem seviyelerinde portable GMRES wall-time büyümesini araştırma önceliği yapmaktadır; ancak kaynak kanıtı olmadan belirli bir optimizasyon tekniği peşinen seçilmeyecektir.
+
+B9.2 güvenlik sözleşmesi:
+
+- mixed `u-P` formulation değişmeyecek,
+- production AUTO→MUMPS Direct önceliği değişmeyecek,
+- explicit GMRES portable alternatif olarak korunacak,
+- dense reference yolu korunacak,
+- correctness threshold'ları performans uğruna gevşetilmeyecek,
+- B8 rollback/cutback/growth/predictor transaction semantics değişmeyecek,
+- değişiklik küçük ve ayrı kabul edilebilir paket olacak,
+- optimizasyon öncesi ve sonrası aynı benchmark ile ölçülecek,
+- native macOS Apple Silicon, Linux ve Windows compiler matrisi korunacak.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
