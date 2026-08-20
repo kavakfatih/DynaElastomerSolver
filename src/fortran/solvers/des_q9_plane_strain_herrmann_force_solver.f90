@@ -48,6 +48,14 @@ module des_q9_plane_strain_herrmann_force_solver
   public :: solve_q9_internal_mesh_herrmann_force_control
   public :: solve_q9_internal_mesh_herrmann_adaptive_force_control
 
+  type, public :: herrmann_phase_timing_t
+    ! B9.3 timing telemetrisi report-only'dir; solver kabul kararına girmez.
+    real(dp) :: assembly_cpu_seconds = 0.0_dp
+    real(dp) :: linear_setup_cpu_seconds = 0.0_dp
+    real(dp) :: linear_factorization_cpu_seconds = 0.0_dp
+    real(dp) :: linear_solve_cpu_seconds = 0.0_dp
+  end type herrmann_phase_timing_t
+
 contains
 
   subroutine solve_q9_internal_mesh_herrmann_force_control( &
@@ -256,7 +264,7 @@ contains
       max_iterations, tolerance, u, pressure_coefficients, residual, report, &
       linear_settings, quadrature_order, nonlinear_settings, adaptive_increment_settings, &
       growth_event_count, maximum_accepted_increment, predictor_settings, &
-      predictor_event_count, maximum_predictor_scale)
+      predictor_event_count, maximum_predictor_scale, phase_timing)
     ! Q9/P1 Herrmann için adaptive production yolu.
     ! Displacement ve pressure trial state'leri aynı increment transaction'ının
     ! parçasıdır. Bir Newton denemesi başarısız olursa ikisi de committed state'e döner.
@@ -277,6 +285,10 @@ contains
     ! B8.4 secant predictor iki ardışık committed mixed state farkını kullanır.
     ! u ve p aynı load-step oranıyla birlikte extrapolate edilir. Predictor yalnız
     ! trial state'i değiştirir ve cutback retry denemelerinde tekrar uygulanmaz.
+    !
+    ! B9.3 phase timing yalnız performans gözlemidir. MUMPS backend symbolic
+    ! analyze/ordering'i ilk factorization çağrısında ertelendiği için ilk
+    ! linear_factorization_cpu_seconds örneği symbolic + numeric işi birlikte içerir.
     !
     ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
     ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
@@ -300,6 +312,7 @@ contains
     type(adaptive_predictor_settings_t), intent(in), optional :: predictor_settings
     integer, intent(out), optional :: predictor_event_count
     real(dp), intent(out), optional :: maximum_predictor_scale
+    type(herrmann_phase_timing_t), intent(out), optional :: phase_timing
 
     logical, allocatable :: is_fixed(:)
     integer, allocatable :: free_dofs(:)
@@ -314,6 +327,7 @@ contains
     real(dp) :: residual_norm, accepted_step, previous_residual_norm
     real(dp) :: correction_scale, candidate_residual_norm, candidate_min_j
     real(dp) :: predictor_scale, previous_accepted_step
+    real(dp) :: phase_cpu_start, phase_cpu_end
     integer :: ndisp, ntotal, nfree, status, failure_status, active_quadrature
     integer :: iteration, a, b, attempt, line_search_trial, line_search_trials
     integer :: residual_growth_streak, nonfinite_stage
@@ -327,6 +341,7 @@ contains
     type(nonlinear_solver_settings_t) :: active_nonlinear_settings
     type(adaptive_increment_settings_t) :: active_adaptive_settings
     type(adaptive_predictor_settings_t) :: active_predictor_settings
+    type(herrmann_phase_timing_t) :: timing
 
     active_linear_settings = production_linear_solver_settings()
     if (present(linear_settings)) active_linear_settings = linear_settings
@@ -342,6 +357,8 @@ contains
     if (present(maximum_accepted_increment)) maximum_accepted_increment = 0.0_dp
     if (present(predictor_event_count)) predictor_event_count = 0
     if (present(maximum_predictor_scale)) maximum_predictor_scale = 0.0_dp
+    timing = herrmann_phase_timing_t()
+    if (present(phase_timing)) phase_timing = timing
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
     use_sparse_backend = linear_backend_is_sparse(active_linear_settings%backend)
@@ -396,15 +413,25 @@ contains
 
     if (use_sparse_backend) then
       allocate(rhs_full(ntotal),delta_full(ntotal))
+      call cpu_time(phase_cpu_start)
       call initialize_q9_plane_strain_herrmann_csr_pattern( &
           mesh%node_count(),mesh%q9_connectivity,K_csr,status)
+      call cpu_time(phase_cpu_end)
+      timing%linear_setup_cpu_seconds = timing%linear_setup_cpu_seconds + &
+          max(0.0_dp,phase_cpu_end-phase_cpu_start)
+      if (present(phase_timing)) phase_timing = timing
       if (status /= DES_STATUS_OK) then
         report%status = status
         report%last_failure_status = status
         return
       end if
+      call cpu_time(phase_cpu_start)
       call initialize_q9_herrmann_sparse_context( &
           K_csr,active_linear_settings,sparse_context,status)
+      call cpu_time(phase_cpu_end)
+      timing%linear_setup_cpu_seconds = timing%linear_setup_cpu_seconds + &
+          max(0.0_dp,phase_cpu_end-phase_cpu_start)
+      if (present(phase_timing)) phase_timing = timing
       if (status /= DES_STATUS_OK) then
         report%status = status
         report%last_failure_status = status
@@ -474,6 +501,7 @@ contains
           exit
         end if
 
+        call cpu_time(phase_cpu_start)
         if (use_sparse_backend) then
           call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
               mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
@@ -485,6 +513,10 @@ contains
               shear_modulus,pressure_compliance,active_quadrature, &
               residual,K,status,min_j)
         end if
+        call cpu_time(phase_cpu_end)
+        timing%assembly_cpu_seconds = timing%assembly_cpu_seconds + &
+            max(0.0_dp,phase_cpu_end-phase_cpu_start)
+        if (present(phase_timing)) phase_timing = timing
         report%min_j = min(report%min_j,min_j)
 
         if (status /= DES_STATUS_OK) then
@@ -540,15 +572,26 @@ contains
             exit
           end if
 
+          call cpu_time(phase_cpu_start)
           call factorize_sparse_matrix(sparse_context,K_csr,status)
+          call cpu_time(phase_cpu_end)
+          timing%linear_factorization_cpu_seconds = &
+              timing%linear_factorization_cpu_seconds + &
+              max(0.0_dp,phase_cpu_end-phase_cpu_start)
+          if (present(phase_timing)) phase_timing = timing
           if (status /= DES_STATUS_OK) then
             call add_herrmann_history(report,attempt,iteration,target_factor, &
                 accepted_step,residual_norm,min_j,status,.false.)
             failure_status = status
             exit
           end if
+          call cpu_time(phase_cpu_start)
           call solve_sparse_with_context( &
               sparse_context,K_csr,rhs_full,delta_full,linear_report)
+          call cpu_time(phase_cpu_end)
+          timing%linear_solve_cpu_seconds = timing%linear_solve_cpu_seconds + &
+              max(0.0_dp,phase_cpu_end-phase_cpu_start)
+          if (present(phase_timing)) phase_timing = timing
         else
           rhs = -residual(free_dofs)
           do a = 1,nfree
@@ -557,8 +600,13 @@ contains
             end do
           end do
 
+          call cpu_time(phase_cpu_start)
           call solve_linear_system( &
               Kff,rhs,delta,active_linear_settings,linear_report)
+          call cpu_time(phase_cpu_end)
+          timing%linear_solve_cpu_seconds = timing%linear_solve_cpu_seconds + &
+              max(0.0_dp,phase_cpu_end-phase_cpu_start)
+          if (present(phase_timing)) phase_timing = timing
         end if
         call record_herrmann_linear_solve(report,linear_report)
         if (.not. linear_report%converged) then
@@ -633,6 +681,7 @@ contains
               cycle
             end if
 
+            call cpu_time(phase_cpu_start)
             if (use_sparse_backend) then
               call assemble_q9_plane_strain_herrmann_mesh_csr_with_quadrature( &
                   mesh%coordinates,mesh%q9_connectivity,displacement_state%trial, &
@@ -644,6 +693,10 @@ contains
                   shear_modulus,pressure_compliance,active_quadrature, &
                   residual,K,status,candidate_min_j)
             end if
+            call cpu_time(phase_cpu_end)
+            timing%assembly_cpu_seconds = timing%assembly_cpu_seconds + &
+                max(0.0_dp,phase_cpu_end-phase_cpu_start)
+            if (present(phase_timing)) phase_timing = timing
             report%min_j = min(report%min_j,candidate_min_j)
 
             if (status == DES_STATUS_OK) then
@@ -775,6 +828,7 @@ contains
           mesh,shear_modulus,pressure_compliance,fixed_dofs,free_dofs,external_force, &
           tolerance,active_quadrature,u,pressure_coefficients,residual,K,report)
     end if
+    if (present(phase_timing)) phase_timing = timing
   end subroutine solve_q9_internal_mesh_herrmann_adaptive_force_control
 
   subroutine finalize_q9_herrmann_solution( &
