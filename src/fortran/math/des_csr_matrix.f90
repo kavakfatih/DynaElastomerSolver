@@ -1,5 +1,5 @@
 module des_csr_matrix
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT
   implicit none
   private
@@ -25,6 +25,7 @@ module des_csr_matrix
     real(dp), allocatable :: values(:)
   contains
     procedure :: nnz => csr_nnz
+    procedure :: nnz_i64 => csr_nnz_i64
     procedure :: zero_values => csr_zero_values
     procedure :: get_value => csr_get_value
   end type csr_matrix_t
@@ -336,6 +337,20 @@ contains
       nnz = 0
     end if
   end function csr_nnz
+
+  integer(i64) function csr_nnz_i64(this) result(nnz)
+    ! Large-scale B9 altyapisinda structural nonzero cardinality'sini default
+    ! integer'a daraltmadan raporlamak icin 64-bit-safe sorgu. Mevcut row/column
+    ! index storage bu alt pakette degistirilmez; bu API sonraki int64 CSR gecisi
+    ! icin narrowing noktalarini gorunur ve test edilebilir hale getirir.
+    class(csr_matrix_t), intent(in) :: this
+
+    if (allocated(this%values)) then
+      nnz = size(this%values,kind=i64)
+    else
+      nnz = 0_i64
+    end if
+  end function csr_nnz_i64
 
   subroutine csr_zero_values(this)
     class(csr_matrix_t), intent(inout) :: this

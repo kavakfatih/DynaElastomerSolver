@@ -1,5 +1,5 @@
 program test_csr_matrix
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK
   use des_csr_matrix, only : csr_matrix_t, initialize_csr_from_element_dof_maps, &
                              csr_add_local_matrix, csr_to_dense, csr_matvec, &
@@ -19,6 +19,9 @@ program test_csr_matrix
   call initialize_csr_from_element_dof_maps(A,5,5,maps,status)
   if (status /= DES_STATUS_OK) error stop 'CSR graph initialization basarisiz.'
   if (A%nnz() /= 17) error stop 'CSR graph beklenen unique nnz sayisini vermedi.'
+  if (A%nnz_i64() /= 17_i64) then
+    error stop 'CSR 64-bit structural nnz sorgusu beklenen degeri vermedi.'
+  end if
 
   if (A%row_ptr(1) /= 1 .or. A%row_ptr(6) /= 18) then
     error stop 'CSR row_ptr 1-based sozlesmesi bozuldu.'
@@ -91,6 +94,7 @@ program test_csr_matrix
   if (maxval(abs(A%values)) > 0.0_dp) error stop 'CSR zero_values basarisiz.'
 
   write(*,'(A,I0)') 'CSR structural nnz = ',A%nnz()
+  write(*,'(A,I0)') 'CSR structural nnz (int64) = ',A%nnz_i64()
   write(*,'(A)') 'CSR sparse matrix foundation testi BASARILI.'
 
 contains
