@@ -11,9 +11,17 @@ module des_sparse_solver_context
                                 DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, &
                                 DES_LINEAR_BACKEND_MUMPS_DIRECT, &
                                 DES_LINEAR_FALLBACK_NONE, &
-                                DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE
-  use des_mumps_backend, only : DES_MUMPS_AVAILABLE, mumps_backend_handle_t, &
+                                DES_LINEAR_FALLBACK_MUMPS_UNAVAILABLE, &
+                                DES_DIRECT_ORDERING_AUTO, &
+                                DES_DIRECT_ORDERING_AMD, &
+                                DES_DIRECT_ORDERING_AMF, &
+                                DES_DIRECT_ORDERING_QAMD
+  use des_mumps_backend, only : DES_MUMPS_AVAILABLE, &
+                                mumps_backend_handle_t, &
+                                mumps_backend_diagnostics_t, &
                                 mumps_backend_create, &
+                                mumps_backend_configure, &
+                                mumps_backend_get_diagnostics, &
                                 mumps_backend_set_pattern, &
                                 mumps_backend_analyze, &
                                 mumps_backend_factorize, &
@@ -52,6 +60,15 @@ module des_sparse_solver_context
     integer :: symbolic_reuse_count = 0
     integer :: backend_info_primary = 0
     integer :: backend_info_secondary = 0
+    integer :: direct_ordering_used = -1
+    integer :: direct_negative_pivot_count = 0
+    integer :: direct_delayed_pivot_count = 0
+    integer :: direct_null_pivot_count = 0
+    integer :: direct_internal_refinement_steps = 0
+    logical :: direct_out_of_core = .false.
+    real(dp) :: direct_scaled_residual = huge(1.0_dp)
+    real(dp) :: direct_backward_error_1 = huge(1.0_dp)
+    real(dp) :: direct_backward_error_2 = huge(1.0_dp)
     logical :: active = .false.
     logical :: pattern_analyzed = .false.
     logical :: ordering_ready = .false.
@@ -80,6 +97,15 @@ module des_sparse_solver_context
     integer :: symbolic_reuse_count = 0
     integer :: backend_info_primary = 0
     integer :: backend_info_secondary = 0
+    integer :: direct_ordering_used = -1
+    integer :: direct_negative_pivot_count = 0
+    integer :: direct_delayed_pivot_count = 0
+    integer :: direct_null_pivot_count = 0
+    integer :: direct_internal_refinement_steps = 0
+    logical :: direct_out_of_core = .false.
+    real(dp) :: direct_scaled_residual = huge(1.0_dp)
+    real(dp) :: direct_backward_error_1 = huge(1.0_dp)
+    real(dp) :: direct_backward_error_2 = huge(1.0_dp)
     logical :: active = .false.
     logical :: pattern_analyzed = .false.
     logical :: ordering_ready = .false.
@@ -142,18 +168,41 @@ contains
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES)
       ! stdlib CSR köprüsü bugün int32 ile sınırlıdır.
       context%supports_int64 = .false.
+
     case (DES_LINEAR_BACKEND_MUMPS_DIRECT)
-      ! B6 ilk production profili int32 Dyna CSR ile başlar.
+      ! B7b production workstation profili int32 Dyna CSR ile başlar.
       ! MUMPS 64-bit genişlemesi B9'da Dyna CSR int64 dönüşümüyle açılacaktır.
       context%supports_int64 = .false.
       if (.not. DES_MUMPS_AVAILABLE) then
         status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
         return
       end if
+      if (.not. valid_direct_settings(context%settings)) then
+        status = DES_ERROR_INVALID_CONSTRAINT
+        return
+      end if
+
       call mumps_backend_create( &
           context%mumps_handle,mumps_symmetry_mode(matrix_class),status, &
           context%backend_info_primary,context%backend_info_secondary)
       if (status /= DES_STATUS_OK) return
+
+      call mumps_backend_configure( &
+          context%mumps_handle, &
+          mumps_ordering_code(context%settings%direct_ordering), &
+          context%settings%direct_pivot_threshold, &
+          context%settings%direct_iterative_refinement_steps, &
+          context%settings%direct_refinement_tolerance, &
+          context%settings%direct_error_analysis, &
+          context%settings%direct_out_of_core, &
+          context%settings%direct_null_pivot_detection, &
+          context%settings%direct_null_pivot_tolerance,status, &
+          context%backend_info_primary,context%backend_info_secondary)
+      if (status /= DES_STATUS_OK) then
+        call mumps_backend_destroy(context%mumps_handle)
+        return
+      end if
+
     case default
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
       return
@@ -211,8 +260,7 @@ contains
 
     if (context%settings%backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
       ! CSR -> MUMPS structural mapping yalnız graph değiştiğinde kurulur.
-      ! MUMPS job=1 burada çalıştırılmaz; ilk assembled Newton değerleri gelene
-      ! kadar analysis/matching bilinçli olarak ertelenir.
+      ! MUMPS job=1 ilk assembled Newton değerleri gelene kadar ertelenir.
       call mumps_backend_set_pattern( &
           context%mumps_handle,matrix,status, &
           context%backend_info_primary,context%backend_info_secondary)
@@ -254,9 +302,8 @@ contains
 
     if (context%ordering_ready) return
 
-    ! GMRES'te ayrı fill-reducing ordering yoktur. MUMPS'ta ise gerçek symbolic
-    ! analysis/ordering ilk assembled values setiyle factorize çağrısında yapılır.
-    ! Bu flag lifecycle'da ordering aşamasının bir kez talep edildiğini gösterir.
+    ! GMRES'te ayrı fill-reducing ordering yoktur. MUMPS'ta gerçek ordering
+    ! symbolic analysis sırasında yapılır. Lifecycle flag bir kez istenir.
     context%ordering_ready = .true.
     context%reorder_count = context%reorder_count + 1
   end subroutine reorder_sparse_pattern
@@ -303,6 +350,22 @@ contains
         return
       end if
       context%direct_factorization_performed = .true.
+
+      call refresh_mumps_diagnostics(context,status)
+      if (status /= DES_STATUS_OK) then
+        context%numeric_ready = .false.
+        context%direct_factorization_performed = .false.
+        return
+      end if
+
+      ! Production policy: rank deficiency/null pivot sessizce kabul edilmez.
+      ! Adaptive Newton bu DES_ERROR_LINEAR_SOLVE durumunu rollback+cutback'e taşır.
+      if (context%direct_null_pivot_count > 0) then
+        status = DES_ERROR_LINEAR_SOLVE
+        context%numeric_ready = .false.
+        context%direct_factorization_performed = .false.
+        return
+      end if
 
     case default
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
@@ -354,6 +417,15 @@ contains
         report%status = backend_status
         report%converged = .false.
       else
+        call refresh_mumps_diagnostics(context,backend_status)
+        if (backend_status /= DES_STATUS_OK) then
+          report%status = backend_status
+          report%converged = .false.
+          call attach_context_counters(context,report)
+          context%last_linear_report = report
+          return
+        end if
+
         allocate(ax(size(b)))
         call csr_matvec(matrix,x,ax,matvec_status)
         if (matvec_status /= DES_STATUS_OK) then
@@ -478,6 +550,16 @@ contains
     diagnostics%symbolic_reuse_count = context%symbolic_reuse_count
     diagnostics%backend_info_primary = context%backend_info_primary
     diagnostics%backend_info_secondary = context%backend_info_secondary
+    diagnostics%direct_ordering_used = context%direct_ordering_used
+    diagnostics%direct_negative_pivot_count = context%direct_negative_pivot_count
+    diagnostics%direct_delayed_pivot_count = context%direct_delayed_pivot_count
+    diagnostics%direct_null_pivot_count = context%direct_null_pivot_count
+    diagnostics%direct_internal_refinement_steps = &
+        context%direct_internal_refinement_steps
+    diagnostics%direct_out_of_core = context%direct_out_of_core
+    diagnostics%direct_scaled_residual = context%direct_scaled_residual
+    diagnostics%direct_backward_error_1 = context%direct_backward_error_1
+    diagnostics%direct_backward_error_2 = context%direct_backward_error_2
     diagnostics%active = context%active
     diagnostics%pattern_analyzed = context%pattern_analyzed
     diagnostics%ordering_ready = context%ordering_ready
@@ -524,7 +606,37 @@ contains
         context%direct_factorization_performed
     report%backend_info_primary = context%backend_info_primary
     report%backend_info_secondary = context%backend_info_secondary
+    report%direct_ordering_used = context%direct_ordering_used
+    report%direct_negative_pivot_count = context%direct_negative_pivot_count
+    report%direct_delayed_pivot_count = context%direct_delayed_pivot_count
+    report%direct_null_pivot_count = context%direct_null_pivot_count
+    report%direct_internal_refinement_steps = &
+        context%direct_internal_refinement_steps
+    report%direct_out_of_core = context%direct_out_of_core
+    report%direct_scaled_residual = context%direct_scaled_residual
+    report%direct_backward_error_1 = context%direct_backward_error_1
+    report%direct_backward_error_2 = context%direct_backward_error_2
   end subroutine attach_context_counters
+
+  subroutine refresh_mumps_diagnostics(context,status)
+    type(sparse_solver_context_t), intent(inout) :: context
+    integer, intent(out) :: status
+    type(mumps_backend_diagnostics_t) :: diagnostics
+
+    call mumps_backend_get_diagnostics(context%mumps_handle,diagnostics,status)
+    if (status /= DES_STATUS_OK) return
+
+    context%direct_ordering_used = diagnostics%ordering_used
+    context%direct_negative_pivot_count = diagnostics%negative_pivot_count
+    context%direct_delayed_pivot_count = diagnostics%delayed_pivot_count
+    context%direct_null_pivot_count = diagnostics%null_pivot_count
+    context%direct_internal_refinement_steps = &
+        diagnostics%internal_refinement_steps
+    context%direct_out_of_core = diagnostics%out_of_core
+    context%direct_scaled_residual = diagnostics%scaled_residual
+    context%direct_backward_error_1 = diagnostics%backward_error_1
+    context%direct_backward_error_2 = diagnostics%backward_error_2
+  end subroutine refresh_mumps_diagnostics
 
   logical function same_sparse_pattern(context, matrix)
     type(sparse_solver_context_t), intent(in) :: context
@@ -588,6 +700,22 @@ contains
                         index_class == DES_INDEX_CLASS_INT64
   end function valid_index_class
 
+  logical function valid_direct_settings(settings)
+    type(linear_solver_settings_t), intent(in) :: settings
+
+    valid_direct_settings = .false.
+    if (settings%direct_iterative_refinement_steps < 0) return
+    if (settings%direct_error_analysis < 0 .or. &
+        settings%direct_error_analysis > 2) return
+    select case (settings%direct_ordering)
+    case (DES_DIRECT_ORDERING_AUTO, DES_DIRECT_ORDERING_AMD, &
+          DES_DIRECT_ORDERING_AMF, DES_DIRECT_ORDERING_QAMD)
+      valid_direct_settings = .true.
+    case default
+      return
+    end select
+  end function valid_direct_settings
+
   subroutine resolve_sparse_backend(context, status)
     type(sparse_solver_context_t), intent(inout) :: context
     integer, intent(out) :: status
@@ -595,9 +723,8 @@ contains
     status = DES_STATUS_OK
     select case (context%requested_backend)
     case (DES_LINEAR_BACKEND_AUTO)
-      ! B7 workstation politikasında kullanılabilir production direct backend
-      ! MUMPS'tır. Matris sınıfı MUMPS symmetry modunu belirler; MUMPS build
-      ! dışında kaldığında aynı sparse sözleşme portable GMRES'e düşer.
+      ! Production workstation policy: kullanılabilir direct backend MUMPS'tır.
+      ! MUMPS build dışında kaldığında portable GMRES controlled fallback olur.
       select case (context%matrix_class)
       case (DES_MATRIX_CLASS_SPD, DES_MATRIX_CLASS_SYMMETRIC_INDEFINITE, &
             DES_MATRIX_CLASS_UNSYMMETRIC)
@@ -611,12 +738,33 @@ contains
       case default
         status = DES_ERROR_INVALID_CONSTRAINT
       end select
+
     case (DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, DES_LINEAR_BACKEND_MUMPS_DIRECT)
+      ! Explicit MUMPS isteği unavailable durumda aşağıdaki create aşamasında
+      ! fail-fast olur; burada sessiz fallback yapılmaz.
       context%settings%backend = context%requested_backend
+
     case default
       status = DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
     end select
   end subroutine resolve_sparse_backend
+
+  integer function mumps_ordering_code(ordering)
+    integer, intent(in) :: ordering
+
+    select case (ordering)
+    case (DES_DIRECT_ORDERING_AUTO)
+      mumps_ordering_code = 7
+    case (DES_DIRECT_ORDERING_AMD)
+      mumps_ordering_code = 0
+    case (DES_DIRECT_ORDERING_AMF)
+      mumps_ordering_code = 2
+    case (DES_DIRECT_ORDERING_QAMD)
+      mumps_ordering_code = 6
+    case default
+      mumps_ordering_code = 7
+    end select
+  end function mumps_ordering_code
 
   integer function mumps_symmetry_mode(matrix_class)
     integer, intent(in) :: matrix_class
