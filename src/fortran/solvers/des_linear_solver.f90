@@ -224,23 +224,45 @@ contains
     type(linear_solver_report_t), intent(inout) :: report
 
     type(CSR_dp_type) :: A_stdlib
-    real(dp), allocatable :: Ax(:)
-    real(dp) :: residual_limit, rhs_scale
-    integer :: matvec_status, kdim
+    real(dp), allocatable :: Ax(:), b_scaled(:)
+    real(dp) :: residual_limit, rhs_scale, row_max, inverse_row_scale
+    integer :: matvec_status, kdim, row, first_entry, last_entry
 
     call A_stdlib%malloc( &
         int(A%nrows,i32),int(A%ncols,i32),int(A%nnz(),i32))
     A_stdlib%rowptr = int(A%row_ptr,i32)
     A_stdlib%col = int(A%col_ind,i32)
-    A_stdlib%data = A%values
+
+    ! Mixed u-P saddle-point sisteminde pressure diagonal'i cp=0 limitinde
+    ! sıfır olabilir. Bu nedenle diagonal/Jacobi yerine her denklemi kendi
+    ! satırındaki en büyük katsayı ile ölçekleyen güvenli bir sol-dengeleme
+    ! uygulanır. D*A*x = D*b sistemi exact arithmetic'te aynı x çözümünü verir.
+    ! Boş veya sayısal olarak sıfır satırlar 1.0 katsayısı ile değiştirilmeden
+    ! bırakılır; final kabul her zaman orijinal A*x-b residual'i ile yapılır.
+    allocate(b_scaled(size(b)))
+    do row = 1,A%nrows
+      first_entry = A%row_ptr(row)
+      last_entry = A%row_ptr(row+1)-1
+      row_max = 0.0_dp
+      if (last_entry >= first_entry) then
+        row_max = maxval(abs(A%values(first_entry:last_entry)))
+      end if
+
+      inverse_row_scale = 1.0_dp
+      if (row_max > tiny(1.0_dp)) inverse_row_scale = 1.0_dp/row_max
+
+      if (last_entry >= first_entry) then
+        A_stdlib%data(first_entry:last_entry) = &
+            A%values(first_entry:last_entry)*inverse_row_scale
+      end if
+      b_scaled(row) = b(row)*inverse_row_scale
+    end do
 
     x = 0.0_dp
     kdim = min(settings%krylov_dimension,size(b))
 
-    ! Herrmann fully-incompressible limitinde pressure diagonal blokları sıfır
-    ! olabilir. Bootstrap aşamasında Jacobi preconditioner bu yüzden seçilmez.
     call stdlib_solve_gmres( &
-        A_stdlib,b,x, &
+        A_stdlib,b_scaled,x, &
         rtol=settings%relative_tolerance, &
         atol=settings%absolute_tolerance, &
         maxiter=settings%max_iterations, &
