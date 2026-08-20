@@ -917,3 +917,75 @@ B9.2 güvenlik sözleşmesi:
 - native macOS Apple Silicon, Linux ve Windows compiler matrisi korunacak.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 15. 2026-08-20 B9.2 GMRES row-equilibration doğrulama checkpoint'i
+
+Yeni geliştirme turu başında canlı GitHub durumu yeniden doğrulandı:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 95c783f9e40814a9e6d74171ce03e811253da198
+```
+
+B9.2'nin ilk dar teknik adayı, portable CSR GMRES yolunda mixed `u-P` saddle-point sistem için **satır bazlı equation equilibration** olarak uygulanmıştır. Değişiklik yalnız:
+
+```text
+src/fortran/solvers/des_linear_solver.f90
+```
+
+dosyasında tutulmuştur. Mixed formulation, Q9/P1 assembly, nonlinear transaction, MUMPS Direct backend ve AUTO production policy değiştirilmemiştir.
+
+Kullanılan lineer dönüşüm:
+
+```text
+D * A * x = D * b
+```
+
+burada her satır için `D_ii`, o satırdaki en büyük mutlak katsayının tersi olarak seçilir; sayısal olarak sıfır/boş satır değişmeden bırakılır. Bu yaklaşım, fully-incompressible `cp=0` limitinde pressure diagonal bloklarının sıfır olabilmesi nedeniyle sıradan diagonal/Jacobi preconditioner'a bağımlı değildir.
+
+Pinned stdlib kaynağı ayrıca incelendi. Kullanılan stdlib GMRES sürümünde built-in Jacobi preconditioner diagonal üzerinden çalışmakta ve sıfır diagonal girdilerde inverse diagonal üretmemektedir. Bu nedenle fully-incompressible mixed `u-P` için Jacobi, genel production seçimi olarak kullanılmamıştır.
+
+Doğruluk sözleşmesi korunmuştur: GMRES ölçeklenmiş sistemi çözse de final kabul hâlâ orijinal sistem residual'i ile yapılır:
+
+```text
+||A*x - b||_inf
+```
+
+Correctness tolerance gevşetilmemiştir.
+
+İlk aday SHA:
+
+```text
+95c783f9e40814a9e6d74171ce03e811253da198
+```
+
+Aynı SHA üzerinde canlı combined status'ta normal compiler matrisi kapanmıştır:
+
+```text
+Normal Fortran CI = 32391481483
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+MUMPS Direct custom status context'leri bu checkpoint anında henüz yayımlanmamıştır. Bu nedenle B9.2 **PASS değildir**.
+
+B9.2 kapanış için aynı teknik davranış üzerinde şu kapılar zorunludur:
+
+```text
+1. production MUMPS 4/4 SUCCESS
+2. normal 4/4 SUCCESS korunması
+3. B9.1 ile aynı Linux/gfortran benchmark runner'ında GMRES 1x1..4x4 yeniden ölçümü
+4. özellikle 3x3 ve 4x4 seviyelerinde gerçek wall-time etkisinin kaydedilmesi
+5. final displacement / pressure / residual correctness'in korunması
+6. performans kazancı yoksa veya regression varsa row-equilibration production optimizasyonu olarak kabul edilmeyecek
+```
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
