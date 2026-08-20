@@ -29,6 +29,7 @@ on:
       - 'tests/test_q9_herrmann_*.f90'
       - 'tests/test_v03_herrmann_*.f90'
       - 'tests/benchmark_v03_herrmann_performance.f90'
+      - 'tools/verification/compare_v03_herrmann_performance.py'
       - '.github/workflows/mumps-direct-ci.yml'
   pull_request:
     branches: [main]
@@ -58,6 +59,7 @@ on:
       - 'tests/test_q9_herrmann_*.f90'
       - 'tests/test_v03_herrmann_*.f90'
       - 'tests/benchmark_v03_herrmann_performance.f90'
+      - 'tools/verification/compare_v03_herrmann_performance.py'
       - '.github/workflows/mumps-direct-ci.yml'
   workflow_dispatch:
 
@@ -202,16 +204,36 @@ jobs:
             -R '^(solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.adaptive\.increment_policy|solver\.adaptive\.predictor_policy|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.adaptive_increment_growth|solver\.q9\.plane_strain\.herrmann\.adaptive_predictor|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
             --output-on-failure
 
-      - name: Q9/P1 Herrmann MUMPS performance baseline ölç
+      - name: Q9/P1 Herrmann GMRES ve MUMPS same-runner performance baseline ölç
         id: perf
         if: matrix.os == 'ubuntu-24.04' && steps.ctest.outcome == 'success'
         shell: bash
         run: |
           cd build/presets/production/tests
+          /usr/bin/time -v -o V0.3_HERRMANN_PERFORMANCE_GMRES_RSS.txt \
+            ./benchmark_v03_herrmann_performance gmres
           /usr/bin/time -v -o V0.3_HERRMANN_PERFORMANCE_MUMPS_RSS.txt \
             ./benchmark_v03_herrmann_performance mumps
+
+          python -m json.tool V0.3_HERRMANN_PERFORMANCE_GMRES_RESULTS.json > /dev/null
+          python -m json.tool V0.3_HERRMANN_PERFORMANCE_MUMPS_RESULTS.json > /dev/null
+          python "$GITHUB_WORKSPACE/tools/verification/compare_v03_herrmann_performance.py" \
+            --gmres V0.3_HERRMANN_PERFORMANCE_GMRES_RESULTS.json \
+            --mumps V0.3_HERRMANN_PERFORMANCE_MUMPS_RESULTS.json \
+            --output V0.3_HERRMANN_PERFORMANCE_COMPARISON.json
+          python -m json.tool V0.3_HERRMANN_PERFORMANCE_COMPARISON.json > /dev/null
+
+          echo '=== Q9/P1 Herrmann GMRES performance JSON ==='
+          cat V0.3_HERRMANN_PERFORMANCE_GMRES_RESULTS.json
+          echo
           echo '=== Q9/P1 Herrmann MUMPS performance JSON ==='
           cat V0.3_HERRMANN_PERFORMANCE_MUMPS_RESULTS.json
+          echo
+          echo '=== Same-runner GMRES/MUMPS comparison ==='
+          cat V0.3_HERRMANN_PERFORMANCE_COMPARISON.json
+          echo
+          echo '=== Herrmann GMRES process peak RSS (/usr/bin/time -v) ==='
+          cat V0.3_HERRMANN_PERFORMANCE_GMRES_RSS.txt
           echo
           echo '=== Herrmann MUMPS process peak RSS (/usr/bin/time -v) ==='
           cat V0.3_HERRMANN_PERFORMANCE_MUMPS_RSS.txt
@@ -273,7 +295,10 @@ jobs:
             lapack-build.log
             cmake-mumps-configure.log
             mumps-build.log
+            build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_GMRES_RESULTS.json
+            build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_GMRES_RSS.txt
             build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_MUMPS_RESULTS.json
             build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_MUMPS_RSS.txt
+            build/presets/production/tests/V0.3_HERRMANN_PERFORMANCE_COMPARISON.json
           if-no-files-found: warn
           retention-days: 7
