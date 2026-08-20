@@ -31,6 +31,9 @@ module des_q9_plane_strain_herrmann_force_solver
       DES_NONFINITE_STAGE_CORRECTION, DES_NONFINITE_STAGE_TRIAL_STATE
   use des_adaptive_increment, only : adaptive_increment_settings_t, &
       adaptive_increment_settings_valid, select_next_adaptive_increment
+  use des_adaptive_predictor, only : adaptive_predictor_settings_t, &
+      adaptive_predictor_settings_valid, select_secant_predictor_scale, &
+      build_mixed_secant_predictor
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_3X3
@@ -252,7 +255,8 @@ contains
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
       max_iterations, tolerance, u, pressure_coefficients, residual, report, &
       linear_settings, quadrature_order, nonlinear_settings, adaptive_increment_settings, &
-      growth_event_count, maximum_accepted_increment)
+      growth_event_count, maximum_accepted_increment, predictor_settings, &
+      predictor_event_count, maximum_predictor_scale)
     ! Q9/P1 Herrmann için adaptive production yolu.
     ! Displacement ve pressure trial state'leri aynı increment transaction'ının
     ! parçasıdır. Bir Newton denemesi başarısız olursa ikisi de committed state'e döner.
@@ -269,6 +273,10 @@ contains
     ! B8.3 growth policy yalnız başarılı mixed u-p commit'inden sonra çalışır.
     ! Aynı load increment'i içinde cutback görülmüşse veya Newton correction sayısı
     ! configured threshold'u aşıyorsa bir sonraki step büyütülmez.
+    !
+    ! B8.4 secant predictor iki ardışık committed mixed state farkını kullanır.
+    ! u ve p aynı load-step oranıyla birlikte extrapolate edilir. Predictor yalnız
+    ! trial state'i değiştirir ve cutback retry denemelerinde tekrar uygulanmaz.
     !
     ! Sparse backend seçildiğinde CSR graph yalnız bir kez kurulur. B4 context
     ! symbolic analysis ve ordering'i bu graph için bir kez yapar; Newton boyunca
@@ -289,29 +297,36 @@ contains
     type(adaptive_increment_settings_t), intent(in), optional :: adaptive_increment_settings
     integer, intent(out), optional :: growth_event_count
     real(dp), intent(out), optional :: maximum_accepted_increment
+    type(adaptive_predictor_settings_t), intent(in), optional :: predictor_settings
+    integer, intent(out), optional :: predictor_event_count
+    real(dp), intent(out), optional :: maximum_predictor_scale
 
     logical, allocatable :: is_fixed(:)
     integer, allocatable :: free_dofs(:)
     real(dp), allocatable :: K(:,:), Kff(:,:), rhs(:), delta(:)
     real(dp), allocatable :: rhs_full(:), delta_full(:), correction(:)
     real(dp), allocatable :: base_u(:,:), base_pressure(:,:)
+    real(dp), allocatable :: previous_committed_u(:,:), previous_committed_pressure(:,:)
     type(csr_matrix_t) :: K_csr
     type(sparse_solver_context_t) :: sparse_context
     type(solution_state_t) :: displacement_state, pressure_state
     real(dp) :: min_j, load_factor, target_factor, step, next_step, remaining_load
     real(dp) :: residual_norm, accepted_step, previous_residual_norm
     real(dp) :: correction_scale, candidate_residual_norm, candidate_min_j
+    real(dp) :: predictor_scale, previous_accepted_step
     integer :: ndisp, ntotal, nfree, status, failure_status, active_quadrature
     integer :: iteration, a, b, attempt, line_search_trial, line_search_trials
     integer :: residual_growth_streak, nonfinite_stage
     logical :: increment_converged, use_sparse_backend, line_search_accepted
     logical :: finite_candidate_seen, nonfinite_candidate_seen
     logical :: increment_had_cutback, growth_applied
+    logical :: have_previous_committed_state, predictor_applied, predictor_candidate_valid
     real(dp), parameter :: load_tol = 100.0_dp*epsilon(1.0_dp)
     type(linear_solver_settings_t) :: active_linear_settings
     type(linear_solver_report_t) :: linear_report
     type(nonlinear_solver_settings_t) :: active_nonlinear_settings
     type(adaptive_increment_settings_t) :: active_adaptive_settings
+    type(adaptive_predictor_settings_t) :: active_predictor_settings
 
     active_linear_settings = production_linear_solver_settings()
     if (present(linear_settings)) active_linear_settings = linear_settings
@@ -321,8 +336,12 @@ contains
     if (present(adaptive_increment_settings)) then
       active_adaptive_settings = adaptive_increment_settings
     end if
+    active_predictor_settings = adaptive_predictor_settings_t()
+    if (present(predictor_settings)) active_predictor_settings = predictor_settings
     if (present(growth_event_count)) growth_event_count = 0
     if (present(maximum_accepted_increment)) maximum_accepted_increment = 0.0_dp
+    if (present(predictor_event_count)) predictor_event_count = 0
+    if (present(maximum_predictor_scale)) maximum_predictor_scale = 0.0_dp
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
     if (present(quadrature_order)) active_quadrature = quadrature_order
     use_sparse_backend = linear_backend_is_sparse(active_linear_settings%backend)
@@ -352,6 +371,7 @@ contains
         max_cutbacks < 0 .or. &
         .not. nonlinear_solver_settings_valid(active_nonlinear_settings) .or. &
         .not. adaptive_increment_settings_valid(active_adaptive_settings) .or. &
+        .not. adaptive_predictor_settings_valid(active_predictor_settings) .or. &
         (active_adaptive_settings%growth_enabled .and. &
          initial_increment > active_adaptive_settings%maximum_increment+load_tol)) then
       report%status = DES_ERROR_INVALID_CONSTRAINT
@@ -370,6 +390,9 @@ contains
     allocate(correction(nfree))
     allocate(base_u(size(u,1),size(u,2)))
     allocate(base_pressure(size(pressure_coefficients,1),size(pressure_coefficients,2)))
+    allocate(previous_committed_u(size(u,1),size(u,2)))
+    allocate(previous_committed_pressure( &
+        size(pressure_coefficients,1),size(pressure_coefficients,2)))
 
     if (use_sparse_backend) then
       allocate(rhs_full(ntotal),delta_full(ntotal))
@@ -394,10 +417,14 @@ contains
     call enforce_zero_displacement_dofs(u,fixed_dofs)
     call initialize_solution_state(displacement_state,u)
     call initialize_solution_state(pressure_state,pressure_coefficients)
+    previous_committed_u = displacement_state%committed
+    previous_committed_pressure = pressure_state%committed
 
     load_factor = 0.0_dp
     step = initial_increment
+    previous_accepted_step = 0.0_dp
     increment_had_cutback = .false.
+    have_previous_committed_state = .false.
     report%increments_requested = ceiling(1.0_dp/initial_increment)
 
     do while (load_factor < 1.0_dp-load_tol)
@@ -409,6 +436,25 @@ contains
       call begin_solution_trial(displacement_state)
       call begin_solution_trial(pressure_state)
       call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+
+      call select_secant_predictor_scale( &
+          accepted_step,previous_accepted_step,have_previous_committed_state, &
+          increment_had_cutback,active_predictor_settings,predictor_scale, &
+          predictor_applied)
+      if (predictor_applied) then
+        call build_mixed_secant_predictor( &
+            previous_committed_u,displacement_state%committed, &
+            previous_committed_pressure,pressure_state%committed,predictor_scale, &
+            displacement_state%trial,pressure_state%trial,predictor_candidate_valid)
+        predictor_applied = predictor_candidate_valid
+        call enforce_zero_displacement_dofs(displacement_state%trial,fixed_dofs)
+        if (predictor_applied) then
+          if (present(predictor_event_count)) predictor_event_count = predictor_event_count + 1
+          if (present(maximum_predictor_scale)) then
+            maximum_predictor_scale = max(maximum_predictor_scale,predictor_scale)
+          end if
+        end if
+      end if
 
       increment_converged = .false.
       failure_status = DES_ERROR_NEWTON_DID_NOT_CONVERGE
@@ -652,12 +698,16 @@ contains
       end do
 
       if (increment_converged) then
+        previous_committed_u = displacement_state%committed
+        previous_committed_pressure = pressure_state%committed
         call commit_solution_state(displacement_state)
         call commit_solution_state(pressure_state)
         load_factor = target_factor
         report%increments_converged = report%increments_converged + 1
         report%final_load_factor = load_factor
         report%last_accepted_increment = accepted_step
+        previous_accepted_step = accepted_step
+        have_previous_committed_state = .true.
         if (present(maximum_accepted_increment)) then
           maximum_accepted_increment = max(maximum_accepted_increment,accepted_step)
         end if
