@@ -43,6 +43,11 @@ program benchmark_v03_herrmann_performance
     logical :: fallback_used = .false.
     real(dp) :: wall_seconds = 0.0_dp
     real(dp) :: cpu_seconds = 0.0_dp
+    real(dp) :: assembly_cpu_seconds = 0.0_dp
+    real(dp) :: linear_setup_cpu_seconds = 0.0_dp
+    real(dp) :: linear_factorization_cpu_seconds = 0.0_dp
+    real(dp) :: linear_solve_cpu_seconds = 0.0_dp
+    real(dp) :: linear_total_cpu_seconds = 0.0_dp
     real(dp) :: tip_y = 0.0_dp
     real(dp) :: final_residual = 0.0_dp
     real(dp) :: displacement_residual = 0.0_dp
@@ -90,6 +95,17 @@ program benchmark_v03_herrmann_performance
         results(k)%total_dofs,results(k)%csr_nnz,results(k)%csr_density, &
         results(k)%wall_seconds,results(k)%total_iterations, &
         results(k)%linear_solves
+  end do
+
+  write(*,'(A)') 'B9.3 phase CPU timing [s]'
+  write(*,'(A)') &
+      'mesh     assembly      setup      factorize      solve      linear-total'
+  do k = 1,ncases
+    write(*,'(I2,A,5(2X,F12.6))') &
+        results(k)%mesh_n,'x'//trim(to_string(results(k)%mesh_n)), &
+        results(k)%assembly_cpu_seconds,results(k)%linear_setup_cpu_seconds, &
+        results(k)%linear_factorization_cpu_seconds, &
+        results(k)%linear_solve_cpu_seconds,results(k)%linear_total_cpu_seconds
   end do
 
   write(*,'(A)') 'V03_HERRMANN_PERFORMANCE_JSON_BEGIN'
@@ -187,6 +203,13 @@ contains
         report%nonlinear%last_linear_report%symbolic_reuse_count
     result%selected_backend = report%nonlinear%last_linear_report%backend
     result%fallback_used = report%nonlinear%last_linear_report%fallback_used
+    result%assembly_cpu_seconds = report%phase_timing%assembly_cpu_seconds
+    result%linear_setup_cpu_seconds = report%phase_timing%linear_setup_cpu_seconds
+    result%linear_factorization_cpu_seconds = &
+        report%phase_timing%linear_factorization_cpu_seconds
+    result%linear_solve_cpu_seconds = report%phase_timing%linear_solve_cpu_seconds
+    result%linear_total_cpu_seconds = result%linear_setup_cpu_seconds + &
+        result%linear_factorization_cpu_seconds + result%linear_solve_cpu_seconds
     result%tip_y = u(tip_node,2)
     result%final_residual = report%nonlinear%final_residual_norm
     result%displacement_residual = report%displacement_residual_inf_norm
@@ -326,7 +349,7 @@ contains
     integer :: i
 
     write(unit,'(A)') '{'
-    write(unit,'(A)') '  "schema_version": 1,'
+    write(unit,'(A)') '  "schema_version": 2,'
     write(unit,'(A)') &
         '  "benchmark": "V0.3 Q9/P1 Herrmann performance/scaling",'
     write(unit,'(A)') '  "formulation": "Q9/P1 Herrmann plane strain",'
@@ -336,7 +359,7 @@ contains
     write(unit,'(A)') &
         '  "timing_policy": "report-only; no wall-clock pass/fail threshold",'
     write(unit,'(A)') &
-        '  "phase_timing": "not instrumented in B9.1; total wall/cpu only",'
+        '  "phase_timing": "B9.3 CPU_TIME; first MUMPS factorization includes deferred symbolic analysis",'
     write(unit,'(A)') '  "cases": ['
 
     do i = 1,size(results_value)
@@ -365,6 +388,19 @@ contains
           '      "wall_seconds": ',results_value(i)%wall_seconds,','
       write(unit,'(A,ES24.16E3,A)') &
           '      "cpu_seconds": ',results_value(i)%cpu_seconds,','
+      write(unit,'(A,ES24.16E3,A)') &
+          '      "assembly_cpu_seconds": ',results_value(i)%assembly_cpu_seconds,','
+      write(unit,'(A,ES24.16E3,A)') &
+          '      "linear_setup_cpu_seconds": ',results_value(i)%linear_setup_cpu_seconds,','
+      write(unit,'(A,ES24.16E3,A)') &
+          '      "linear_factorization_cpu_seconds": ', &
+          results_value(i)%linear_factorization_cpu_seconds,','
+      write(unit,'(A,ES24.16E3,A)') &
+          '      "linear_solve_cpu_seconds": ', &
+          results_value(i)%linear_solve_cpu_seconds,','
+      write(unit,'(A,ES24.16E3,A)') &
+          '      "linear_total_cpu_seconds": ', &
+          results_value(i)%linear_total_cpu_seconds,','
       write(unit,'(A,I0,A)') '      "increments_converged": ', &
           results_value(i)%increments_converged,','
       write(unit,'(A,I0,A)') &
