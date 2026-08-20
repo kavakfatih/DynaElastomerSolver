@@ -67,6 +67,9 @@ contains
     real(dp) :: target_norm
 
     accepted = .false.
+    if (.not. ieee_is_finite(baseline_norm) .or. &
+        .not. ieee_is_finite(candidate_norm) .or. &
+        .not. ieee_is_finite(scale)) return
     if (baseline_norm < 0.0_dp .or. candidate_norm < 0.0_dp) return
     if (scale <= 0.0_dp .or. scale > 1.0_dp) return
 
@@ -74,7 +77,7 @@ contains
     ! Merit ölçüsü free-equation residual infinity normudur. Armijo benzeri
     ! yeterli azalma koşulu tam Newton adımını öncelikli tutar.
     target_norm = baseline_norm*(1.0_dp-settings%line_search_armijo*scale)
-    accepted = candidate_norm <= target_norm
+    accepted = ieee_is_finite(target_norm) .and. candidate_norm <= target_norm
   end function line_search_residual_accepted
 
   pure integer function next_residual_growth_streak( &
@@ -85,6 +88,8 @@ contains
 
     streak = 0
     if (.not. settings%residual_growth_detection_enabled) return
+    if (.not. ieee_is_finite(previous_norm) .or. &
+        .not. ieee_is_finite(current_norm)) return
     if (previous_streak < 0) return
     if (previous_norm <= 0.0_dp) return
 
