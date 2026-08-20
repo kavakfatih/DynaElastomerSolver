@@ -1499,3 +1499,71 @@ Bu turun dar teknik hedefi **B9.5d — CSR index-width migration foundation** ol
 Bu aşamada mixed DOF layout, Q9/P1 formulation, MUMPS C ABI ve production solver policy topluca değiştirilmeyecektir. Migration küçük, geri alınabilir adımlarla ilerleyecek; her adım normal + MUMPS compiler matrisiyle doğrulanacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 24. 2026-08-21 B9.5d final kapanış ve B9.5e başlangıç checkpoint'i
+
+Kullanıcı `Devam et` diyerek B9.5 large-scale sparse foundation çalışmasının bir sonraki turunu başlattı. Bu kayıt herhangi bir yeni solver kaynak değişikliğinden önce, turun ilk repo write'ı olarak eklenmiştir.
+
+Canlı GitHub doğrulaması:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = a9907c47e8671a6cb9b96af9671850c4f788dd35
+```
+
+B9.5d teknik SHA üzerinde final compiler matrisi tamamen kapanmıştır:
+
+```text
+Normal Fortran CI = 32416939002
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS Direct CI = 32416938948
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                  = 8/8 SUCCESS
+```
+
+B9.5d ile Dyna CSR structural storage gerçekten genişletildi:
+
+```text
+csr_matrix_t%row_ptr = integer(i64)
+csr_matrix_t%col_ind = integer(i64)
+pattern-build count/pointer/candidate scratch = integer(i64)
+SparseSolverContext cached row_ptr/col_ind = integer(i64)
+structural cardinality diagnostics = integer(i64)
+```
+
+Mevcut backend sınırları bilinçli olarak korunmaktadır. Portable stdlib CSR köprüsü i32 aralığı aşılırsa fail-fast yapar; MUMPS Fortran→C adapter mevcut `c_int` ABI sınırını aşan n/nnz/index değerlerini fail-fast reddeder. Bu nedenle `supports_int64 = false` kalır ve full 64-bit backend capability henüz ilan edilmez.
+
+B9.5d acceptance sonucu:
+
+```text
+B9.5d = PASS
+```
+
+Bu kayıtla yeni küçük paket **B9.5e — matrix dimension / backend index-capability boundary** başlatılmıştır. İlk iş kaynak haritası çıkarmaktır. Özellikle aşağıdaki default-integer sınırlar birlikte incelenecektir:
+
+```text
+csr_matrix_t%nrows / ncols
+initialize_csr_from_element_dof_maps nrows/ncols API
+FEM element DOF map türleri
+stdlib CSR i32 bridge
+MUMPS Fortran↔C n/nnz/index ABI
+backend supports_int64 capability flag
+```
+
+B9.5e tek committe bütün equation-numbering zincirini veya MUMPS build ABI'sini değiştirmeyecektir. Önce en küçük güvenli migration sınırı belirlenecek, ardından yalnız o sınır uygulanacaktır. Mixed `u-P` formulation, Q9/P1 assembly matematiği, B8 nonlinear transaction semantics, GMRES row-equilibration ve AUTO→MUMPS production policy değiştirilmeyecektir.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
