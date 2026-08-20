@@ -7,6 +7,7 @@ module des_q9_herrmann_solver_report
   use des_linear_solver, only : linear_solver_settings_t
   use des_nonlinear_solver, only : nonlinear_solver_settings_t
   use des_adaptive_increment, only : adaptive_increment_settings_t
+  use des_adaptive_predictor, only : adaptive_predictor_settings_t
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_q9_plane_strain_herrmann_neo_hookean, only : &
       Q9_HERRMANN_P_DOF, Q9_HERRMANN_QUADRATURE_2X2, &
@@ -30,6 +31,8 @@ module des_q9_herrmann_solver_report
     integer :: last_nonfinite_stage = 0
     integer :: increment_growth_event_count = 0
     real(dp) :: maximum_accepted_increment = 0.0_dp
+    integer :: predictor_event_count = 0
+    real(dp) :: maximum_predictor_scale = 0.0_dp
     logical :: metrics_valid = .false.
   end type herrmann_solver_report_t
 
@@ -42,7 +45,8 @@ contains
       mesh, shear_modulus, pressure_compliance, fixed_dofs, external_force, &
       initial_increment, min_increment, cutback_factor, max_cutbacks, &
       max_iterations, tolerance, u, pressure_coefficients, residual, report, &
-      linear_settings, quadrature_order, nonlinear_settings, adaptive_increment_settings)
+      linear_settings, quadrature_order, nonlinear_settings, adaptive_increment_settings, &
+      predictor_settings)
     ! Production-facing Herrmann wrapper. Nonlinear orchestration mevcut solver'da
     ! kalır; bu katman mixed formulationa özgü convergence metriklerini ekler.
     ! B8.1 nonlinear settings optional olarak bu sınırdan da geçirildi; mevcut
@@ -51,6 +55,8 @@ contains
     ! üzerinden özetleyerek production-facing raporda doğrudan görünür kılar.
     ! B8.3 adaptive increment growth ayarını ve growth/max-increment tanılarını
     ! aynı production-facing API üzerinden görünür yapar.
+    ! B8.4 secant predictor ayarı, olay sayısı ve maksimum predictor scale tanısı
+    ! aynı production-facing rapor sınırından geçirilir.
     type(internal_mesh_t), intent(in) :: mesh
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     integer, intent(in) :: fixed_dofs(:)
@@ -65,10 +71,12 @@ contains
     integer, intent(in), optional :: quadrature_order
     type(nonlinear_solver_settings_t), intent(in), optional :: nonlinear_settings
     type(adaptive_increment_settings_t), intent(in), optional :: adaptive_increment_settings
+    type(adaptive_predictor_settings_t), intent(in), optional :: predictor_settings
 
     integer :: active_quadrature
     type(nonlinear_solver_settings_t) :: active_nonlinear_settings
     type(adaptive_increment_settings_t) :: active_adaptive_settings
+    type(adaptive_predictor_settings_t) :: active_predictor_settings
 
     report = herrmann_solver_report_t()
     active_quadrature = Q9_HERRMANN_QUADRATURE_3X3
@@ -79,6 +87,8 @@ contains
     if (present(adaptive_increment_settings)) then
       active_adaptive_settings = adaptive_increment_settings
     end if
+    active_predictor_settings = adaptive_predictor_settings_t()
+    if (present(predictor_settings)) active_predictor_settings = predictor_settings
 
     if (present(linear_settings)) then
       if (present(quadrature_order)) then
@@ -90,7 +100,10 @@ contains
             nonlinear_settings=active_nonlinear_settings, &
             adaptive_increment_settings=active_adaptive_settings, &
             growth_event_count=report%increment_growth_event_count, &
-            maximum_accepted_increment=report%maximum_accepted_increment)
+            maximum_accepted_increment=report%maximum_accepted_increment, &
+            predictor_settings=active_predictor_settings, &
+            predictor_event_count=report%predictor_event_count, &
+            maximum_predictor_scale=report%maximum_predictor_scale)
       else
         call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
@@ -100,7 +113,10 @@ contains
             nonlinear_settings=active_nonlinear_settings, &
             adaptive_increment_settings=active_adaptive_settings, &
             growth_event_count=report%increment_growth_event_count, &
-            maximum_accepted_increment=report%maximum_accepted_increment)
+            maximum_accepted_increment=report%maximum_accepted_increment, &
+            predictor_settings=active_predictor_settings, &
+            predictor_event_count=report%predictor_event_count, &
+            maximum_predictor_scale=report%maximum_predictor_scale)
       end if
     else
       if (present(quadrature_order)) then
@@ -112,7 +128,10 @@ contains
             nonlinear_settings=active_nonlinear_settings, &
             adaptive_increment_settings=active_adaptive_settings, &
             growth_event_count=report%increment_growth_event_count, &
-            maximum_accepted_increment=report%maximum_accepted_increment)
+            maximum_accepted_increment=report%maximum_accepted_increment, &
+            predictor_settings=active_predictor_settings, &
+            predictor_event_count=report%predictor_event_count, &
+            maximum_predictor_scale=report%maximum_predictor_scale)
       else
         call solve_q9_internal_mesh_herrmann_adaptive_force_control( &
             mesh,shear_modulus,pressure_compliance,fixed_dofs,external_force, &
@@ -121,7 +140,10 @@ contains
             report%nonlinear,nonlinear_settings=active_nonlinear_settings, &
             adaptive_increment_settings=active_adaptive_settings, &
             growth_event_count=report%increment_growth_event_count, &
-            maximum_accepted_increment=report%maximum_accepted_increment)
+            maximum_accepted_increment=report%maximum_accepted_increment, &
+            predictor_settings=active_predictor_settings, &
+            predictor_event_count=report%predictor_event_count, &
+            maximum_predictor_scale=report%maximum_predictor_scale)
       end if
     end if
 
