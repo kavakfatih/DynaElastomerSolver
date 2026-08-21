@@ -10,8 +10,14 @@ on:
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/core/des_kinds.f90'
       - 'src/fortran/core/des_status.f90'
+      - 'src/fortran/core/des_2d_analysis_contract.f90'
+      - 'src/fortran/mesh/des_2d_mesh_database.f90'
+      - 'src/fortran/fem/des_2d_dof_manager.f90'
+      - 'src/fortran/fem/des_2d_q8_herrmann_assembly.f90'
+      - 'src/fortran/fem/des_q8_*herrmann*.f90'
       - 'src/fortran/fem/des_mixed_dof_layout.f90'
       - 'src/fortran/math/des_csr_matrix.f90'
+      - 'src/fortran/solvers/des_2d_q8_herrmann_force_solver.f90'
       - 'src/fortran/solvers/des_linear_solver.f90'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'src/fortran/solvers/des_mumps_backend*.f90'
@@ -23,7 +29,9 @@ on:
       - 'src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90'
       - 'src/fortran/solvers/des_q9_herrmann_solver_report.f90'
       - 'tests/CMakeLists.txt'
-      - 'tests/test_csr_matrix.f90'
+      - 'tests/test_csr*.f90'
+      - 'tests/test_2d_*.f90'
+      - 'tests/test_q8_*.f90'
       - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps*.f90'
       - 'tests/test_auto_sparse_solver_policy.f90'
@@ -45,8 +53,14 @@ on:
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/core/des_kinds.f90'
       - 'src/fortran/core/des_status.f90'
+      - 'src/fortran/core/des_2d_analysis_contract.f90'
+      - 'src/fortran/mesh/des_2d_mesh_database.f90'
+      - 'src/fortran/fem/des_2d_dof_manager.f90'
+      - 'src/fortran/fem/des_2d_q8_herrmann_assembly.f90'
+      - 'src/fortran/fem/des_q8_*herrmann*.f90'
       - 'src/fortran/fem/des_mixed_dof_layout.f90'
       - 'src/fortran/math/des_csr_matrix.f90'
+      - 'src/fortran/solvers/des_2d_q8_herrmann_force_solver.f90'
       - 'src/fortran/solvers/des_linear_solver.f90'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'src/fortran/solvers/des_mumps_backend*.f90'
@@ -58,7 +72,9 @@ on:
       - 'src/fortran/solvers/des_q9_plane_strain_herrmann_force_solver.f90'
       - 'src/fortran/solvers/des_q9_herrmann_solver_report.f90'
       - 'tests/CMakeLists.txt'
-      - 'tests/test_csr_matrix.f90'
+      - 'tests/test_csr*.f90'
+      - 'tests/test_2d_*.f90'
+      - 'tests/test_q8_*.f90'
       - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps*.f90'
       - 'tests/test_auto_sparse_solver_policy.f90'
@@ -185,7 +201,7 @@ jobs:
             > cmake-mumps-configure.log 2>&1
           cat cmake-mumps-configure.log
 
-      - name: MUMPS context, B8 robustness ve B9 baseline targetlarini derle
+      - name: MUMPS context, B8 robustness, Q8 production ve B9 baseline targetlarini derle
         id: build
         shell: bash
         run: |
@@ -197,6 +213,7 @@ jobs:
             test_nonlinear_solver_policy \
             test_adaptive_increment_policy \
             test_adaptive_predictor_policy \
+            test_2d_q8_herrmann_force_solver \
             test_q9_herrmann_convergence_report \
             test_q9_herrmann_nonfinite_guard \
             test_q9_herrmann_adaptive_increment_growth \
@@ -207,12 +224,12 @@ jobs:
             benchmark_v03_herrmann_performance \
             --parallel 2 --verbose 2>&1 | tee mumps-build.log
 
-      - name: MUMPS direct, AUTO, B8 robustness ve Q9/P1 parity regression
+      - name: MUMPS direct, AUTO, B8 robustness, Q8 ve Q9 parity regression
         id: ctest
         shell: bash
         run: |
           ctest --preset dyna-production \
-            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.adaptive\.increment_policy|solver\.adaptive\.predictor_policy|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.adaptive_increment_growth|solver\.q9\.plane_strain\.herrmann\.adaptive_predictor|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
+            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.adaptive\.increment_policy|solver\.adaptive\.predictor_policy|solver\.q8\.2d\.herrmann\.sparse_force_control|solver\.q8\.2d\.herrmann\.mumps_force_control|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.adaptive_increment_growth|solver\.q9\.plane_strain\.herrmann\.adaptive_predictor|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
             --output-on-failure
 
       - name: Q9/P1 Herrmann GMRES ve MUMPS same-runner performance baseline ölç
