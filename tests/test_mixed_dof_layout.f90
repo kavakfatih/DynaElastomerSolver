@@ -87,6 +87,17 @@ program test_mixed_dof_layout
     error stop 'Overflow sonrasinda i64 cardinality ciktilari sifirlanmadi.'
   end if
 
+  ! Iki ayri gecerli i64 blok toplandiginda da total overflow korunmalidir.
+  call mixed_global_equation_counts_i64( &
+      huge(0_i64)-10_i64,20_i64,1_i64,1_i64, &
+      nd_u_i64,nd_p_i64,nd_total_i64,status)
+  if (status /= DES_ERROR_INVALID_CONSTRAINT) then
+    error stop 'i64 mixed total-equation overflow reddedilmedi.'
+  end if
+  if (nd_u_i64 /= 0_i64 .or. nd_p_i64 /= 0_i64 .or. nd_total_i64 /= 0_i64) then
+    error stop 'Total overflow sonrasinda i64 cardinality ciktilari sifirlanmadi.'
+  end if
+
   ! Legacy API default integer kapasitesini asan gecerli i64 sayimi narrow etmemelidir.
   legacy_overflow_nodes = shiftr(huge(0),1)+1
   call mixed_global_equation_counts( &
