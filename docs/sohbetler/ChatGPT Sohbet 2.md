@@ -1372,7 +1372,7 @@ Gerçek int64 migration için kalan sınırlar source-level olarak açık tutula
 
 ```text
 CSR row_ptr / col_ind storage
-CSR pattern-build candidate/count/pointer scratch alanları
+CSR pattern-build count/pointer/candidate scratch alanları
 SparseSolverContext structural_nnz / equation_count metadata
 SparseSolverContext cached pattern_row_ptr / pattern_col_ind
 MUMPS Fortran↔C adapter ABI n/nnz/index genişliği
@@ -1901,5 +1901,65 @@ Bu kayıtla yeni küçük paket **B9.5j — nonlinear report equation-cardinalit
 5. actual array indexing, CSR nrows/ncols storage veya DOF-map storage'ı bu pakete karıştırmamak
 6. normal + production MUMPS + dedicated MUMPS-int64 kapılarını korumak
 ```
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 31. 2026-08-21 B9.5j final kapanış ve B9.5k başlangıç checkpoint'i
+
+Kullanıcı `Devam edelim mi` diyerek yeni geliştirme turunu başlattı. Bu kayıt turun **ilk repo write'ıdır** ve yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı GitHub durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 3a545862c7bca0b9b60bb88e8d36047a6ba0c64c
+```
+
+B9.5j teknik SHA için final acceptance matrisi tamamen kapanmıştır:
+
+```text
+Normal Fortran CI = 32473054521
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Production MUMPS Direct CI = 32473054452
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Dedicated MUMPS int64 Index CI = 32473054465
+Linux / gfortran 14 / MUMPS_INT=64      = PASS
+
+Toplam doğrulanan kapı                   = 9/9 SUCCESS
+B9.5j                                    = PASS
+```
+
+B9.5j ile nonlinear `newton_report_t%max_linear_equation_count` alanı `integer(i64)` yapılmış, Q4/Q9 lineer çözüm rapor propagasyonu int64-safe hale getirilmiş ve Q9 sparse parity regression'ı GMRES/MUMPS yollarında bu kind sözleşmesini doğrulamıştır.
+
+Bu PASS end-to-end int64 equation-numbering desteği anlamına gelmez. `csr_matrix_t%nrows/ncols` gerçek storage'ı ve CSR initialize API'si hâlâ default integer'dır; element DOF-map, connectivity ve Q9 global equation-numbering storage zinciri de tam olarak i64 değildir. Bu nedenle full solver için `supports_int64=true` ilan edilmeyecektir.
+
+Bu kayıtla **B9.5k — CSR matrix dimension storage i64 foundation** başlatılmıştır. Dar hedef:
+
+```text
+1. csr_matrix_t%nrows ve ncols storage alanlarını integer(i64) yapmak
+2. mevcut legacy initialize API'sini bu pakette default-integer caller uyumluluğu için korumak
+3. initialize sırasında dimension değerlerini explicit i64'a taşımak
+4. nrows_i64()/ncols_i64() query'lerini doğrudan canonical i64 storage'dan döndürmek
+5. küçük-problem CSR davranışını ve row_ptr/col_ind regression'ını aynen korumak
+6. element DOF-map/connectivity storage veya global Q9 equation-numbering'i bu pakete karıştırmamak
+7. supports_int64=false sözleşmesini end-to-end zincir tamamlanana kadar korumak
+8. normal + production MUMPS + dedicated MUMPS-int64 kapılarını yeniden doğrulamak
+```
+
+Bu paket gerçek 64-bit matrix dimension storage'a bir adım atacaktır; ancak constructor girişleri ve FEM numbering zinciri ayrı alt paketlerde migrate edilmeden büyük-problem allocation desteği tamamlandı sayılmayacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
