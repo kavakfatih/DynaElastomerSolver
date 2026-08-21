@@ -15,6 +15,10 @@ option(
   "MUMPS production sparse-direct backend'ini derle"
   OFF
 )
+
+# B9.5f: mevcut production int32 MUMPS profili varsayılan kalır. 64-bit
+# MUMPS_INT yalnız explicit preset/CI ile açılır; bu seçenek tek başına FEM
+# equation-numbering zincirini full int64 yapmış sayılmaz.
 option(
   DES_MUMPS_INT64_INDEX
   "MUMPS backend'ini 64-bit MUMPS_INT index profiliyle derle"
