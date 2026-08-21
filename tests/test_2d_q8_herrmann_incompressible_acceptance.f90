@@ -57,6 +57,8 @@ contains
     call require(status == DES_STATUS_OK,'Distorted plane-strain Q8 DOF layout kurulamadı')
     call require(layout%total_equation_count == 54_i64, &
         'Distorted 2x2 Q8/P1 plane-strain 54 equation bekliyor')
+    ! Büyük external mesh ID'leri i64 mesh kimliğini doğrular. Bu kontrol solver
+    ! equation-index capability'sini büyütülmüş saymaz; o sınır ayrı tutulur.
     call require(mesh%nodes(1)%id > 2147483647_i64, &
         'Yeni mesh database i64 external node ID gate kullanmıyor')
 
