@@ -1847,3 +1847,59 @@ B9.5h = NOT YET PASS
 Kalan iki production MUMPS Windows kapısı kapanmadan B9.5h final PASS ilan edilmeyecektir. CI başarılı olursa sıradaki küçük paket `linear_solver_report_t%equation_count` ve sparse dimension metadata yolunu canonical i64 hale getirmek olacaktır; gerçek CSR dimension storage migration ayrı bir paket olarak ele alınacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 30. 2026-08-21 B9.5i final kapanış ve B9.5j başlangıç checkpoint'i
+
+Kullanıcı `Devam et` diyerek yeni geliştirme turunu başlattı. Bu kayıt turun **ilk repo write'ıdır** ve yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı GitHub durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = e9e373a96de86c1d2680e7124ec20045573473fa
+```
+
+B9.5i teknik SHA için final acceptance matrisi tamamen kapanmıştır:
+
+```text
+Normal Fortran CI = 32451393682
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Production MUMPS Direct CI = 32451393647
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Dedicated MUMPS int64 Index CI = 32451393709
+Linux / gfortran 14 / MUMPS_INT=64      = PASS
+
+Toplam doğrulanan kapı                   = 9/9 SUCCESS
+B9.5i                                    = PASS
+```
+
+B9.5i ile `linear_solver_report_t%equation_count` canonical `integer(i64)` metadata'ya taşındı; dense ve stateless sparse solve yolları cardinality bilgisini `size(b,kind=i64)` ile kaydeder. Regression testi hem alanın `i64` kind'ını hem successful solve hem de unsupported-backend raporunda cardinality bilgisinin korunmasını doğrular.
+
+Bu PASS hâlâ end-to-end Dyna int64 equation-numbering desteği anlamına gelmez. `csr_matrix_t%nrows/ncols` gerçek storage'ı, Q9/FEM global equation sayıları, element DOF-map storage ve connectivity zinciri default integer sınırlarını taşımaya devam eder. Bu nedenle full solver için `supports_int64=true` ilan edilmeyecektir.
+
+Bu kayıtla yeni küçük paket **B9.5j — nonlinear report equation-cardinality metadata migration** başlatılmıştır. Dar hedef:
+
+```text
+1. newton_report_t%max_linear_equation_count alanını i64 yapmak
+2. Q4 ve Q9 record_linear_solve / record_herrmann_linear_solve yollarındaki max(...) cardinality propagasyonunu i64-safe tutmak
+3. mevcut küçük problem rapor değerlerini aynen korumak
+4. regression testlerinde kind ve değer sözleşmesini doğrulamak
+5. actual array indexing, CSR nrows/ncols storage veya DOF-map storage'ı bu pakete karıştırmamak
+6. normal + production MUMPS + dedicated MUMPS-int64 kapılarını korumak
+```
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
