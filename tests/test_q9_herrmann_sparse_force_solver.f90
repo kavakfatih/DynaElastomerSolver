@@ -1,5 +1,5 @@
 program test_q9_herrmann_sparse_force_solver
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK
   use des_internal_mesh, only : internal_mesh_t, initialize_q9_internal_mesh
   use des_q4_plane_strain_newton_solver, only : newton_report_t
@@ -142,7 +142,10 @@ contains
     if (residual_gap > 2.0e-8_dp) then
       error stop 'Q9 dense-sparse final residual parity toleransi asildi.'
     end if
-    if (sparse_report%max_linear_equation_count /= 21) then
+    if (kind(sparse_report%max_linear_equation_count) /= i64) then
+      error stop 'Q9 nonlinear maksimum lineer denklem cardinality raporu int64 degil.'
+    end if
+    if (sparse_report%max_linear_equation_count /= 21_i64) then
       error stop 'Q9 sparse nonlinear solve tam mixed equation count raporlamadi.'
     end if
     if (sparse_report%linear_solve_count < 1) then

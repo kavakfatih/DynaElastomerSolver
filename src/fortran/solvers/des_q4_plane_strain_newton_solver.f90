@@ -1,5 +1,5 @@
 module des_q4_plane_strain_newton_solver
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT, &
                          DES_ERROR_NEWTON_DID_NOT_CONVERGE, &
                          DES_ERROR_CUTBACK_EXHAUSTED, &
@@ -33,7 +33,8 @@ module des_q4_plane_strain_newton_solver
     integer :: state_commit_count = 0
     integer :: state_revert_count = 0
     integer :: linear_solve_count = 0
-    integer :: max_linear_equation_count = 0
+    ! B9.5j: lineer denklem cardinality özeti default integer'a daralmaz.
+    integer(i64) :: max_linear_equation_count = 0_i64
     real(dp) :: final_residual_norm = huge(1.0_dp)
     real(dp) :: min_j = huge(1.0_dp)
     real(dp) :: final_load_factor = 0.0_dp

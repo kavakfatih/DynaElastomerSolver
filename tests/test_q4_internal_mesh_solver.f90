@@ -1,5 +1,5 @@
 program test_q4_internal_mesh_solver
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK, DES_ERROR_UNSUPPORTED_LINEAR_BACKEND
   use des_material_types, only : neo_hookean_parameters_t
   use des_internal_mesh, only : internal_mesh_t, initialize_q4_internal_mesh
@@ -61,7 +61,10 @@ program test_q4_internal_mesh_solver
   if (.not. report%last_linear_report%converged) then
     error stop 'Son lineer solve raporu basarili olmali.'
   end if
-  if (report%max_linear_equation_count /= 7) then
+  if (kind(report%max_linear_equation_count) /= i64) then
+    error stop 'Newton maksimum lineer denklem cardinality raporu int64 degil.'
+  end if
+  if (report%max_linear_equation_count /= 7_i64) then
     error stop 'Serbest DOF sayisi lineer denklem raporuyla uyusmuyor.'
   end if
   if (report%max_linear_residual_inf_norm > 1.0e-10_dp) then
