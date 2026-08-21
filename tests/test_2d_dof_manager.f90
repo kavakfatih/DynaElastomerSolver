@@ -13,7 +13,7 @@ program test_2d_dof_manager
   type(mesh_database_2d_t) :: mesh
   type(dof_layout_2d_t) :: layout
   integer(i64), allocatable :: element_map(:)
-  integer :: status
+  integer :: status, i
 
   call build_q8_torsion_mesh(mesh)
   call build_2d_dof_layout(mesh, layout, status)
