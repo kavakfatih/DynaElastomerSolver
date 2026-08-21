@@ -15,19 +15,31 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "DES_BUILD_TESTS": "ON",
-        "DES_ENABLE_MUMPS": "OFF"
+        "DES_ENABLE_MUMPS": "OFF",
+        "DES_MUMPS_INT64_INDEX": "OFF"
       }
     },
     {
       "name": "dyna-production",
       "displayName": "Dyna Production — MUMPS Direct ON",
-      "description": "Production Q9/P1 profile. MUMPS sparse-direct zorunlu olarak etkinleştirilir; dependency bulunamazsa configure fail-fast olur.",
+      "description": "Production Q9/P1 profile. MUMPS sparse-direct zorunlu olarak etkinleştirilir; dependency bulunamazsa configure fail-fast olur. MUMPS_INT varsayılan olarak 32-bit kalır.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/presets/production",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "DES_BUILD_TESTS": "ON",
-        "DES_ENABLE_MUMPS": "ON"
+        "DES_ENABLE_MUMPS": "ON",
+        "DES_MUMPS_INT64_INDEX": "OFF"
+      }
+    },
+    {
+      "name": "dyna-production-mumps-int64",
+      "inherits": "dyna-production",
+      "displayName": "Dyna Production — MUMPS Direct int64 Index",
+      "description": "B9.5f opt-in profile. Production MUMPS backend MUMPS_INT=64-bit olarak derlenir; Dyna FEM equation-numbering zinciri bu preset ile tek başına 64-bit ilan edilmez.",
+      "binaryDir": "${sourceDir}/build/presets/production-mumps-int64",
+      "cacheVariables": {
+        "DES_MUMPS_INT64_INDEX": "ON"
       }
     }
   ],
@@ -39,6 +51,10 @@
     {
       "name": "dyna-production",
       "configurePreset": "dyna-production"
+    },
+    {
+      "name": "dyna-production-mumps-int64",
+      "configurePreset": "dyna-production-mumps-int64"
     }
   ],
   "testPresets": [
@@ -52,6 +68,13 @@
     {
       "name": "dyna-production",
       "configurePreset": "dyna-production",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dyna-production-mumps-int64",
+      "configurePreset": "dyna-production-mumps-int64",
       "output": {
         "outputOnFailure": true
       }
