@@ -5,8 +5,9 @@ module des_2d_mesh_database
       DES_ERROR_INVALID_PARAMETERS
   use des_2d_analysis_contract, only : des_2d_analysis_mode_is_valid, &
       des_2d_topology_node_count, des_2d_formulation_contract_is_valid, &
-      DES_TOPOLOGY_UNKNOWN, DES_FORMULATION_UNKNOWN, &
-      DES_PRESSURE_SPACE_NONE, DES_2D_ANALYSIS_UNKNOWN
+      des_2d_element_technology_is_valid, DES_TOPOLOGY_UNKNOWN, &
+      DES_FORMULATION_UNKNOWN, DES_PRESSURE_SPACE_NONE, &
+      DES_2D_ANALYSIS_UNKNOWN, DES_ELEMENT_TECH_UNKNOWN
   implicit none
   private
 
@@ -30,13 +31,14 @@ module des_2d_mesh_database
     integer :: analysis_mode = DES_2D_ANALYSIS_UNKNOWN
     integer :: formulation = DES_FORMULATION_UNKNOWN
     integer :: pressure_space = DES_PRESSURE_SPACE_NONE
+    integer :: element_technology = DES_ELEMENT_TECH_UNKNOWN
     integer(i64) :: material_id = 0_i64
     integer(i64), allocatable :: connectivity(:)
   end type mesh_element_2d_t
 
   type :: mesh_database_2d_t
-    ! C1 aşamasında tek bir mesh database aynı model içinde farklı element
-    ! bloklarını taşıyabilir. Solver-specific Q4/Q8/Q9 dizileri burada yoktur.
+    ! Tek mesh database farklı element bloklarını taşıyabilir. Solver-specific
+    ! Q4/Q8/Q9 dizileri ve quadrature kararı mesh storage'a gömülmez.
     type(mesh_node_2d_t), allocatable :: nodes(:)
     type(mesh_element_2d_t), allocatable :: elements(:)
   contains
@@ -103,6 +105,13 @@ contains
       if (.not. des_2d_formulation_contract_is_valid( &
           mesh%elements(i)%analysis_mode, mesh%elements(i)%formulation, &
           mesh%elements(i)%pressure_space)) then
+        status = DES_ERROR_INVALID_PARAMETERS
+        return
+      end if
+
+      if (.not. des_2d_element_technology_is_valid( &
+          mesh%elements(i)%topology, mesh%elements(i)%analysis_mode, &
+          mesh%elements(i)%element_technology)) then
         status = DES_ERROR_INVALID_PARAMETERS
         return
       end if
