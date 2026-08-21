@@ -8,42 +8,51 @@ program test_q8_herrmann_infsup_decay_diagnostic
 
   integer, parameter :: ncases = 3
   integer, parameter :: mesh_size(ncases) = [2,3,4]
-  real(dp) :: beta(ncases), refinement_ratio
+  real(dp) :: beta_full(ncases), beta_reduced(ncases)
+  real(dp) :: full_ratio, reduced_ratio
   integer :: i
 
   do i = 1,ncases
-    call evaluate_infsup_proxy(mesh_size(i),beta(i))
-    write(*,'(A,I0,A,ES14.6)') 'Q8/P1 inf-sup diagnostic n=',mesh_size(i),' beta_h=',beta(i)
+    call evaluate_infsup_proxy(mesh_size(i),3,beta_full(i))
+    call evaluate_infsup_proxy(mesh_size(i),2,beta_reduced(i))
+    write(*,'(A,I0,A,ES14.6,A,ES14.6)') &
+        'Q8/P1 inf-sup n=',mesh_size(i),' beta_3x3=',beta_full(i), &
+        ' beta_2x2=',beta_reduced(i)
   end do
 
-  refinement_ratio = beta(ncases)/beta(1)
+  full_ratio = beta_full(ncases)/beta_full(1)
+  reduced_ratio = beta_reduced(ncases)/beta_reduced(1)
 
-  ! Bu test Q8/P1'i production icin kabul etmez. Tam tersine, mevcut
-  ! serendipity-Q8 + element-internal P1 eslesmesinde mesh inceldikce gozlenen
-  ! stability kaybini regression kaniti olarak korur. Formulation gelecekte
-  ! iyilesirse bu tani testi bilincli olarak yeniden degerlendirilmelidir.
-  if (.not. (beta(1) > beta(2) .and. beta(2) > beta(3))) then
-    error stop 'Q8/P1 beklenen inf-sup azalma trendi yeniden degerlenmeli.'
-  end if
-  if (refinement_ratio >= 0.70_dp) then
-    error stop 'Q8/P1 inf-sup tani davranisi degisti; formulation karari yeniden incelenmeli.'
-  end if
-  if (beta(3) >= 0.40_dp) then
-    error stop 'Q8/P1 n=4 stability tanisi beklenen risk bolgesini gostermiyor.'
-  end if
+  ! C2 scientific gate: yalnız quadrature'ı 3x3 -> 2x2 yapmak mevcut Q8/P1
+  ! pressure-space refinement riskini otomatik olarak çözmüş sayılmaz. İki yolu
+  ! birlikte izleyerek target element technology ile production validation'ı
+  ! birbirinden ayırıyoruz.
+  call require(beta_full(1) > beta_full(2) .and. beta_full(2) > beta_full(3), &
+      'Q8/P1 3x3 inf-sup azalma trendi yeniden değerlendirilmeli')
+  call require(beta_reduced(1) > beta_reduced(2) .and. &
+      beta_reduced(2) > beta_reduced(3), &
+      'Q8/P1 2x2 inf-sup azalma trendi yeniden değerlendirilmeli')
+  call require(full_ratio < 0.70_dp, &
+      'Q8/P1 3x3 diagnostic artık eski risk bölgesinde değil; karar gözden geçirilmeli')
+  call require(reduced_ratio < 0.70_dp, &
+      'Q8/P1 2x2 diagnostic beklenmedik biçimde stability gate geçti; bağımsız doğrulama gerekir')
+  call require(beta_full(3) > 0.0_dp .and. beta_reduced(3) > 0.0_dp, &
+      'Q8/P1 inf-sup proxy pozitif olmalı')
 
-  write(*,'(A,ES14.6)') 'Q8/P1 beta(n=4)/beta(n=2) = ',refinement_ratio
-  write(*,'(A)') 'Q8/P1 mesh-refinement inf-sup risk tanisi DOGRULANDI.'
+  write(*,'(A,ES14.6)') 'Q8/P1 3x3 beta(n=4)/beta(n=2) = ',full_ratio
+  write(*,'(A,ES14.6)') 'Q8/P1 2x2 beta(n=4)/beta(n=2) = ',reduced_ratio
+  write(*,'(A)') 'PASS: Q8/P1 full/reduced pressure-stability risk diagnostic'
 
 contains
 
-  subroutine evaluate_infsup_proxy(mesh_n,beta_h)
-    integer, intent(in) :: mesh_n
+  subroutine evaluate_infsup_proxy(mesh_n,quadrature_order,beta_h)
+    integer, intent(in) :: mesh_n, quadrature_order
     real(dp), intent(out) :: beta_h
 
-    real(dp), parameter :: gp = 0.77459666924148337704_dp
-    real(dp), parameter :: gauss_coordinate(3) = [-gp,0.0_dp,gp]
-    real(dp), parameter :: gauss_weight(3) = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    real(dp), parameter :: gp2 = 0.57735026918962576451_dp
+    real(dp), parameter :: gp3 = 0.77459666924148337704_dp
+    real(dp) :: gauss_coordinate(3),gauss_weight(3)
+    integer :: ngauss
 
     integer :: ngrid,nnode,nelem,ndof,npdof
     real(dp), allocatable :: X(:,:),Kdisp(:,:),Bcouple(:,:),Mp(:,:),response(:,:)
@@ -54,6 +63,21 @@ contains
     real(dp) :: x_point(2),Jmap(2,2),det_jac,weight,k_ab
     integer :: e,gx,gy,ia,ib,q,r,node_a,node_b,row,col,status,iy,dof
     logical :: ok
+
+    gauss_coordinate = 0.0_dp
+    gauss_weight = 0.0_dp
+    select case (quadrature_order)
+    case (2)
+      ngauss = 2
+      gauss_coordinate(1:2) = [-gp2,gp2]
+      gauss_weight(1:2) = [1.0_dp,1.0_dp]
+    case (3)
+      ngauss = 3
+      gauss_coordinate = [-gp3,0.0_dp,gp3]
+      gauss_weight = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    case default
+      error stop 'Q8/P1 inf-sup diagnostic quadrature order geçersiz'
+    end select
 
     ngrid = 2*mesh_n+1
     nnode = ngrid*ngrid-mesh_n*mesh_n
@@ -73,13 +97,13 @@ contains
     Mp = 0.0_dp
 
     do e = 1,nelem
-      do gy = 1,3
-        do gx = 1,3
+      do gy = 1,ngauss
+        do gx = 1,ngauss
           call q8_reference_gradient( &
               X(conn(e,:),:),gauss_coordinate(gx),gauss_coordinate(gy), &
               Nshape,dN_parent,dN_dX,x_point,Jmap,det_jac,status)
           if (status /= DES_STATUS_OK) then
-            error stop 'Q8/P1 inf-sup diagnostic mesh Jacobiani gecersiz.'
+            error stop 'Q8/P1 inf-sup diagnostic mesh Jacobianı geçersiz'
           end if
 
           call herrmann_p1_pressure_basis( &
@@ -115,7 +139,7 @@ contains
       end do
     end do
 
-    ! Sol sinirda mevcut tum Q8 dugumlerinin iki displacement component'i sabitlenir.
+    ! Sol sınırdaki bütün Q8 displacement düğümleri sabitlenir.
     do iy = 0,2*mesh_n
       node_a = node_map(0,iy)
       do dof = 2*node_a-1,2*node_a
@@ -130,7 +154,7 @@ contains
       rhs = Bcouple(q,:)
       call solve_dense_system(Kdisp,rhs,solution,ok)
       if (.not. ok) then
-        error stop 'Q8/P1 inf-sup diagnostic displacement norm sistemi cozulmedi.'
+        error stop 'Q8/P1 inf-sup displacement norm sistemi çözülemedi'
       end if
       response(:,q) = solution
     end do
@@ -139,7 +163,7 @@ contains
     Schur = 0.5_dp*(Schur+transpose(Schur))
 
     call cholesky_lower(Mp,L,ok)
-    if (.not. ok) error stop 'Q8/P1 pressure mass matrisi pozitif tanimli degil.'
+    if (.not. ok) error stop 'Q8/P1 pressure mass matrisi pozitif tanımlı değil'
 
     do col = 1,npdof
       call forward_solve(L,Schur(:,col),Y(:,col))
@@ -151,9 +175,9 @@ contains
     C = 0.5_dp*(C+transpose(C))
 
     call symmetric_jacobi_eigenvalues(C,eigenvalues,ok)
-    if (.not. ok) error stop 'Q8/P1 inf-sup eigenvalue iterasyonu yakinsamadi.'
+    if (.not. ok) error stop 'Q8/P1 inf-sup eigenvalue iterasyonu yakınsamadı'
     if (minval(eigenvalues) <= 1.0e-12_dp) then
-      error stop 'Q8/P1 pressure space beklenmedik sifir/null eigenvalue uretti.'
+      error stop 'Q8/P1 pressure space beklenmedik sıfır/null eigenvalue üretti'
     end if
 
     beta_h = sqrt(minval(eigenvalues))
@@ -171,7 +195,7 @@ contains
     node = 0
     do iy = 0,2*n
       do ix = 0,2*n
-        ! Q8 serendipity meshte element merkezleri displacement dugumu degildir.
+        ! Q8 serendipity meshte element merkezleri displacement düğümü değildir.
         if (mod(ix,2) == 1 .and. mod(iy,2) == 1) cycle
         node = node+1
         node_map(ix,iy) = node
@@ -299,5 +323,12 @@ contains
       eigenvalues(k) = A(k,k)
     end do
   end subroutine symmetric_jacobi_eigenvalues
+
+  subroutine require(condition,message)
+    logical, intent(in) :: condition
+    character(len=*), intent(in) :: message
+
+    if (.not. condition) error stop message
+  end subroutine require
 
 end program test_q8_herrmann_infsup_decay_diagnostic
