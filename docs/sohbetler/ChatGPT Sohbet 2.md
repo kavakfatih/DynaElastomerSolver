@@ -527,7 +527,7 @@ Bu geliştirme turunda sıradaki küçük paket **B8.2 — NaN/Inf rejection + c
 
 B8.2 kapsamına adaptive increment growth/shrink optimizasyonu ve predictor alınmayacaktır; bunlar ayrı alt paketlerde ele alınacaktır.
 
-PR #1 `open + draft` kalacaktır. Kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır. Commercial ANSYS/Marc LEVEL 3/B12 parity hâlâ OPEN'dır.
+PR #1 `open + draft` kalacaktır. Kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag atılmayacak ve GitHub Release oluşturulmayacaktır. Commercial ANSYS/Marc LEVEL 3/B12 parity hâlâ OPEN'dır.
 
 ---
 
@@ -2183,3 +2183,47 @@ Recovery ve aynı geniş pakette devam kararı:
 ```
 
 `supports_int64=false` end-to-end FEM numbering → CSR → production solver → backend zinciri doğrulanana kadar korunacaktır. Commercial ANSYS/Marc LEVEL 3 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 36. 2026-08-22 C4 production acceptance devam checkpoint'i
+
+Kullanıcı `Devam et` diyerek C4 nonlinear production integration çalışmasının sürdürülmesini onayladı. Bu kayıt turun **ilk repo write'ıdır**; yeni solver/FEM/test değişikliğinden önce yazılmıştır.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 9d11727bdebf731174f0d8d3611630722a20b0c1
+```
+
+Bu head için combined custom status'ta şu anda yayımlanmış normal kapılar:
+
+```text
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = henüz yayımlanmadı
+Windows / Intel ifx 2025.2              = henüz yayımlanmadı
+```
+
+Production MUMPS 4-platform ve dedicated MUMPS-int64 kapıları bu checkpoint anında henüz aynı head üzerinde final custom status olarak görünmemektedir. Dolayısıyla C2/C3/C4 hâlâ final PASS değildir.
+
+Bu tura kadar yeni field-based Q8/P1 production yolu fixed ve adaptive sparse Newton, line-search, NaN/Inf guard, rollback/cutback, torsion reaction torque ve torque-angle result contract ile entegre edilmiştir. Bu turda geniş kabul paketi şu alanlara ilerletilecektir:
+
+```text
+1. Q8/P1 plane-strain fully-incompressible cp=0 end-to-end sparse solve
+2. Q8/P1 axisymmetric fully-incompressible cp=0 end-to-end sparse solve
+3. pressure-space / saddle-point kararlılık ve pressure recovery acceptance
+4. distorted/severe-distortion mesh acceptance
+5. GMRES ve production MUMPS aynı fizik problemi parity
+6. mevcut axisymmetric-with-torsion fixed/adaptive/torque-angle regression'ın korunması
+7. ilgili testlerin Normal + MUMPS + MUMPS-int64 CI kapılarına alınması
+```
+
+Bu kabul sonuçları commercial ANSYS/Marc parity olarak yorumlanmayacaktır. ANSYS-like hedef; açık formulation metadata, field/equation ayrımı, deterministic i64 mesh/DOF mapping, sparse mixed assembly, robust nonlinear transaction ve test edilebilir result contract'tır. Gerçek commercial parity benchmarkı ayrı kalır.
+
+`supports_int64=false` end-to-end FEM numbering → CSR → production solver → backend zinciri ve capability propagation tamamen doğrulanana kadar korunacaktır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
