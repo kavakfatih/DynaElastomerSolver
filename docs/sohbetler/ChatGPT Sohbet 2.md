@@ -2002,3 +2002,82 @@ B9.5k ile `csr_matrix_t%nrows/ncols` gerçek storage alanları `integer(i64)` ya
 Kapanış sırası değişmez: production MUMPS 4/4 ve dedicated MUMPS-int64 1/1 sonucu aynı teknik SHA üzerinde doğrulanmadan B9.5k PASS yazılmayacak ve sonraki CSR constructor/FEM numbering migration teknik commit'i atılmayacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 33. 2026-08-21 2D endüstriyel nonlinear mimari kilidi ve yeniden hizalama checkpoint'i
+
+Kullanıcı `Geliştirmeye devam et` diyerek DynaElastomerSolver'ın ANSYS Mechanical ve Hexagon Marc seviyesinde 2D nonlinear elastomer çözücüsü hedefiyle geliştirmesinin sürdürülmesini onayladı. Bu kayıt bu turun **ilk repo write'ıdır** ve yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı GitHub doğrulaması:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = e4a2edbe5e6fc2af4e19116f66d930a2c49b2466
+```
+
+B9.5l teknik head'i için final CI matrisi tamamen kapanmıştır:
+
+```text
+Normal Fortran CI = 32484432092          → 4/4 PASS
+Production MUMPS Direct CI = 32484432046 → 4/4 PASS
+Dedicated MUMPS int64 CI = 32484431993   → 1/1 PASS
+Toplam                                     9/9 SUCCESS
+B9.5l                                     = PASS
+```
+
+B9.5l ile canonical `integer(i64)` mixed element DOF-map yolu ve legacy fail-fast narrowing wrapper tamamlanmıştır. Bu PASS end-to-end FEM connectivity/equation-numbering/CSR/backend int64 desteği değildir; `supports_int64=false` korunur.
+
+Bu turda ürün mimarisi resmi ANSYS/Marc 2D continuum element aileleri temel alınarak yeniden hizalanmıştır. Kilitlenen 2D structural nonlinear kapsam:
+
+```text
+Plane stress
+Plane stress with thickness
+Plane strain
+Generalized plane strain
+Axisymmetric
+Axisymmetric with torsion
+General axisymmetric / Fourier arbitrary loading = ileri faz
+```
+
+Element teknolojisi yönü:
+
+```text
+PRIMARY HIGH-ORDER = Q8-u/P1 Herrmann mixed u-P
+  8-node quadratic quadrilateral displacement
+  complete-linear pressure field [1, xi, eta] / 3 pressure DOF
+
+PRIMARY LOW-ORDER = Q4-u/P0 mixed u-P
+  4-node bilinear quadrilateral displacement
+  element-constant pressure field
+
+TRIANGULAR FAMILY = T6 yüksek-mertebe mesh topolojisi, production mixed doğrulaması ayrı gate
+
+Q9/P1 = mevcut doğrulanmış research/regression/reference hattı;
+         yeni production varsayılanı olarak kullanılmayacak.
+```
+
+Axisymmetric-with-torsion artık opsiyonel yan özellik değildir. TVD, decoupler, rubber coupling ve benzeri uygulamalar için birinci sınıf analiz modudur. Kinematik alan radial + axial + circumferential/twist bileşenini ve nearly/fully incompressible durumlarda bağımsız pressure field'ını birlikte taşıyacaktır.
+
+Temiz sürüm yaklaşımı mevcut çalışan çekirdeği topluca silmek değildir. MUMPS sparse-direct, nonlinear rollback/cutback, line-search, adaptive increment, predictor, non-finite guards ve mevcut scientific regression'lar referans altyapı olarak korunacaktır. Yeni 2D mimari additive ve test-first kurulacak; legacy Q9 production hattı ancak yeni Q8/Q4 aileleri aynı veya daha güçlü acceptance kapılarını geçtiğinde emekliye ayrılacaktır.
+
+Bu kayıtla yeni teknik paket **C1 — 2D analysis/element contract + mesh-kernel foundation** başlatılmıştır. C1 hedefi:
+
+```text
+1. 2D analysis mode'larını tek kanonik enum/contract altında toplamak
+2. element topology ve formulation metadata'sını solver'dan ayırmak
+3. node/element kimlikleri ve connectivity için i64-native mesh temsilini eklemek
+4. Q4/Q8/T6 topolojilerini mesh çekirdeğinde temsil etmek
+5. plane/axisymmetric/torsion analysis mode bilgisini element metadata'sında taşımak
+6. mixed pressure-space seçimini (NONE/P0/P1) explicit yapmak
+7. mevcut InternalMesh ve Q9 regression hattını bozmadan additive geçiş sağlamak
+8. yeni contract/mesh foundation için regression testleri eklemek
+```
+
+C1 yalnız mimari ve veri sözleşmesidir; henüz implement edilmemiş analysis mode'ları çözebiliyormuş gibi capability ilan edilmeyecektir. Mixed `u-P` production parity, axisymmetric/torsion element residual-tangent ve commercial ANSYS/Marc benchmark kapıları sonraki teknik paketlerde ayrı ayrı kapanacaktır.
+
+Commercial ANSYS/Marc LEVEL 3 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
