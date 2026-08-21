@@ -8,6 +8,7 @@ module des_mixed_dof_layout
   public :: mixed_global_equation_counts
   public :: mixed_global_equation_counts_i64
   public :: build_discontinuous_pressure_element_dof_map
+  public :: build_discontinuous_pressure_element_dof_map_i64
 
 contains
 
@@ -87,78 +88,94 @@ contains
     total_equations = int(total_equations_i64)
   end subroutine mixed_global_equation_counts
 
-  pure subroutine build_discontinuous_pressure_element_dof_map( &
+  pure subroutine build_discontinuous_pressure_element_dof_map_i64( &
       element_nodes, element_id, node_count, displacement_components, &
       pressure_dofs_per_element, dof_map, status)
-    ! Yerel mixed element unknown sirasini global denklem numaralarina tasir:
-    ! [node-1 displacement components, ..., node-n displacement components,
-    !  element-internal pressure coefficients].
-    !
-    ! B9.5g: Pressure offset ve equation-number aritmetigi i64 temporary ile
-    ! yapilir. Default-integer dof_map'e yalniz butun aralik kanitlandiktan sonra
-    ! narrowing yapilir; boylece buyuk numbering sessizce wrap etmez.
-    integer, intent(in) :: element_nodes(:), element_id, node_count
-    integer, intent(in) :: displacement_components, pressure_dofs_per_element
-    integer, intent(out) :: dof_map(:)
+    ! B9.5l: Mixed element equation numbering'in canonical i64 yoludur.
+    ! Buyuk global denklem numaralari default integer'a daraltilmadan uretilir.
+    integer(i64), intent(in) :: element_nodes(:), element_id, node_count
+    integer(i64), intent(in) :: displacement_components, pressure_dofs_per_element
+    integer(i64), intent(out) :: dof_map(:)
     integer, intent(out) :: status
 
-    integer :: a, c, cursor, p
-    integer(i64) :: local_node_count_i64, component_count_i64, pressure_count_i64
-    integer(i64) :: expected_size_i64, displacement_equations_i64
-    integer(i64) :: pressure_element_offset_i64, pressure_offset_i64
-    integer(i64) :: equation_i64, default_integer_max
+    integer(i64) :: local_node_count, expected_size, displacement_equations
+    integer(i64) :: pressure_element_offset, pressure_offset, equation
+    integer(i64) :: a, c, cursor, p
 
-    dof_map = 0
+    dof_map = 0_i64
     status = DES_ERROR_INVALID_CONSTRAINT
 
-    if (element_id <= 0 .or. node_count <= 0 .or. &
-        displacement_components <= 0 .or. pressure_dofs_per_element <= 0) return
+    if (element_id <= 0_i64 .or. node_count <= 0_i64 .or. &
+        displacement_components <= 0_i64 .or. pressure_dofs_per_element <= 0_i64) return
 
-    local_node_count_i64 = size(element_nodes,kind=i64)
-    component_count_i64 = int(displacement_components,i64)
-    pressure_count_i64 = int(pressure_dofs_per_element,i64)
+    local_node_count = size(element_nodes,kind=i64)
+    if (local_node_count > huge(0_i64)/displacement_components) return
+    expected_size = local_node_count*displacement_components
+    if (expected_size > huge(0_i64)-pressure_dofs_per_element) return
+    expected_size = expected_size+pressure_dofs_per_element
+    if (size(dof_map,kind=i64) /= expected_size) return
 
-    if (local_node_count_i64 > huge(0_i64)/component_count_i64) return
-    expected_size_i64 = local_node_count_i64*component_count_i64
-    if (expected_size_i64 > huge(0_i64)-pressure_count_i64) return
-    expected_size_i64 = expected_size_i64+pressure_count_i64
-    if (size(dof_map,kind=i64) /= expected_size_i64) return
-
-    do a = 1,size(element_nodes)
-      if (element_nodes(a) < 1 .or. element_nodes(a) > node_count) then
+    do a = 1_i64,local_node_count
+      if (element_nodes(a) < 1_i64 .or. element_nodes(a) > node_count) then
         status = DES_ERROR_INVALID_CONNECTIVITY
         return
       end if
     end do
 
-    if (int(node_count,i64) > huge(0_i64)/component_count_i64) return
-    displacement_equations_i64 = int(node_count,i64)*component_count_i64
+    if (node_count > huge(0_i64)/displacement_components) return
+    displacement_equations = node_count*displacement_components
 
-    if (int(element_id-1,i64) > huge(0_i64)/pressure_count_i64) return
-    pressure_element_offset_i64 = int(element_id-1,i64)*pressure_count_i64
-    if (displacement_equations_i64 > huge(0_i64)-pressure_element_offset_i64) return
-    pressure_offset_i64 = displacement_equations_i64+pressure_element_offset_i64
+    if (element_id-1_i64 > huge(0_i64)/pressure_dofs_per_element) return
+    pressure_element_offset = (element_id-1_i64)*pressure_dofs_per_element
+    if (displacement_equations > huge(0_i64)-pressure_element_offset) return
+    pressure_offset = displacement_equations+pressure_element_offset
+    if (pressure_offset > huge(0_i64)-pressure_dofs_per_element) return
 
-    default_integer_max = int(huge(0),i64)
-    if (pressure_count_i64 > default_integer_max) return
-    if (pressure_offset_i64 > default_integer_max-pressure_count_i64) return
-
-    cursor = 0
-    do a = 1,size(element_nodes)
-      do c = 1,displacement_components
-        cursor = cursor+1
-        equation_i64 = component_count_i64*int(element_nodes(a)-1,i64)+int(c,i64)
-        dof_map(cursor) = int(equation_i64)
+    cursor = 0_i64
+    do a = 1_i64,local_node_count
+      do c = 1_i64,displacement_components
+        cursor = cursor+1_i64
+        equation = displacement_components*(element_nodes(a)-1_i64)+c
+        dof_map(cursor) = equation
       end do
     end do
 
-    do p = 1,pressure_dofs_per_element
-      cursor = cursor+1
-      equation_i64 = pressure_offset_i64+int(p,i64)
-      dof_map(cursor) = int(equation_i64)
+    do p = 1_i64,pressure_dofs_per_element
+      cursor = cursor+1_i64
+      dof_map(cursor) = pressure_offset+p
     end do
 
     status = DES_STATUS_OK
+  end subroutine build_discontinuous_pressure_element_dof_map_i64
+
+  pure subroutine build_discontinuous_pressure_element_dof_map( &
+      element_nodes, element_id, node_count, displacement_components, &
+      pressure_dofs_per_element, dof_map, status)
+    ! Legacy default-integer API, canonical i64 numbering yolunun kontrollu
+    ! wrapper'idir. Sonuc default integer kapasitesini asarsa map sifir kalir.
+    integer, intent(in) :: element_nodes(:), element_id, node_count
+    integer, intent(in) :: displacement_components, pressure_dofs_per_element
+    integer, intent(out) :: dof_map(:)
+    integer, intent(out) :: status
+
+    integer(i64) :: dof_map_i64(size(dof_map))
+    integer(i64) :: default_integer_max
+
+    dof_map = 0
+
+    call build_discontinuous_pressure_element_dof_map_i64( &
+        int(element_nodes,i64),int(element_id,i64),int(node_count,i64), &
+        int(displacement_components,i64),int(pressure_dofs_per_element,i64), &
+        dof_map_i64,status)
+    if (status /= DES_STATUS_OK) return
+
+    default_integer_max = int(huge(0),i64)
+    if (any(dof_map_i64 < 1_i64) .or. any(dof_map_i64 > default_integer_max)) then
+      status = DES_ERROR_INVALID_CONSTRAINT
+      return
+    end if
+
+    dof_map = int(dof_map_i64)
   end subroutine build_discontinuous_pressure_element_dof_map
 
 end module des_mixed_dof_layout
