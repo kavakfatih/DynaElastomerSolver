@@ -1567,3 +1567,64 @@ backend supports_int64 capability flag
 B9.5e tek committe bütün equation-numbering zincirini veya MUMPS build ABI'sini değiştirmeyecektir. Önce en küçük güvenli migration sınırı belirlenecek, ardından yalnız o sınır uygulanacaktır. Mixed `u-P` formulation, Q9/P1 assembly matematiği, B8 nonlinear transaction semantics, GMRES row-equilibration ve AUTO→MUMPS production policy değiştirilmeyecektir.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 25. 2026-08-21 B9.5e final kapanış ve B9.5f başlangıç checkpoint'i
+
+Kullanıcı `Devam edelim` diyerek B9.5 large-scale sparse foundation çalışmasının bir sonraki turunu başlattı. Bu kayıt bu turun ilk repo write'ı olarak, herhangi bir yeni solver kaynak değişikliğinden önce eklendi.
+
+Canlı GitHub durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = c48423624fa9e2c38df08c85483dee9e4f3b69e1
+```
+
+B9.5e final compiler matrisi aynı teknik SHA üzerinde tamamen kapanmıştır:
+
+```text
+Normal Fortran CI = 32422112988
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+MUMPS Direct CI = 32422112989
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Toplam                                  = 8/8 SUCCESS
+```
+
+B9.5e ile Dyna→MUMPS Fortran/C köprüsünde `n`, `nnz` ve CSR structural index aktarımı C `int64_t` / Fortran `c_int64_t` sınırına genişletildi. C adapter runtime olarak gerçek `MUMPS_INT` bit genişliğini raporlayabilir hale geldi. Böylece C `int` kaynaklı yapay cardinality daralması kaldırıldı; gerçek MUMPS index türü ve allocation kapasitesi dışındaki değerler fail-fast reddedilir.
+
+Pinned production profilinde `MUMPS_intsize64=OFF` kalmaktadır. Bu nedenle mevcut production MUMPS build'i hâlâ 32-bit `MUMPS_INT` equation/column index kapasitesine sahiptir; full 64-bit backend desteği henüz ilan edilmez ve `supports_int64=false` korunur.
+
+B9.5e acceptance sonucu:
+
+```text
+B9.5e = PASS
+```
+
+Bu kayıtla **B9.5f — optional MUMPS int64 build profile + truthful capability propagation** başlatılmıştır. Dar hedef, mevcut production int32 profilini bozmadan ayrı ve explicit bir int64 MUMPS build seçeneği eklemek; backend capability bilgisini gerçek `MUMPS_INT` genişliğinden türetmek ve yalnız gerçekten 64-bit MUMPS build'inde int64 capability'yi görünür hale getirmektir.
+
+B9.5f güvenlik sınırı:
+
+```text
+production default int32 MUMPS profili korunacak
+int64 profil explicit opt-in olacak
+stdlib GMRES i32 sınırı değişmeyecek
+mixed DOF numbering / csr nrows-ncols API bu alt pakette topluca değişmeyecek
+supports_int64 yalnız gerçek 64-bit MUMPS build doğrulanırsa true olacak
+normal + mevcut MUMPS 8/8 regression korunacak
+ayrı int64 build doğrulaması mümkünse dedicated CI gate ile yapılacak
+```
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
