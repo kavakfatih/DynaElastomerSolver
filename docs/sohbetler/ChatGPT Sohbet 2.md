@@ -828,7 +828,7 @@ B9.1 kapsamı yalnız ölçüm ve raporlama foundation'ıdır; bu alt pakette ag
 8. benchmark executable'ını normal CTest correctness paketinden ayrı tutmak
 ```
 
-B9.1 kabulünde solver formulation, B8 nonlinear transaction semantics ve backend seçim politikası değiştirilmeyecektir. Ölçüm katmanı production sonuçlarını değiştirmemeli; aynı benchmark probleminin final mixed state/residual doğruluğu mevcut regression sözleşmeleriyle korunmalıdır.
+B9.1 kabulünde solver formulation, B8 nonlinear transaction semantics ve backend selection policy'sini değiştirmeyecektir. Ölçüm katmanı production sonuçlarını değiştirmemeli; aynı benchmark probleminin final mixed state/residual doğruluğu mevcut regression sözleşmeleriyle korunmalıdır.
 
 B9.1 sonrasında performans verisine göre B9.2 optimizasyon hedefleri seçilecektir; ölçüm yapılmadan speculative optimization yapılmayacaktır.
 
@@ -1626,5 +1626,44 @@ supports_int64 yalnız gerçek 64-bit MUMPS build doğrulanırsa true olacak
 normal + mevcut MUMPS 8/8 regression korunacak
 ayrı int64 build doğrulaması mümkünse dedicated CI gate ile yapılacak
 ```
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 26. 2026-08-21 B9.5f CI kapanış devam checkpoint'i
+
+Kullanıcı `Devam edelim` diyerek B9.5f doğrulama ve sonraki migration turunu başlattı. Bu kayıt bu turun ilk repo write'ıdır; yeni solver/build kaynak değişikliklerinden önce yazılmıştır.
+
+Canlı GitHub doğrulaması:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 52695695d17da067df7d698e3bc708048e952ffe
+```
+
+B9.5f current head üzerinde combined status bu checkpoint anında henüz tamamlanmamıştır. Yayımlanmış normal compiler context'leri:
+
+```text
+Normal Fortran CI = 32445773242
+macOS / gfortran 14   = PASS
+Linux / gfortran 14   = PASS
+Windows / gfortran 14 = PASS
+Windows / Intel ifx   = pending/not yet published
+```
+
+Production MUMPS int32 4-platform context'leri ve dedicated `MUMPS int64 Index CI` context'i bu checkpoint anında henüz final custom status olarak görünmemektedir. Bu nedenle:
+
+```text
+B9.5f = NOT YET PASS
+```
+
+Kapanış sırası değişmemektedir: mevcut normal 4/4 + production MUMPS int32 4/4 + dedicated Linux/gfortran MUMPS-int64 capability/parity gate başarıyla doğrulanmadan sonraki equation-numbering migration teknik commit'i atılmayacaktır.
+
+B9.5f'in gerçeklik sınırı korunur: optional MUMPS `MUMPS_INT=64` build profili ayrı bir backend capability kapısıdır; `csr_matrix_t%nrows/ncols`, mixed DOF numbering ve global equation-map zinciri henüz end-to-end int64 olmadığı için bütün Dyna solver için full int64 desteği ilan edilmeyecektir.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
