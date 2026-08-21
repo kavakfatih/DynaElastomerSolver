@@ -4,7 +4,8 @@ program test_2d_dof_manager
   use des_2d_analysis_contract, only : DES_2D_PLANE_STRAIN, &
       DES_2D_GENERALIZED_PLANE_STRAIN, DES_2D_AXISYMMETRIC_TORSION, &
       DES_TOPOLOGY_Q4, DES_TOPOLOGY_Q8, DES_FORMULATION_MIXED_UP, &
-      DES_PRESSURE_SPACE_P0, DES_PRESSURE_SPACE_P1
+      DES_PRESSURE_SPACE_P0, DES_PRESSURE_SPACE_P1, &
+      DES_ELEMENT_TECH_SELECTIVE_BBAR, DES_ELEMENT_TECH_UNIFORM_REDUCED
   use des_2d_mesh_database, only : mesh_database_2d_t
   use des_2d_dof_manager, only : dof_layout_2d_t, build_2d_dof_layout, &
       build_2d_element_equation_map, node_equation_from_id
@@ -93,6 +94,7 @@ contains
     mesh%elements(1)%analysis_mode = DES_2D_AXISYMMETRIC_TORSION
     mesh%elements(1)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(1)%pressure_space = DES_PRESSURE_SPACE_P1
+    mesh%elements(1)%element_technology = DES_ELEMENT_TECH_UNIFORM_REDUCED
     mesh%elements(1)%material_id = 1_i64
     mesh%elements(1)%connectivity = [ &
         3000000001_i64,3000000002_i64,3000000003_i64,3000000004_i64, &
@@ -113,6 +115,7 @@ contains
     mesh%elements(1)%analysis_mode = DES_2D_PLANE_STRAIN
     mesh%elements(1)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(1)%pressure_space = DES_PRESSURE_SPACE_P0
+    mesh%elements(1)%element_technology = DES_ELEMENT_TECH_SELECTIVE_BBAR
     mesh%elements(1)%material_id = 1_i64
     mesh%elements(1)%connectivity = [10_i64,20_i64,30_i64,40_i64]
   end subroutine build_q4_plane_strain_mesh
@@ -133,6 +136,7 @@ contains
     mesh%elements(1)%analysis_mode = DES_2D_GENERALIZED_PLANE_STRAIN
     mesh%elements(1)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(1)%pressure_space = DES_PRESSURE_SPACE_P1
+    mesh%elements(1)%element_technology = DES_ELEMENT_TECH_UNIFORM_REDUCED
     mesh%elements(1)%material_id = 2_i64
     mesh%elements(1)%connectivity = [110_i64,120_i64,130_i64,140_i64, &
                                      150_i64,160_i64,170_i64,180_i64]
@@ -154,6 +158,7 @@ contains
     mesh%elements(1)%analysis_mode = DES_2D_PLANE_STRAIN
     mesh%elements(1)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(1)%pressure_space = DES_PRESSURE_SPACE_P0
+    mesh%elements(1)%element_technology = DES_ELEMENT_TECH_SELECTIVE_BBAR
     mesh%elements(1)%material_id = 1_i64
     mesh%elements(1)%connectivity = [1_i64,2_i64,3_i64,4_i64]
 
@@ -162,6 +167,7 @@ contains
     mesh%elements(2)%analysis_mode = DES_2D_AXISYMMETRIC_TORSION
     mesh%elements(2)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(2)%pressure_space = DES_PRESSURE_SPACE_P0
+    mesh%elements(2)%element_technology = DES_ELEMENT_TECH_SELECTIVE_BBAR
     mesh%elements(2)%material_id = 1_i64
     mesh%elements(2)%connectivity = [5_i64,6_i64,7_i64,8_i64]
   end subroutine build_two_element_mixed_analysis_mesh
