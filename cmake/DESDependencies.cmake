@@ -99,14 +99,21 @@ if(DES_ENABLE_MUMPS)
     "Pinlenen mumps-superbuild commit'i"
   )
 
-  # B6 workstation profili: single-process/libseq, double precision, static.
-  # MPI/distributed ve int64 yolları B9/HPC genişlemesinde ayrıca açılacaktır.
+  # Workstation profili: single-process/libseq, double precision, static.
+  # B9.5f ile MUMPS_INT genişliği explicit opt-in yapılmıştır. Varsayılan
+  # production davranışı int32 kalır; int64 profil yalnız ayrı preset/CI ile açılır.
   set(MUMPS_UPSTREAM_VERSION "${DES_MUMPS_VERSION}")
   set(MUMPS_sha256 "${DES_MUMPS_SHA256}")
   set(MUMPS_hash URL_HASH "SHA256=${DES_MUMPS_SHA256}")
   set(MUMPS_parallel OFF CACHE BOOL "B6: MPI yerine libseq kullan" FORCE)
   set(MUMPS_scalapack OFF CACHE BOOL "B6: ScaLAPACK kullanma" FORCE)
-  set(MUMPS_intsize64 OFF CACHE BOOL "B6: MUMPS int32 profile" FORCE)
+  set(
+    MUMPS_intsize64
+    ${DES_MUMPS_INT64_INDEX}
+    CACHE BOOL
+    "B9.5f: MUMPS_INT 64-bit index profili"
+    FORCE
+  )
   set(MUMPS_openmp OFF CACHE BOOL "B6a: OpenMP daha sonra ölçülecek" FORCE)
   set(MUMPS_gpu OFF CACHE BOOL "B6: GPU backend kapalı" FORCE)
   set(MUMPS_xkblas OFF CACHE BOOL "B6: xKBLAS kapalı" FORCE)
@@ -121,6 +128,12 @@ if(DES_ENABLE_MUMPS)
   set(BUILD_COMPLEX OFF CACHE BOOL "MUMPS complex kapalı" FORCE)
   set(BUILD_COMPLEX16 OFF CACHE BOOL "MUMPS complex16 kapalı" FORCE)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "B6: static dependency build" FORCE)
+
+  if(DES_MUMPS_INT64_INDEX)
+    message(STATUS "Dyna MUMPS index profili: 64-bit MUMPS_INT")
+  else()
+    message(STATUS "Dyna MUMPS index profili: 32-bit MUMPS_INT")
+  endif()
 
   # GNU ld Linux ve GNU/MinGW Windows'ta statik arşivleri tek geçişte tarar.
   # stdlib BLAS'ı MUMPS/LAPACK zincirinden önce linklediğinde liblapack.a'nın
