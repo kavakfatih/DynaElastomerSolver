@@ -1731,3 +1731,53 @@ Bu kayıtla **B9.5g — mixed DOF cardinality overflow-safe foundation** başlat
 Bu alt pakette `csr_matrix_t%nrows/ncols`, element connectivity storage, Q9 global arrays veya bütün DOF map storage topluca int64'a çevrilmeyecektir. `supports_int64=true` ancak Dyna equation-numbering → CSR dimension → backend zinciri end-to-end doğrulandığında değerlendirilecektir. Mixed `u-P` formulation, Q9/P1 assembly matematiği, B8 nonlinear transaction semantics, GMRES row-equilibration ve AUTO→MUMPS policy değişmeyecektir.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 28. 2026-08-21 B9.5g CI kapanış devam checkpoint'i
+
+Kullanıcı `Devam edelim` diyerek B9.5g doğrulama turunu sürdürdü. Bu kayıt bu turun **ilk repo write'ıdır**; yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı GitHub durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 7a2cdac68be2ef27acaa57b4c375af399f930a5c
+```
+
+B9.5g teknik SHA için bu checkpoint anındaki doğrulanmış CI durumu:
+
+```text
+Normal Fortran CI = 32448249594
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Dedicated MUMPS int64 Index CI = 32448249679
+Linux / gfortran 14 / MUMPS_INT=64      = PASS
+
+Production MUMPS Direct CI = 32448249691
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = running
+Windows / gfortran 14                   = running
+Windows / Intel ifx 2025.2              = running
+```
+
+Dolayısıyla bu checkpoint anında doğrulanan acceptance kapısı:
+
+```text
+6/9 SUCCESS
+3/9 RUNNING
+B9.5g = NOT YET PASS
+```
+
+B9.5g kaynak değişikliği mixed DOF cardinality ve pressure-offset aritmetiğini i64-safe hale getirirken legacy default-integer API'yi fail-fast narrowing ile korur. Bu, end-to-end Dyna int64 desteği anlamına gelmez. `csr_matrix_t%nrows/ncols`, global element DOF-map storage ve Q9 equation-numbering zinciri hâlâ sonraki migration adımlarındadır; `supports_int64` bu nedenle false kalacaktır.
+
+Kapanış sırası değişmez: production MUMPS Direct kalan üç platform da SUCCESS olmadan B9.5g PASS ilan edilmeyecek ve sonraki `csr_matrix_t%nrows/ncols` / equation-dimension teknik paketi başlatılmayacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
