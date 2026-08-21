@@ -21,7 +21,7 @@ on:
       - 'src/fortran/solvers/des_mumps_adapter.c'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'tests/CMakeLists.txt'
-      - 'tests/test_2d_q8_herrmann_force_solver.f90'
+      - 'tests/test_2d_*.f90'
       - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps_sparse_solver_context.f90'
       - 'tests/test_mumps_int64_index_capability.f90'
@@ -47,7 +47,7 @@ on:
       - 'src/fortran/solvers/des_mumps_adapter.c'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'tests/CMakeLists.txt'
-      - 'tests/test_2d_q8_herrmann_force_solver.f90'
+      - 'tests/test_2d_*.f90'
       - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps_sparse_solver_context.f90'
       - 'tests/test_mumps_int64_index_capability.f90'
@@ -154,6 +154,7 @@ jobs:
             test_mumps_int64_index_capability \
             test_mumps_sparse_solver_context \
             test_2d_q8_herrmann_force_solver \
+            test_2d_q8_herrmann_incompressible_acceptance \
             test_q9_herrmann_sparse_force_solver \
             --parallel 2 --verbose 2>&1 | tee mumps-int64-build.log
 
@@ -162,7 +163,7 @@ jobs:
         shell: bash
         run: |
           ctest --preset dyna-production-mumps-int64 \
-            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q8\.2d\.herrmann\.mumps_force_control|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
+            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q8\.2d\.herrmann\.mumps_force_control|solver\.q8\.2d\.herrmann\.mumps_incompressible_acceptance|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
             --output-on-failure
 
       - name: MUMPS int64 status yayınla
