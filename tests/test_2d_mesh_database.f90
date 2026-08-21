@@ -6,8 +6,10 @@ program test_2d_mesh_database
       DES_2D_PLANE_STRAIN, DES_2D_AXISYMMETRIC_TORSION, &
       DES_TOPOLOGY_Q4, DES_TOPOLOGY_Q8, DES_TOPOLOGY_Q9_LEGACY, &
       DES_FORMULATION_MIXED_UP, DES_PRESSURE_SPACE_P0, DES_PRESSURE_SPACE_P1, &
+      DES_ELEMENT_TECH_SELECTIVE_BBAR, DES_ELEMENT_TECH_UNIFORM_REDUCED, &
       des_2d_analysis_allows_mixed_up, des_2d_nodal_kinematic_dof_count, &
-      des_2d_pressure_dof_count, des_2d_primary_mixed_pair_is_defined
+      des_2d_pressure_dof_count, des_2d_primary_mixed_pair_is_defined, &
+      des_2d_primary_mixed_configuration_is_defined
   use des_2d_mesh_database, only : mesh_database_2d_t, validate_2d_mesh_database
   implicit none
 
@@ -33,6 +35,12 @@ program test_2d_mesh_database
   call require(.not. des_2d_primary_mixed_pair_is_defined( &
       DES_TOPOLOGY_Q9_LEGACY, DES_PRESSURE_SPACE_P1), &
       'Q9/P1 yeni production primary pair olmamalı')
+  call require(des_2d_primary_mixed_configuration_is_defined( &
+      DES_TOPOLOGY_Q4, DES_PRESSURE_SPACE_P0, DES_ELEMENT_TECH_SELECTIVE_BBAR), &
+      'Q4/P0 selective-Bbar primary configuration tanımsız')
+  call require(des_2d_primary_mixed_configuration_is_defined( &
+      DES_TOPOLOGY_Q8, DES_PRESSURE_SPACE_P1, DES_ELEMENT_TECH_UNIFORM_REDUCED), &
+      'Q8/P1 reduced-integration primary configuration tanımsız')
 
   call build_q8_torsion_mesh(mesh)
   call validate_2d_mesh_database(mesh, status)
@@ -58,12 +66,19 @@ program test_2d_mesh_database
   call validate_2d_mesh_database(mesh, status)
   call require(status == DES_STATUS_OK, 'Q4/P0 plane-strain mesh doğrulanamadı')
 
+  mesh%elements(1)%analysis_mode = DES_2D_AXISYMMETRIC_TORSION
+  mesh%elements(1)%element_technology = DES_ELEMENT_TECH_UNIFORM_REDUCED
+  call validate_2d_mesh_database(mesh, status)
+  call require(status == DES_ERROR_INVALID_PARAMETERS, &
+      'Q4 torsion için ANSYS-benzeri B-bar technology kısıtı korunmadı')
+
+  call build_q4_plane_strain_mesh(mesh)
   mesh%nodes(4)%id = mesh%nodes(3)%id
   call validate_2d_mesh_database(mesh, status)
   call require(status == DES_ERROR_INVALID_CONNECTIVITY, &
       'Tekrarlanan node ID reddedilmedi')
 
-  print '(a)', 'PASS: 2D analysis contract ve i64 mesh database foundation'
+  print '(a)', 'PASS: 2D analysis, element technology ve i64 mesh database foundation'
 
 contains
 
@@ -85,6 +100,7 @@ contains
     mesh%elements(1)%analysis_mode = DES_2D_AXISYMMETRIC_TORSION
     mesh%elements(1)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(1)%pressure_space = DES_PRESSURE_SPACE_P1
+    mesh%elements(1)%element_technology = DES_ELEMENT_TECH_UNIFORM_REDUCED
     mesh%elements(1)%material_id = 1_i64
     mesh%elements(1)%connectivity = [ &
         3000000001_i64, 3000000002_i64, 3000000003_i64, 3000000004_i64, &
@@ -114,6 +130,7 @@ contains
     mesh%elements(1)%analysis_mode = DES_2D_PLANE_STRAIN
     mesh%elements(1)%formulation = DES_FORMULATION_MIXED_UP
     mesh%elements(1)%pressure_space = DES_PRESSURE_SPACE_P0
+    mesh%elements(1)%element_technology = DES_ELEMENT_TECH_SELECTIVE_BBAR
     mesh%elements(1)%material_id = 1_i64
     mesh%elements(1)%connectivity = [101_i64, 103_i64, 107_i64, 109_i64]
   end subroutine build_q4_plane_strain_mesh
