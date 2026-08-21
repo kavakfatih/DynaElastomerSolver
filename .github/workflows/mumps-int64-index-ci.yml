@@ -9,11 +9,13 @@ on:
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/core/des_kinds.f90'
+      - 'src/fortran/fem/des_mixed_dof_layout.f90'
       - 'src/fortran/math/des_csr_matrix.f90'
       - 'src/fortran/solvers/des_mumps_backend.f90'
       - 'src/fortran/solvers/des_mumps_adapter.c'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'tests/CMakeLists.txt'
+      - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps_sparse_solver_context.f90'
       - 'tests/test_mumps_int64_index_capability.f90'
       - 'tests/test_q9_herrmann_sparse_force_solver.f90'
@@ -26,11 +28,13 @@ on:
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/core/des_kinds.f90'
+      - 'src/fortran/fem/des_mixed_dof_layout.f90'
       - 'src/fortran/math/des_csr_matrix.f90'
       - 'src/fortran/solvers/des_mumps_backend.f90'
       - 'src/fortran/solvers/des_mumps_adapter.c'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'tests/CMakeLists.txt'
+      - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps_sparse_solver_context.f90'
       - 'tests/test_mumps_int64_index_capability.f90'
       - 'tests/test_q9_herrmann_sparse_force_solver.f90'
@@ -132,6 +136,7 @@ jobs:
         run: |
           set -o pipefail
           cmake --build --preset dyna-production-mumps-int64 --target \
+            test_mixed_dof_layout \
             test_mumps_int64_index_capability \
             test_mumps_sparse_solver_context \
             test_q9_herrmann_sparse_force_solver \
@@ -142,7 +147,7 @@ jobs:
         shell: bash
         run: |
           ctest --preset dyna-production-mumps-int64 \
-            -R '^(solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
+            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
             --output-on-failure
 
       - name: MUMPS int64 status yayınla
