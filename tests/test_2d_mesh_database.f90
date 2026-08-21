@@ -9,7 +9,8 @@ program test_2d_mesh_database
       DES_ELEMENT_TECH_SELECTIVE_BBAR, DES_ELEMENT_TECH_UNIFORM_REDUCED, &
       des_2d_analysis_allows_mixed_up, des_2d_nodal_kinematic_dof_count, &
       des_2d_pressure_dof_count, des_2d_primary_mixed_pair_is_defined, &
-      des_2d_primary_mixed_configuration_is_defined
+      des_2d_primary_mixed_configuration_is_defined, &
+      des_2d_configuration_is_production_validated
   use des_2d_mesh_database, only : mesh_database_2d_t, validate_2d_mesh_database
   implicit none
 
@@ -37,10 +38,19 @@ program test_2d_mesh_database
       'Q9/P1 yeni production primary pair olmamalı')
   call require(des_2d_primary_mixed_configuration_is_defined( &
       DES_TOPOLOGY_Q4, DES_PRESSURE_SPACE_P0, DES_ELEMENT_TECH_SELECTIVE_BBAR), &
-      'Q4/P0 selective-Bbar primary configuration tanımsız')
+      'Q4/P0 selective-Bbar target configuration tanımsız')
   call require(des_2d_primary_mixed_configuration_is_defined( &
       DES_TOPOLOGY_Q8, DES_PRESSURE_SPACE_P1, DES_ELEMENT_TECH_UNIFORM_REDUCED), &
-      'Q8/P1 reduced-integration primary configuration tanımsız')
+      'Q8/P1 reduced-integration target configuration tanımsız')
+
+  ! Target configuration ile production acceptance aynı şey değildir. C2
+  ! pressure-stability ve end-to-end solver gate'leri kapanana kadar false kalır.
+  call require(.not. des_2d_configuration_is_production_validated( &
+      DES_TOPOLOGY_Q4, DES_PRESSURE_SPACE_P0, DES_ELEMENT_TECH_SELECTIVE_BBAR), &
+      'Q4/P0 henüz production validated ilan edilmemeli')
+  call require(.not. des_2d_configuration_is_production_validated( &
+      DES_TOPOLOGY_Q8, DES_PRESSURE_SPACE_P1, DES_ELEMENT_TECH_UNIFORM_REDUCED), &
+      'Q8/P1 stability gate kapanmadan production validated ilan edilmemeli')
 
   call build_q8_torsion_mesh(mesh)
   call validate_2d_mesh_database(mesh, status)
@@ -78,7 +88,7 @@ program test_2d_mesh_database
   call require(status == DES_ERROR_INVALID_CONNECTIVITY, &
       'Tekrarlanan node ID reddedilmedi')
 
-  print '(a)', 'PASS: 2D analysis, element technology ve i64 mesh database foundation'
+  print '(a)', 'PASS: 2D target/validation contract, technology ve i64 mesh database'
 
 contains
 
