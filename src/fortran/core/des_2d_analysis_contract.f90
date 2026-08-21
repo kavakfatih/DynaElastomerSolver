@@ -33,8 +33,8 @@ module des_2d_analysis_contract
 
   ! Element technology, topology'den ayrı tutulur. Böylece aynı Q4 topology
   ! selective/B-bar, uniform-reduced veya enhanced-strain davranışı taşıyabilir.
-  ! Q8 production yönü ANSYS PLANE183 ve Marc 58/59/66 ile uyumlu reduced
-  ! integration'dır. Q9 yalnız mevcut bilimsel reference hattı için tutulur.
+  ! Q8 production hedefi ANSYS PLANE183 ve Marc 58/59/66 ile uyumlu reduced
+  ! integration ailesidir. Q9 yalnız mevcut bilimsel reference hattı için tutulur.
   integer, parameter, public :: DES_ELEMENT_TECH_UNKNOWN = 0
   integer, parameter, public :: DES_ELEMENT_TECH_SELECTIVE_BBAR = 1
   integer, parameter, public :: DES_ELEMENT_TECH_UNIFORM_REDUCED = 2
@@ -52,6 +52,7 @@ module des_2d_analysis_contract
   public :: des_2d_element_technology_is_valid
   public :: des_2d_primary_mixed_pair_is_defined
   public :: des_2d_primary_mixed_configuration_is_defined
+  public :: des_2d_configuration_is_production_validated
 
 contains
 
@@ -103,10 +104,9 @@ contains
       ! r-z kinematiğine çevresel/twist bileşeni eklenir.
       ndof = 3
     case (DES_2D_GENERAL_AXISYMMETRIC_FOURIER)
-      ! General-axisymmetric/Fourier bir sabit üç-DOF problemi değildir.
-      ! Aktif harmonik sayısına göre equation sayısı değişeceği için bu helper
-      ! kasıtlı olarak 0 döndürür; dedicated Fourier DOF manager eklenmeden
-      ! standard 2D layout bu analysis mode'u çözebilir gibi davranamaz.
+      ! General-axisymmetric/Fourier sabit üç-DOF problemi değildir. Aktif
+      ! harmonik sayısına göre equation sayısı değiştiği için dedicated Fourier
+      ! DOF manager gelmeden standard 2D layout bu kipi çözülebilir saymaz.
       ndof = 0
     case default
       ndof = 0
@@ -174,8 +174,8 @@ contains
     select case (topology)
     case (DES_TOPOLOGY_Q4)
       if (analysis_mode == DES_2D_AXISYMMETRIC_TORSION) then
-        ! ANSYS PLANE182 torsion kipi yalnız full-integration B-bar/selective
-        ! technology kullanır. Dyna Q4 torsion contract aynı kısıtı taşır.
+        ! ANSYS PLANE182 torsion kipi full-integration B-bar/selective technology
+        ! kullanır. Dyna Q4 torsion contract aynı kısıtı taşır.
         is_valid = element_technology == DES_ELEMENT_TECH_SELECTIVE_BBAR
       else
         is_valid = element_technology == DES_ELEMENT_TECH_SELECTIVE_BBAR .or. &
@@ -208,14 +208,31 @@ contains
       topology, pressure_space, element_technology) result(is_primary_configuration)
     integer, intent(in) :: topology, pressure_space, element_technology
 
-    ! İlk production aileleri:
-    ! - Q4/P0 + selective/B-bar: lower-order robust nearly-incompressible path
-    ! - Q8/P1 + reduced integration: ANSYS PLANE183 / Marc Herrmann high-order path
+    ! Bu helper hedef product configuration'ı tanımlar; production validation
+    ! durumu değildir. Kabul durumu ayrı helper ile tutulur.
     is_primary_configuration = &
         (topology == DES_TOPOLOGY_Q4 .and. pressure_space == DES_PRESSURE_SPACE_P0 .and. &
          element_technology == DES_ELEMENT_TECH_SELECTIVE_BBAR) .or. &
         (topology == DES_TOPOLOGY_Q8 .and. pressure_space == DES_PRESSURE_SPACE_P1 .and. &
          element_technology == DES_ELEMENT_TECH_UNIFORM_REDUCED)
   end function des_2d_primary_mixed_configuration_is_defined
+
+  pure logical function des_2d_configuration_is_production_validated( &
+      topology, pressure_space, element_technology) result(is_validated)
+    integer, intent(in) :: topology, pressure_space, element_technology
+
+    ! C2 başlangıcında target configuration ile doğrulanmış capability birbirinden
+    ! özellikle ayrılır. Q8/P1 reduced-integration yolu tangent/patch testlerini
+    ! geçse bile mesh-refinement pressure stability kapısı kapanmadan production
+    ! validated yapılmayacaktır. Q4/P0 da yeni 2D database/solver hattı üzerinden
+    ! end-to-end acceptance tamamlanmadan burada true olmaz.
+    is_validated = .false.
+
+    ! Argümanları bilinçli olarak contract'ın parçası tutuyoruz. Bu koşul bugün
+    ! false döner; ileride yalnız ilgili configuration acceptance kapısı kapanınca
+    ! açık bir case ile true yapılacaktır.
+    if (.not. des_2d_primary_mixed_configuration_is_defined( &
+        topology, pressure_space, element_technology)) return
+  end function des_2d_configuration_is_production_validated
 
 end module des_2d_analysis_contract
