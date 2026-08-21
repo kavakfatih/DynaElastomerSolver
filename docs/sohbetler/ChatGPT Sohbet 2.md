@@ -154,7 +154,7 @@ Dyna CSR
 → MUMPS analyze / factorize / solve
 ```
 
-MUMPS backend'i sahte sparse veya dense wrapper değildir; gerçek symbolic analysis, numeric factorization ve direct solve yaşam döngüsünü kullanır. Q9/P1 fixed ve adaptive Newton sparse yolları aynı stateful context üzerinden MUMPS ile çalışabilir.
+MUMPS backend'i sahte sparse veya dense wrapper değildir; gerçek symbolic analysis, numeric factorization ve direct solve yaşam döngüsünü kullanır. Q9/P1 fixed ve adaptive sparse Newton yolları aynı stateful context üzerinden MUMPS ile çalışabilir.
 
 B6 kabulünde:
 
@@ -1961,5 +1961,44 @@ Bu kayıtla **B9.5k — CSR matrix dimension storage i64 foundation** başlatıl
 ```
 
 Bu paket gerçek 64-bit matrix dimension storage'a bir adım atacaktır; ancak constructor girişleri ve FEM numbering zinciri ayrı alt paketlerde migrate edilmeden büyük-problem allocation desteği tamamlandı sayılmayacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 32. 2026-08-21 B9.5k CI devam checkpoint'i
+
+Kullanıcı `Devam edelim` diyerek B9.5k doğrulama turunu sürdürdü. Bu kayıt turun **ilk repo write'ıdır**; herhangi bir yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı GitHub durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 37d88d91e2bbc2a37bee8835d38321c6a77ea902
+```
+
+B9.5k teknik SHA için bu checkpoint anında yayımlanmış acceptance durumu:
+
+```text
+Normal Fortran CI = 32482441888
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Production MUMPS Direct CI               = henüz custom status yayımlanmadı
+Dedicated MUMPS int64 Index CI           = henüz custom status yayımlanmadı
+
+Doğrulanan kapı                          = 4/9 SUCCESS
+B9.5k                                    = NOT YET PASS
+```
+
+B9.5k ile `csr_matrix_t%nrows/ncols` gerçek storage alanları `integer(i64)` yapılmıştır. Legacy constructor girdileri ve element DOF-map storage bu pakette default integer kalır; bu nedenle büyük-problem allocation/equation-numbering zinciri henüz end-to-end i64 değildir ve `supports_int64=true` ilan edilmeyecektir.
+
+Kapanış sırası değişmez: production MUMPS 4/4 ve dedicated MUMPS-int64 1/1 sonucu aynı teknik SHA üzerinde doğrulanmadan B9.5k PASS yazılmayacak ve sonraki CSR constructor/FEM numbering migration teknik commit'i atılmayacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
