@@ -61,7 +61,8 @@ module des_linear_solver
     integer :: backend = DES_LINEAR_BACKEND_STDLIB_DENSE
     logical :: fallback_used = .false.
     integer :: fallback_reason = DES_LINEAR_FALLBACK_NONE
-    integer :: equation_count = 0
+    ! B9.5i: denklem cardinality telemetrisi default integer'a daralmaz.
+    integer(i64) :: equation_count = 0_i64
     real(dp) :: residual_inf_norm = huge(1.0_dp)
     logical :: converged = .false.
 
@@ -135,7 +136,7 @@ contains
     report = linear_solver_report_t()
     report%requested_backend = active_settings%backend
     report%backend = active_settings%backend
-    report%equation_count = size(b)
+    report%equation_count = size(b,kind=i64)
     x = 0.0_dp
 
     if (size(A,1) /= size(b) .or. size(A,2) /= size(b) .or. &
@@ -174,7 +175,7 @@ contains
     report = linear_solver_report_t()
     report%requested_backend = active_settings%backend
     report%backend = active_settings%backend
-    report%equation_count = size(b)
+    report%equation_count = size(b,kind=i64)
     x = 0.0_dp
 
     if (A%nrows /= A%ncols .or. A%nrows /= size(b) .or. &

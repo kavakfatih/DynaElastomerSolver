@@ -78,6 +78,7 @@ des_add_fortran_test(test_v03_mixed_pressure_uniformity benchmark.v0.3.mixed_up.
 des_add_fortran_test(test_v03_mixed_q4p0_checkerboard_risk benchmark.v0.3.mixed_up.checkerboard_null_mode test_v03_mixed_q4p0_checkerboard_risk.f90)
 des_add_fortran_test(test_q4_plane_strain_newton fem.q4.plane_strain.incremental_newton test_q4_plane_strain_newton.f90)
 des_add_fortran_test(test_dense_linear solver.dense_linear test_dense_linear.f90)
+# B9.5i: Bu interface regression'i equation_count metadata'sinin i64 kalmasını korur.
 des_add_fortran_test(test_linear_solver_interface solver.linear.interface test_linear_solver_interface.f90)
 des_add_fortran_test(test_sparse_linear_solver solver.sparse.csr_gmres_indefinite test_sparse_linear_solver.f90)
 des_add_fortran_test(test_sparse_solver_context solver.sparse.context_lifecycle test_sparse_solver_context.f90)
