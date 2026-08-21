@@ -15,10 +15,10 @@ module des_csr_matrix
     ! 1-based Compressed Sparse Row (CSR) depolama.
     !
     ! B9.5d ile structural row-pointer ve column-index depolamasi i64 yapildi.
-    ! Denklem sayisi girdileri ve element DOF map'leri bu alt pakette default
-    ! integer kalir; amaç storage/count narrowing zincirini kontrollü ayirmaktir.
-    integer :: nrows = 0
-    integer :: ncols = 0
+    ! B9.5k ile row/column cardinality storage da i64'tir. Legacy initialize
+    ! girdileri ve element DOF map'leri bu alt pakette default integer kalir.
+    integer(i64) :: nrows = 0_i64
+    integer(i64) :: ncols = 0_i64
     integer(i64), allocatable :: row_ptr(:)
     integer(i64), allocatable :: col_ind(:)
     real(dp), allocatable :: values(:)
@@ -40,7 +40,8 @@ contains
     ! Dense logical adjacency matrisi kullanilmaz. Pattern-build cardinality,
     ! pointer ve candidate storage i64 tutulur; böylece nlocal katkilarinin ve
     ! terminal row-pointer toplamlarinin default integer'da sessiz taşmasi
-    ! engellenir. nrows/ncols ve element map API'si bu alt pakette korunur.
+    ! engellenir. nrows/ncols caller API'si ve element map API'si korunurken
+    ! matrix icindeki canonical dimension storage i64'tir.
     type(csr_matrix_t), intent(out) :: matrix
     integer, intent(in) :: nrows, ncols
     integer, intent(in) :: element_dof_maps(:,:)
@@ -71,8 +72,8 @@ contains
       return
     end if
 
-    matrix%nrows = nrows
-    matrix%ncols = ncols
+    matrix%nrows = int(nrows,i64)
+    matrix%ncols = int(ncols,i64)
     allocate(candidate_counts(nrows),candidate_ptr(nrows+1), &
              next_position(nrows),row_counts(nrows))
     candidate_counts = 0_i64
@@ -160,7 +161,7 @@ contains
     end do
 
     if (any(matrix%col_ind < 1_i64) .or. &
-        any(matrix%col_ind > int(ncols,i64))) then
+        any(matrix%col_ind > matrix%ncols)) then
       status = DES_ERROR_INVALID_CONSTRAINT
     end if
   end subroutine initialize_csr_from_element_dof_maps
@@ -332,19 +333,17 @@ contains
   end subroutine csr_apply_zero_dirichlet
 
   integer(i64) function csr_nrows_i64(this) result(nrows)
-    ! B9.5h: Matrix row cardinality'sini default integer storage'dan
-    ! daraltma yapmadan canonical i64 metadata olarak sunar. Storage ve
-    ! element DOF-map API'si bu alt pakette bilincli olarak degistirilmez.
+    ! B9.5k: Matrix row cardinality'si canonical i64 storage'dan doğrudan döner.
     class(csr_matrix_t), intent(in) :: this
 
-    nrows = int(this%nrows,i64)
+    nrows = this%nrows
   end function csr_nrows_i64
 
   integer(i64) function csr_ncols_i64(this) result(ncols)
-    ! B9.5h: Matrix column cardinality icin i64 query bridge.
+    ! B9.5k: Matrix column cardinality'si canonical i64 storage'dan doğrudan döner.
     class(csr_matrix_t), intent(in) :: this
 
-    ncols = int(this%ncols,i64)
+    ncols = this%ncols
   end function csr_ncols_i64
 
   integer function csr_nnz(this) result(nnz)

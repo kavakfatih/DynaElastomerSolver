@@ -19,6 +19,12 @@ program test_csr_matrix
 
   call initialize_csr_from_element_dof_maps(A,5,5,maps,status)
   if (status /= DES_STATUS_OK) error stop 'CSR graph initialization basarisiz.'
+  if (kind(A%nrows) /= i64 .or. kind(A%ncols) /= i64) then
+    error stop 'CSR matrix dimension storage int64 degil.'
+  end if
+  if (A%nrows /= 5_i64 .or. A%ncols /= 5_i64) then
+    error stop 'CSR int64 matrix dimension storage beklenen degeri vermedi.'
+  end if
   if (A%nrows_i64() /= 5_i64 .or. A%ncols_i64() /= 5_i64) then
     error stop 'CSR 64-bit matrix dimension sorgusu beklenen degeri vermedi.'
   end if
