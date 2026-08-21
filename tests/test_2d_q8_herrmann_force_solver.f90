@@ -1,6 +1,6 @@
 program test_2d_q8_herrmann_force_solver
   use des_kinds, only : dp, i64
-  use des_status, only : DES_STATUS_OK
+  use des_status, only : DES_STATUS_OK, DES_ERROR_CUTBACK_EXHAUSTED
   use des_2d_analysis_contract, only : DES_2D_AXISYMMETRIC_TORSION, &
       DES_TOPOLOGY_Q8, DES_FORMULATION_MIXED_UP, DES_PRESSURE_SPACE_P1, &
       DES_ELEMENT_TECH_UNIFORM_REDUCED
@@ -23,12 +23,12 @@ program test_2d_q8_herrmann_force_solver
   type(mesh_database_2d_t) :: mesh
   type(dof_layout_2d_t) :: layout
   type(csr_matrix_t) :: tangent
-  type(newton_report_t) :: report,adaptive_report
+  type(newton_report_t) :: report,adaptive_report,cutback_report
   type(linear_solver_settings_t) :: settings
   type(nonlinear_solver_settings_t) :: nonlinear_settings
-  real(dp), allocatable :: target_state(:),state(:),adaptive_state(:)
+  real(dp), allocatable :: target_state(:),state(:),adaptive_state(:),cutback_state(:)
   real(dp), allocatable :: target_residual(:),residual(:),adaptive_residual(:)
-  real(dp), allocatable :: external_load(:)
+  real(dp), allocatable :: cutback_residual(:),external_load(:)
   integer(i64), allocatable :: fixed_equations(:),free_equations(:)
   character(len=32) :: backend_argument
   integer :: backend,status,i,cursor
@@ -54,9 +54,9 @@ program test_2d_q8_herrmann_force_solver
   call require(layout%total_equation_count == 27_i64,'Q8 torsion solver 27 equation bekliyor')
 
   allocate(target_state(layout%total_equation_count),state(layout%total_equation_count))
-  allocate(adaptive_state(layout%total_equation_count))
+  allocate(adaptive_state(layout%total_equation_count),cutback_state(layout%total_equation_count))
   allocate(target_residual(layout%total_equation_count),residual(layout%total_equation_count))
-  allocate(adaptive_residual(layout%total_equation_count))
+  allocate(adaptive_residual(layout%total_equation_count),cutback_residual(layout%total_equation_count))
   allocate(external_load(layout%total_equation_count))
   target_state = 0.0_dp
 
@@ -170,10 +170,34 @@ program test_2d_q8_herrmann_force_solver
   call require(maxval(abs(adaptive_state-state)) <= 2.0e-8_dp, &
       'Q8 torsion fixed/adaptive final mixed state parity bozuldu')
 
+  ! Deterministic rollback/cutback gate: max_iterations=1 olduğunda solver ilk
+  ! correction'dan sonra convergence kontrolüne ikinci kez ulaşamaz. Her attempt
+  ! committed zero state'e geri dönmeli; üç failure sonrası max_cutbacks=2 tükenir.
+  cutback_state = 0.0_dp
+  call solve_2d_q8_herrmann_adaptive_force_control( &
+      mesh,layout,mu,compliance,fixed_equations,external_load, &
+      0.5_dp,0.0625_dp,0.5_dp,2,1,1.0e-10_dp,cutback_state,cutback_residual, &
+      cutback_report,linear_settings=settings,nonlinear_settings=nonlinear_settings)
+
+  call require(cutback_report%status == DES_ERROR_CUTBACK_EXHAUSTED, &
+      'Q8 torsion adaptive cutback exhaustion deterministic değil')
+  call require(.not.cutback_report%converged,'Cutback exhaustion converged raporlamamalı')
+  call require(cutback_report%state_commit_count == 0, &
+      'Başarısız Q8 torsion adaptive attempt state commit etmemeli')
+  call require(cutback_report%state_revert_count == 3, &
+      'Q8 torsion adaptive rollback sayısı max_cutbacks+1 olmalı')
+  call require(cutback_report%cutback_count == 3, &
+      'Q8 torsion adaptive cutback counter max_cutbacks+1 olmalı')
+  call require(abs(cutback_report%final_load_factor) <= 1.0e-15_dp, &
+      'Cutback exhaustion committed load factor sıfır kalmalı')
+  call require(maxval(abs(cutback_state)) <= 1.0e-15_dp, &
+      'Cutback exhaustion committed mixed state bozdu')
+
   write(*,'(A,ES14.6)') 'Q8 torsion fixed state max error = ',state_error
   write(*,'(A,ES14.6)') 'Q8 torsion adaptive state max error = ',adaptive_state_error
   write(*,'(A,I0)') 'Q8 torsion adaptive history count = ',adaptive_report%history%count
-  write(*,'(A)') 'PASS: field-based Q8/P1 torsion fixed + adaptive sparse Newton recovery'
+  write(*,'(A,I0)') 'Q8 torsion deterministic revert count = ',cutback_report%state_revert_count
+  write(*,'(A)') 'PASS: Q8/P1 torsion fixed + adaptive + rollback/cutback sparse Newton'
 
 contains
 
