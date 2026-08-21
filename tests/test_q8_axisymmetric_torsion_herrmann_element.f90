@@ -1,6 +1,8 @@
 program test_q8_axisymmetric_torsion_herrmann_element
-  use des_kinds, only : dp
+  use des_kinds, only : dp, i64
   use des_status, only : DES_STATUS_OK
+  use des_torsion_results, only : torsion_response_point_t, &
+      reaction_torque_from_residual, build_torsion_response_point
   use des_q8_axisymmetric_torsion_herrmann_neo_hookean, only : &
       Q8_TORSION_HERRMANN_U_DOF, Q8_TORSION_HERRMANN_TOTAL_DOF, &
       evaluate_q8_axisymmetric_torsion_herrmann_reduced_element
@@ -21,6 +23,8 @@ program test_q8_axisymmetric_torsion_herrmann_element
   real(dp) :: xp(Q8_TORSION_HERRMANN_TOTAL_DOF),xm(Q8_TORSION_HERRMANN_TOTAL_DOF)
   real(dp) :: uw(8,3),pw(3),j_target,min_j,min_jd,scale,fd_error,symmetry_error
   real(dp) :: alpha,computed_torque,expected_torque,torque_rel_error
+  integer(i64), parameter :: top_torsion_equations(3) = [9_i64,12_i64,21_i64]
+  type(torsion_response_point_t) :: torsion_point
   integer :: a,j,status,sp,sm
 
   call set_annulus_q8(X)
@@ -94,17 +98,26 @@ program test_q8_axisymmetric_torsion_herrmann_element
   call require(status == DES_STATUS_OK,'Reaction torque manufactured state çözülemedi')
 
   ! Üst Z=1 kenarı Q8 düğümleri: 3,4,7. Üçüncü DOF ROTY conjugate torque'tur.
-  computed_torque = residual(3*(3-1)+3) + residual(3*(4-1)+3) + &
-                    residual(3*(7-1)+3)
+  call reaction_torque_from_residual( &
+      residual,top_torsion_equations,computed_torque,status)
+  call require(status == DES_STATUS_OK,'Reaction torque results helper başarısız')
+
   expected_torque = 0.5_dp*pi*mu*alpha*(2.0_dp**4-1.0_dp**4)
   torque_rel_error = abs(computed_torque-expected_torque)/abs(expected_torque)
   call require(torque_rel_error <= 2.0e-11_dp, &
       'Q8 axisymmetric torsion reaction torque analitik değerle uyuşmuyor')
 
+  call build_torsion_response_point(alpha,computed_torque,torsion_point,status)
+  call require(status == DES_STATUS_OK,'Torque-angle response point üretilemedi')
+  call require(abs(torsion_point%reaction_torque-computed_torque) <= 1.0e-14_dp, &
+      'Torque-angle result reaction torque değerini değiştirdi')
+  call require(abs(torsion_point%secant_torsional_stiffness-computed_torque/alpha) &
+      <= 1.0e-12_dp, 'Torsional stiffness result yanlış')
+
   write(*,'(A,ES14.6)') 'Q8 torsion tangent FD error = ',fd_error
   write(*,'(A,ES14.6)') 'Q8 torsion symmetry error = ',symmetry_error
   write(*,'(A,ES14.6)') 'Q8 torsion reaction torque relative error = ',torque_rel_error
-  write(*,'(A)') 'PASS: Q8/P1 axisymmetric torsion + reaction torque kernel'
+  write(*,'(A)') 'PASS: Q8/P1 axisymmetric torsion + torque-angle results contract'
 
 contains
 
