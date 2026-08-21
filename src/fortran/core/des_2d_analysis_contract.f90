@@ -31,6 +31,17 @@ module des_2d_analysis_contract
   integer, parameter, public :: DES_PRESSURE_SPACE_P0 = 1
   integer, parameter, public :: DES_PRESSURE_SPACE_P1 = 2
 
+  ! Element technology, topology'den ayrı tutulur. Böylece aynı Q4 topology
+  ! selective/B-bar, uniform-reduced veya enhanced-strain davranışı taşıyabilir.
+  ! Q8 production yönü ANSYS PLANE183 ve Marc 58/59/66 ile uyumlu reduced
+  ! integration'dır. Q9 yalnız mevcut bilimsel reference hattı için tutulur.
+  integer, parameter, public :: DES_ELEMENT_TECH_UNKNOWN = 0
+  integer, parameter, public :: DES_ELEMENT_TECH_SELECTIVE_BBAR = 1
+  integer, parameter, public :: DES_ELEMENT_TECH_UNIFORM_REDUCED = 2
+  integer, parameter, public :: DES_ELEMENT_TECH_ENHANCED_STRAIN = 3
+  integer, parameter, public :: DES_ELEMENT_TECH_TRIANGLE_3_POINT = 4
+  integer, parameter, public :: DES_ELEMENT_TECH_LEGACY_REFERENCE_FULL = 5
+
   public :: des_2d_analysis_mode_is_valid
   public :: des_2d_analysis_allows_mixed_up
   public :: des_2d_analysis_requires_fourier_expansion
@@ -38,7 +49,9 @@ module des_2d_analysis_contract
   public :: des_2d_topology_node_count
   public :: des_2d_pressure_dof_count
   public :: des_2d_formulation_contract_is_valid
+  public :: des_2d_element_technology_is_valid
   public :: des_2d_primary_mixed_pair_is_defined
+  public :: des_2d_primary_mixed_configuration_is_defined
 
 contains
 
@@ -153,16 +166,56 @@ contains
     end select
   end function des_2d_formulation_contract_is_valid
 
+  pure logical function des_2d_element_technology_is_valid( &
+      topology, analysis_mode, element_technology) result(is_valid)
+    integer, intent(in) :: topology, analysis_mode, element_technology
+
+    is_valid = .false.
+    select case (topology)
+    case (DES_TOPOLOGY_Q4)
+      if (analysis_mode == DES_2D_AXISYMMETRIC_TORSION) then
+        ! ANSYS PLANE182 torsion kipi yalnız full-integration B-bar/selective
+        ! technology kullanır. Dyna Q4 torsion contract aynı kısıtı taşır.
+        is_valid = element_technology == DES_ELEMENT_TECH_SELECTIVE_BBAR
+      else
+        is_valid = element_technology == DES_ELEMENT_TECH_SELECTIVE_BBAR .or. &
+            element_technology == DES_ELEMENT_TECH_UNIFORM_REDUCED .or. &
+            element_technology == DES_ELEMENT_TECH_ENHANCED_STRAIN
+      end if
+    case (DES_TOPOLOGY_Q8)
+      ! PLANE183 quadrilateral stiffness 2x2 integration; Marc 58/59/66 da
+      ! eight-node reduced-integration Herrmann ailesidir.
+      is_valid = element_technology == DES_ELEMENT_TECH_UNIFORM_REDUCED
+    case (DES_TOPOLOGY_T6)
+      is_valid = element_technology == DES_ELEMENT_TECH_TRIANGLE_3_POINT
+    case (DES_TOPOLOGY_Q9_LEGACY)
+      is_valid = element_technology == DES_ELEMENT_TECH_LEGACY_REFERENCE_FULL
+    case default
+      is_valid = .false.
+    end select
+  end function des_2d_element_technology_is_valid
+
   pure logical function des_2d_primary_mixed_pair_is_defined( &
       topology, pressure_space) result(is_primary_pair)
     integer, intent(in) :: topology, pressure_space
 
-    ! Production yönü ANSYS/Marc current-technology continuum aileleriyle
-    ! hizalanır: low-order Q4/P0 ve high-order Q8/P1. Q9/P1 mevcut
-    ! araştırma/regression yolu olarak korunur fakat yeni primary pair değildir.
     is_primary_pair = &
         (topology == DES_TOPOLOGY_Q4 .and. pressure_space == DES_PRESSURE_SPACE_P0) .or. &
         (topology == DES_TOPOLOGY_Q8 .and. pressure_space == DES_PRESSURE_SPACE_P1)
   end function des_2d_primary_mixed_pair_is_defined
+
+  pure logical function des_2d_primary_mixed_configuration_is_defined( &
+      topology, pressure_space, element_technology) result(is_primary_configuration)
+    integer, intent(in) :: topology, pressure_space, element_technology
+
+    ! İlk production aileleri:
+    ! - Q4/P0 + selective/B-bar: lower-order robust nearly-incompressible path
+    ! - Q8/P1 + reduced integration: ANSYS PLANE183 / Marc Herrmann high-order path
+    is_primary_configuration = &
+        (topology == DES_TOPOLOGY_Q4 .and. pressure_space == DES_PRESSURE_SPACE_P0 .and. &
+         element_technology == DES_ELEMENT_TECH_SELECTIVE_BBAR) .or. &
+        (topology == DES_TOPOLOGY_Q8 .and. pressure_space == DES_PRESSURE_SPACE_P1 .and. &
+         element_technology == DES_ELEMENT_TECH_UNIFORM_REDUCED)
+  end function des_2d_primary_mixed_configuration_is_defined
 
 end module des_2d_analysis_contract
