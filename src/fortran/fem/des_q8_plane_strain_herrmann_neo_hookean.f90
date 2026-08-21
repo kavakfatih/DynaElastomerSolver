@@ -13,23 +13,19 @@ module des_q8_plane_strain_herrmann_neo_hookean
   integer, parameter, public :: Q8_HERRMANN_U_DOF = 16
   integer, parameter, public :: Q8_HERRMANN_P_DOF = 3
   integer, parameter, public :: Q8_HERRMANN_TOTAL_DOF = 19
+  integer, parameter, public :: Q8_HERRMANN_REDUCED_ORDER = 2
+  integer, parameter, public :: Q8_HERRMANN_REFERENCE_ORDER = 3
 
   public :: evaluate_q8_plane_strain_herrmann_element
+  public :: evaluate_q8_plane_strain_herrmann_reduced_element
 
 contains
 
   pure subroutine evaluate_q8_plane_strain_herrmann_element( &
       X, u, pressure_coefficients, shear_modulus, pressure_compliance, &
       residual, tangent, status, min_j)
-    ! İlk yüksek-mertebeli Herrmann/mixed u-p plane-strain element adayı.
-    !
-    ! Displacement : Q8 serendipity, 16 DOF
-    ! Pressure     : element-internal P1 modal alan [1, xi, eta], 3 DOF
-    ! Local system : 19 x 19
-    ! Integration  : 3 x 3 Gauss (ilk full-integration araştırma baseline'ı)
-    !
-    ! Bu element henüz production değildir. Pressure-space stability, checkerboard,
-    ! rank/inf-sup, distortion ve external-reference kapıları tamamlanmadan adaydır.
+    ! Legacy/research Q8/P1 baseline. Bu wrapper 3x3 full integration davranışını
+    ! bilinçli olarak korur; mevcut regression sonuçları değişmeden kalır.
     real(dp), intent(in) :: X(8,2), u(8,2), pressure_coefficients(3)
     real(dp), intent(in) :: shear_modulus, pressure_compliance
     real(dp), intent(out) :: residual(Q8_HERRMANN_TOTAL_DOF)
@@ -37,9 +33,48 @@ contains
     integer, intent(out) :: status
     real(dp), intent(out) :: min_j
 
-    real(dp), parameter :: gp = 0.77459666924148337704_dp
-    real(dp), parameter :: gauss_coordinate(3) = [-gp,0.0_dp,gp]
-    real(dp), parameter :: gauss_weight(3) = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    call evaluate_q8_plane_strain_herrmann_with_quadrature( &
+        X,u,pressure_coefficients,shear_modulus,pressure_compliance, &
+        Q8_HERRMANN_REFERENCE_ORDER,residual,tangent,status,min_j)
+  end subroutine evaluate_q8_plane_strain_herrmann_element
+
+  pure subroutine evaluate_q8_plane_strain_herrmann_reduced_element( &
+      X, u, pressure_coefficients, shear_modulus, pressure_compliance, &
+      residual, tangent, status, min_j)
+    ! C2 production-aday technology: 8-node Q8 displacement + complete-linear
+    ! P1 pressure alanı, 2x2 uniform reduced integration. Bu rutin tek başına
+    ! "production validated" anlamına gelmez; pressure-stability/refinement
+    ! kapıları ayrıca geçilmelidir.
+    real(dp), intent(in) :: X(8,2), u(8,2), pressure_coefficients(3)
+    real(dp), intent(in) :: shear_modulus, pressure_compliance
+    real(dp), intent(out) :: residual(Q8_HERRMANN_TOTAL_DOF)
+    real(dp), intent(out) :: tangent(Q8_HERRMANN_TOTAL_DOF,Q8_HERRMANN_TOTAL_DOF)
+    integer, intent(out) :: status
+    real(dp), intent(out) :: min_j
+
+    call evaluate_q8_plane_strain_herrmann_with_quadrature( &
+        X,u,pressure_coefficients,shear_modulus,pressure_compliance, &
+        Q8_HERRMANN_REDUCED_ORDER,residual,tangent,status,min_j)
+  end subroutine evaluate_q8_plane_strain_herrmann_reduced_element
+
+  pure subroutine evaluate_q8_plane_strain_herrmann_with_quadrature( &
+      X, u, pressure_coefficients, shear_modulus, pressure_compliance, &
+      quadrature_order, residual, tangent, status, min_j)
+    ! Ortak Q8/P1 Herrmann kernel'i. Quadrature seçimi wrapper seviyesinde explicit
+    ! tutulur; constitutive model, pressure constraint, residual ve consistent
+    ! tangent matematiği reduced/reference yollarında aynıdır.
+    real(dp), intent(in) :: X(8,2), u(8,2), pressure_coefficients(3)
+    real(dp), intent(in) :: shear_modulus, pressure_compliance
+    integer, intent(in) :: quadrature_order
+    real(dp), intent(out) :: residual(Q8_HERRMANN_TOTAL_DOF)
+    real(dp), intent(out) :: tangent(Q8_HERRMANN_TOTAL_DOF,Q8_HERRMANN_TOTAL_DOF)
+    integer, intent(out) :: status
+    real(dp), intent(out) :: min_j
+
+    real(dp), parameter :: gp2 = 0.57735026918962576451_dp
+    real(dp), parameter :: gp3 = 0.77459666924148337704_dp
+    real(dp) :: gauss_coordinate(3), gauss_weight(3)
+    integer :: ngauss
 
     type(material_kinematics_t) :: kinematics
     type(material_response_t) :: iso_response
@@ -55,14 +90,30 @@ contains
     tangent = 0.0_dp
     status = DES_STATUS_OK
     min_j = huge(1.0_dp)
+    gauss_coordinate = 0.0_dp
+    gauss_weight = 0.0_dp
 
     if (shear_modulus <= 0.0_dp .or. pressure_compliance < 0.0_dp) then
       status = DES_ERROR_INVALID_PARAMETERS
       return
     end if
 
-    do gy = 1,3
-      do gx = 1,3
+    select case (quadrature_order)
+    case (Q8_HERRMANN_REDUCED_ORDER)
+      ngauss = 2
+      gauss_coordinate(1:2) = [-gp2,gp2]
+      gauss_weight(1:2) = [1.0_dp,1.0_dp]
+    case (Q8_HERRMANN_REFERENCE_ORDER)
+      ngauss = 3
+      gauss_coordinate = [-gp3,0.0_dp,gp3]
+      gauss_weight = [5.0_dp/9.0_dp,8.0_dp/9.0_dp,5.0_dp/9.0_dp]
+    case default
+      status = DES_ERROR_INVALID_PARAMETERS
+      return
+    end select
+
+    do gy = 1,ngauss
+      do gx = 1,ngauss
         call q8_reference_gradient( &
             X,gauss_coordinate(gx),gauss_coordinate(gy), &
             N,dN_parent,dN_dX,x_point,Jmap,det_jac,point_status)
@@ -165,6 +216,6 @@ contains
         end do
       end do
     end do
-  end subroutine evaluate_q8_plane_strain_herrmann_element
+  end subroutine evaluate_q8_plane_strain_herrmann_with_quadrature
 
 end module des_q8_plane_strain_herrmann_neo_hookean
