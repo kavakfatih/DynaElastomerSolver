@@ -58,6 +58,7 @@ des_add_fortran_test(test_q8_plane_strain_herrmann_reduced_element fem.q8.plane_
 des_add_fortran_test(test_q8_axisymmetric_herrmann_element fem.q8.axisymmetric.herrmann.element_tangent test_q8_axisymmetric_herrmann_element.f90)
 des_add_fortran_test(test_q8_axisymmetric_torsion_herrmann_element fem.q8.axisymmetric_torsion.herrmann.element_tangent_and_torque test_q8_axisymmetric_torsion_herrmann_element.f90)
 des_add_fortran_test(test_2d_q8_herrmann_csr_assembly fem.q8.2d.herrmann.i64_csr_assembly test_2d_q8_herrmann_csr_assembly.f90)
+des_add_fortran_test(test_2d_q8_herrmann_force_solver solver.q8.2d.herrmann.sparse_force_control test_2d_q8_herrmann_force_solver.f90)
 des_add_fortran_test(test_q9_plane_strain_herrmann_element fem.q9.plane_strain.herrmann.element_tangent test_q9_plane_strain_herrmann_element.f90)
 des_add_fortran_test(test_q9_herrmann_quadrature fem.q9.plane_strain.herrmann.quadrature test_q9_herrmann_quadrature.f90)
 des_add_fortran_test(test_q9_herrmann_global_assembly fem.q9.plane_strain.herrmann.global_assembly test_q9_herrmann_global_assembly.f90)
@@ -115,9 +116,8 @@ if(DES_ENABLE_MUMPS)
     )
   endif()
 
-  # Aynı Q9/P1 parity executable'ları varsayılan olarak GMRES'i korur. MUMPS
-  # build'inde `mumps` argümanı ile direct backend'i aynı fizik ve lifecycle
-  # kabul kriterlerinden geçirerek test mantığının kopyalanmasını önlüyoruz.
+  # Q9 reference hattı ve yeni field-based Q8 production hattı aynı backend
+  # lifecycle sözleşmesini explicit MUMPS seçimiyle ayrıca doğrular.
   add_test(
     NAME solver.q9.plane_strain.herrmann.mumps_force_parity
     COMMAND test_q9_herrmann_sparse_force_solver mumps
@@ -125,6 +125,10 @@ if(DES_ENABLE_MUMPS)
   add_test(
     NAME solver.q9.plane_strain.herrmann.mumps_adaptive_force_parity
     COMMAND test_q9_herrmann_sparse_adaptive_force_solver mumps
+  )
+  add_test(
+    NAME solver.q8.2d.herrmann.mumps_force_control
+    COMMAND test_2d_q8_herrmann_force_solver mumps
   )
 endif()
 
