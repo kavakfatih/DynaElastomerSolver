@@ -59,6 +59,7 @@ des_add_fortran_test(test_q8_axisymmetric_herrmann_element fem.q8.axisymmetric.h
 des_add_fortran_test(test_q8_axisymmetric_torsion_herrmann_element fem.q8.axisymmetric_torsion.herrmann.element_tangent_and_torque test_q8_axisymmetric_torsion_herrmann_element.f90)
 des_add_fortran_test(test_2d_q8_herrmann_csr_assembly fem.q8.2d.herrmann.i64_csr_assembly test_2d_q8_herrmann_csr_assembly.f90)
 des_add_fortran_test(test_2d_q8_herrmann_force_solver solver.q8.2d.herrmann.sparse_force_control test_2d_q8_herrmann_force_solver.f90)
+des_add_fortran_test(test_2d_q8_herrmann_incompressible_acceptance solver.q8.2d.herrmann.incompressible_acceptance test_2d_q8_herrmann_incompressible_acceptance.f90)
 des_add_fortran_test(test_q9_plane_strain_herrmann_element fem.q9.plane_strain.herrmann.element_tangent test_q9_plane_strain_herrmann_element.f90)
 des_add_fortran_test(test_q9_herrmann_quadrature fem.q9.plane_strain.herrmann.quadrature test_q9_herrmann_quadrature.f90)
 des_add_fortran_test(test_q9_herrmann_global_assembly fem.q9.plane_strain.herrmann.global_assembly test_q9_herrmann_global_assembly.f90)
@@ -129,6 +130,10 @@ if(DES_ENABLE_MUMPS)
   add_test(
     NAME solver.q8.2d.herrmann.mumps_force_control
     COMMAND test_2d_q8_herrmann_force_solver mumps
+  )
+  add_test(
+    NAME solver.q8.2d.herrmann.mumps_incompressible_acceptance
+    COMMAND test_2d_q8_herrmann_incompressible_acceptance mumps
   )
 endif()
 
