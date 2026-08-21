@@ -2143,3 +2143,43 @@ Amaç hız kazanırken yeniden başa dönmeyi engellemektir. Aynı pakette yakı
 Q8/P1 için eski 3x3 full-integration araştırma baseline'ı doğrudan production kabul edilmeyecektir. Yeni production adayı ANSYS/Marc davranışına yaklaşan explicit reduced/stabilized element technology üzerinden ayrı isim ve test kapısıyla kurulacaktır. Mevcut Q9/P1 yolu reference/regression olarak korunacaktır.
 
 `supports_int64=false` bütün FEM→CSR→backend zinciri tamamlanana kadar korunur. Commercial ANSYS/Marc LEVEL 3 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 35. 2026-08-22 C2/C3/C4 geniş paket CI recovery ve production-solver entegrasyon checkpoint'i
+
+Kullanıcı `Devam et` diyerek genişletilmiş vertical-slice geliştirme akışının sürdürülmesini onayladı. Bu kayıt turun **ilk repo write'ıdır**; herhangi bir yeni solver/FEM kaynak düzeltmesinden önce yazılmıştır.
+
+Canlı GitHub durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 981d6fe1c4b4ca0585680933caebd1009b1ee2ba
+```
+
+Bu head için Normal Fortran CI run `32530113945` çalışmaktadır. Checkpoint anında macOS ARM64 / gfortran 14 ve Linux / gfortran 14 build adımları başarısız olmuş; Windows/gfortran ve Windows/ifx işleri henüz tamamlanmamıştır.
+
+Kök neden fizik, constitutive formulation veya nonlinear çözüm davranışı değildir. Derleyici hatası:
+
+```text
+src/fortran/fem/des_q8_axisymmetric_torsion_herrmann_neo_hookean.f90
+```
+
+Fortran'ın case-insensitive isim kuralları nedeniyle integer node-loop değişkeni `b`, aynı scope'taki gerçek tensor/array `B` ile çakışmıştır. İlk hata `Symbol 'b' already has basic type of REAL` olup sonraki implicit-type ve array-index hataları bunun cascade sonucudur.
+
+Recovery ve aynı geniş pakette devam kararı:
+
+```text
+1. loop değişkeni isim çakışması giderilecek ve yeni head derlenecek
+2. yeni Q8 plane-strain / axisymmetric / axisymmetric-torsion element ve CSR assembly kapıları korunacak
+3. compile/test baseline toparlandıktan sonra aynı C4 vertical slice içinde field-based Q8 mixed solver mevcut Full Newton + SparseSolverContext + MUMPS Direct yoluna bağlanacak
+4. displacement/pressure/torsion state transaction, line-search, cutback/retry ve adaptive increment semantics yeniden kullanılacak
+5. yeni solver gerçek backend/parity kapısından geçmeden production-ready ilan edilmeyecek
+6. normal compiler matrix + production MUMPS matrix + dedicated MUMPS-int64 ilgili kapıları kapanmadan C2/C3/C4 PASS yazılmayacak
+```
+
+`supports_int64=false` end-to-end FEM numbering → CSR → production solver → backend zinciri doğrulanana kadar korunacaktır. Commercial ANSYS/Marc LEVEL 3 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
