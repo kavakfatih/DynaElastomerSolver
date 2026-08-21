@@ -214,6 +214,7 @@ jobs:
             test_adaptive_increment_policy \
             test_adaptive_predictor_policy \
             test_2d_q8_herrmann_force_solver \
+            test_2d_q8_herrmann_incompressible_acceptance \
             test_q9_herrmann_convergence_report \
             test_q9_herrmann_nonfinite_guard \
             test_q9_herrmann_adaptive_increment_growth \
@@ -229,7 +230,7 @@ jobs:
         shell: bash
         run: |
           ctest --preset dyna-production \
-            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.adaptive\.increment_policy|solver\.adaptive\.predictor_policy|solver\.q8\.2d\.herrmann\.sparse_force_control|solver\.q8\.2d\.herrmann\.mumps_force_control|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.adaptive_increment_growth|solver\.q9\.plane_strain\.herrmann\.adaptive_predictor|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
+            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_direct_context|solver\.sparse\.auto_policy|solver\.nonlinear\.line_search_policy|solver\.adaptive\.increment_policy|solver\.adaptive\.predictor_policy|solver\.q8\.2d\.herrmann\.sparse_force_control|solver\.q8\.2d\.herrmann\.mumps_force_control|solver\.q8\.2d\.herrmann\.incompressible_acceptance|solver\.q8\.2d\.herrmann\.mumps_incompressible_acceptance|solver\.q9\.plane_strain\.herrmann\.convergence_report|solver\.q9\.plane_strain\.herrmann\.nonfinite_guard|solver\.q9\.plane_strain\.herrmann\.adaptive_increment_growth|solver\.q9\.plane_strain\.herrmann\.adaptive_predictor|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_adaptive_force_parity|solver\.q9\.plane_strain\.herrmann\.mumps_failure_cutback)$' \
             --output-on-failure
 
       - name: Q9/P1 Herrmann GMRES ve MUMPS same-runner performance baseline ölç
