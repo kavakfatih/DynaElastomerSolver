@@ -23,6 +23,8 @@ module des_csr_matrix
     integer(i64), allocatable :: col_ind(:)
     real(dp), allocatable :: values(:)
   contains
+    procedure :: nrows_i64 => csr_nrows_i64
+    procedure :: ncols_i64 => csr_ncols_i64
     procedure :: nnz => csr_nnz
     procedure :: nnz_i64 => csr_nnz_i64
     procedure :: zero_values => csr_zero_values
@@ -328,6 +330,22 @@ contains
       rhs(dof) = 0.0_dp
     end do
   end subroutine csr_apply_zero_dirichlet
+
+  integer(i64) function csr_nrows_i64(this) result(nrows)
+    ! B9.5h: Matrix row cardinality'sini default integer storage'dan
+    ! daraltma yapmadan canonical i64 metadata olarak sunar. Storage ve
+    ! element DOF-map API'si bu alt pakette bilincli olarak degistirilmez.
+    class(csr_matrix_t), intent(in) :: this
+
+    nrows = int(this%nrows,i64)
+  end function csr_nrows_i64
+
+  integer(i64) function csr_ncols_i64(this) result(ncols)
+    ! B9.5h: Matrix column cardinality icin i64 query bridge.
+    class(csr_matrix_t), intent(in) :: this
+
+    ncols = int(this%ncols,i64)
+  end function csr_ncols_i64
 
   integer function csr_nnz(this) result(nnz)
     ! Legacy/default-integer query yalnız temsil edilebilir cardinality icindir.
