@@ -24,6 +24,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q9_herrmann_interpolation.f90
   fem/des_q9_herrmann_geometry.f90
   fem/des_mixed_dof_layout.f90
+  fem/des_2d_dof_manager.f90
   fem/des_mixed_precheck.f90
   fem/des_herrmann_pressure_constraint.f90
   fem/des_q8_plane_strain_herrmann_neo_hookean.f90
