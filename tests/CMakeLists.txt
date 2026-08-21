@@ -98,6 +98,14 @@ if(DES_ENABLE_MUMPS)
     test_q9_herrmann_mumps_failure_cutback.f90
   )
 
+  if(DES_MUMPS_INT64_INDEX)
+    des_add_fortran_test(
+      test_mumps_int64_index_capability
+      solver.sparse.mumps_int64_index_capability
+      test_mumps_int64_index_capability.f90
+    )
+  endif()
+
   # Aynı Q9/P1 parity executable'ları varsayılan olarak GMRES'i korur. MUMPS
   # build'inde `mumps` argümanı ile direct backend'i aynı fizik ve lifecycle
   # kabul kriterlerinden geçirerek test mantığının kopyalanmasını önlüyoruz.
