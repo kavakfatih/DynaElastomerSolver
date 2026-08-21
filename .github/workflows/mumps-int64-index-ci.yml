@@ -9,12 +9,19 @@ on:
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/core/des_kinds.f90'
+      - 'src/fortran/core/des_2d_analysis_contract.f90'
+      - 'src/fortran/mesh/des_2d_mesh_database.f90'
+      - 'src/fortran/fem/des_2d_dof_manager.f90'
+      - 'src/fortran/fem/des_2d_q8_herrmann_assembly.f90'
+      - 'src/fortran/fem/des_q8_*herrmann*.f90'
       - 'src/fortran/fem/des_mixed_dof_layout.f90'
       - 'src/fortran/math/des_csr_matrix.f90'
+      - 'src/fortran/solvers/des_2d_q8_herrmann_force_solver.f90'
       - 'src/fortran/solvers/des_mumps_backend.f90'
       - 'src/fortran/solvers/des_mumps_adapter.c'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'tests/CMakeLists.txt'
+      - 'tests/test_2d_q8_herrmann_force_solver.f90'
       - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps_sparse_solver_context.f90'
       - 'tests/test_mumps_int64_index_capability.f90'
@@ -28,12 +35,19 @@ on:
       - 'cmake/DESDependencies.cmake'
       - 'src/fortran/CMakeLists.txt'
       - 'src/fortran/core/des_kinds.f90'
+      - 'src/fortran/core/des_2d_analysis_contract.f90'
+      - 'src/fortran/mesh/des_2d_mesh_database.f90'
+      - 'src/fortran/fem/des_2d_dof_manager.f90'
+      - 'src/fortran/fem/des_2d_q8_herrmann_assembly.f90'
+      - 'src/fortran/fem/des_q8_*herrmann*.f90'
       - 'src/fortran/fem/des_mixed_dof_layout.f90'
       - 'src/fortran/math/des_csr_matrix.f90'
+      - 'src/fortran/solvers/des_2d_q8_herrmann_force_solver.f90'
       - 'src/fortran/solvers/des_mumps_backend.f90'
       - 'src/fortran/solvers/des_mumps_adapter.c'
       - 'src/fortran/solvers/des_sparse_solver_context.f90'
       - 'tests/CMakeLists.txt'
+      - 'tests/test_2d_q8_herrmann_force_solver.f90'
       - 'tests/test_mixed_dof_layout.f90'
       - 'tests/test_mumps_sparse_solver_context.f90'
       - 'tests/test_mumps_int64_index_capability.f90'
@@ -130,7 +144,7 @@ jobs:
           grep -F 'Dyna MUMPS index profili: 64-bit MUMPS_INT' \
             cmake-mumps-int64-configure.log
 
-      - name: MUMPS int64 capability ve parity targetlarini derle
+      - name: MUMPS int64 capability, Q8 ve Q9 parity targetlarini derle
         id: build
         shell: bash
         run: |
@@ -139,15 +153,16 @@ jobs:
             test_mixed_dof_layout \
             test_mumps_int64_index_capability \
             test_mumps_sparse_solver_context \
+            test_2d_q8_herrmann_force_solver \
             test_q9_herrmann_sparse_force_solver \
             --parallel 2 --verbose 2>&1 | tee mumps-int64-build.log
 
-      - name: MUMPS int64 capability ve Q9/P1 direct parity regression
+      - name: MUMPS int64 capability, Q8 ve Q9 direct parity regression
         id: ctest
         shell: bash
         run: |
           ctest --preset dyna-production-mumps-int64 \
-            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
+            -R '^(fem\.mixed\.dof_layout|solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q8\.2d\.herrmann\.mumps_force_control|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
             --output-on-failure
 
       - name: MUMPS int64 status yayınla
