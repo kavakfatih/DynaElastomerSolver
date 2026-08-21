@@ -13,6 +13,8 @@ program test_2d_q8_herrmann_force_solver
       DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_q4_plane_strain_newton_solver, only : newton_report_t
   use des_nonlinear_solver, only : nonlinear_solver_settings_t
+  use des_torsion_results, only : torsion_response_point_t, &
+      reaction_torque_from_residual, build_torsion_response_point
   use des_2d_q8_herrmann_force_solver, only : solve_2d_q8_herrmann_force_control, &
       solve_2d_q8_herrmann_adaptive_force_control
   implicit none
@@ -20,19 +22,22 @@ program test_2d_q8_herrmann_force_solver
   real(dp), parameter :: mu = 2.5_dp
   real(dp), parameter :: compliance = 0.05_dp
   real(dp), parameter :: alpha = 1.0e-2_dp
+  real(dp), parameter :: pi = acos(-1.0_dp)
   type(mesh_database_2d_t) :: mesh
   type(dof_layout_2d_t) :: layout
   type(csr_matrix_t) :: tangent
   type(newton_report_t) :: report,adaptive_report,cutback_report
   type(linear_solver_settings_t) :: settings
   type(nonlinear_solver_settings_t) :: nonlinear_settings
+  type(torsion_response_point_t) :: torsion_response
   real(dp), allocatable :: target_state(:),state(:),adaptive_state(:),cutback_state(:)
   real(dp), allocatable :: target_residual(:),residual(:),adaptive_residual(:)
   real(dp), allocatable :: cutback_residual(:),external_load(:)
   integer(i64), allocatable :: fixed_equations(:),free_equations(:)
+  integer(i64) :: torsion_reaction_equations(3)
   character(len=32) :: backend_argument
-  integer :: backend,status,i,cursor
-  real(dp) :: min_j,state_error,adaptive_state_error
+  integer :: backend,status,i,cursor,torsion_cursor
+  real(dp) :: min_j,state_error,adaptive_state_error,reaction_torque,expected_torque
   logical :: line_search_seen
 
   backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
@@ -77,6 +82,7 @@ program test_2d_q8_herrmann_force_solver
   ! DOF'ları ayrıca ankastre edilir. Kalan ROTY + pressure unknown'ları çözülür.
   allocate(fixed_equations(19))
   cursor = 0
+  torsion_cursor = 0
   do i = 1,size(mesh%nodes)
     cursor = cursor+1
     fixed_equations(cursor) = layout%nodal_equations(1,i)
@@ -87,9 +93,12 @@ program test_2d_q8_herrmann_force_solver
     if (abs(mesh%nodes(i)%y) <= 1.0e-14_dp) then
       cursor = cursor+1
       fixed_equations(cursor) = layout%nodal_equations(3,i)
+      torsion_cursor = torsion_cursor+1
+      torsion_reaction_equations(torsion_cursor) = layout%nodal_equations(3,i)
     end if
   end do
   call require(cursor == size(fixed_equations),'Q8 torsion fixed-equation sayısı yanlış')
+  call require(torsion_cursor == 3,'Q8 torsion reaction edge üç ROTY equation taşımalı')
 
   external_load = target_residual
   external_load(fixed_equations) = 0.0_dp
@@ -126,6 +135,25 @@ program test_2d_q8_herrmann_force_solver
   call require(state_error <= 2.0e-8_dp,'Q8 torsion manufactured state kurtarılamadı')
   call require(maxval(abs(residual(free_equations))) <= 1.0e-10_dp, &
       'Q8 torsion final free residual toleransı aşıldı')
+
+  ! Solver-level reaction torque ve torque-angle result contract. Alt ankastre ROTY
+  ! residual toplamı işaret olarak uygulanan üst torque'un tersidir; magnitude analitik
+  ! kalın-silindir Neo-Hookean çözümü ile karşılaştırılır.
+  call reaction_torque_from_residual( &
+      residual,torsion_reaction_equations,reaction_torque,status)
+  call require(status == DES_STATUS_OK,'Q8 torsion reaction torque çıkarılamadı')
+  expected_torque = 0.5_dp*pi*mu*alpha*(2.0_dp**4-1.0_dp**4)
+  call require(abs(abs(reaction_torque)-expected_torque)/expected_torque <= 2.0e-9_dp, &
+      'Q8 solver reaction torque analitik kalın-silindir sonucu ile uyuşmuyor')
+  call build_torsion_response_point(alpha,abs(reaction_torque),torsion_response,status)
+  call require(status == DES_STATUS_OK,'Q8 torque-angle response point kurulamadı')
+  call require(abs(torsion_response%angle_radians-alpha) <= 1.0e-15_dp, &
+      'Q8 torsion response angle radians yanlış')
+  call require(abs(torsion_response%reaction_torque-expected_torque)/expected_torque <= 2.0e-9_dp, &
+      'Q8 torsion response reaction torque yanlış')
+  call require(abs(torsion_response%secant_torsional_stiffness-expected_torque/alpha) &
+      / (expected_torque/alpha) <= 2.0e-9_dp, &
+      'Q8 torsion secant stiffness yanlış')
 
   ! Adaptive production yolunda aynı mixed state iki 0.5 load step ile çözülür.
   ! Line-search varsayılan açık tutulur ve bütün transaction tek flat u/p/twist
@@ -195,9 +223,11 @@ program test_2d_q8_herrmann_force_solver
 
   write(*,'(A,ES14.6)') 'Q8 torsion fixed state max error = ',state_error
   write(*,'(A,ES14.6)') 'Q8 torsion adaptive state max error = ',adaptive_state_error
+  write(*,'(A,ES14.6)') 'Q8 torsion reaction torque = ',reaction_torque
+  write(*,'(A,ES14.6)') 'Q8 torsion secant stiffness = ',torsion_response%secant_torsional_stiffness
   write(*,'(A,I0)') 'Q8 torsion adaptive history count = ',adaptive_report%history%count
   write(*,'(A,I0)') 'Q8 torsion deterministic revert count = ',cutback_report%state_revert_count
-  write(*,'(A)') 'PASS: Q8/P1 torsion fixed + adaptive + rollback/cutback sparse Newton'
+  write(*,'(A)') 'PASS: Q8/P1 torsion solve + torque-angle + adaptive rollback/cutback'
 
 contains
 
