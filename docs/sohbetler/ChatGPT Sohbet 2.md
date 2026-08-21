@@ -2081,3 +2081,65 @@ Bu kayıtla yeni teknik paket **C1 — 2D analysis/element contract + mesh-kerne
 C1 yalnız mimari ve veri sözleşmesidir; henüz implement edilmemiş analysis mode'ları çözebiliyormuş gibi capability ilan edilmeyecektir. Mixed `u-P` production parity, axisymmetric/torsion element residual-tangent ve commercial ANSYS/Marc benchmark kapıları sonraki teknik paketlerde ayrı ayrı kapanacaktır.
 
 Commercial ANSYS/Marc LEVEL 3 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 34. 2026-08-22 genişletilmiş geliştirme paketi ve hızlandırılmış vertical-slice kararı
+
+Kullanıcı geliştirme paketlerinin kapsamını artırarak ilerlemenin hızlandırılmasını istedi. Bu kayıt bu turun **ilk repo write'ıdır** ve yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+mergeable   = false
+head branch = develop/v0.3
+head SHA    = 0f4267b108964e1303cf38e353c7b23b26a726fc
+```
+
+Bu head için yayımlanmış normal compiler matrisi tamamen başarılıdır:
+
+```text
+Normal Fortran CI = 32527207461
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+```
+
+Production MUMPS ve dedicated MUMPS-int64 custom status'ları bu checkpoint anında henüz yayımlanmış değildir; bu nedenle yeni 2D çekirdek için full 9/9 PASS ilan edilmez.
+
+Hızlandırma kararıyla mikro-paket yaklaşımı bırakılarak **daha büyük fakat aynı fiziksel vertical slice içinde kalan paketler** kullanılacaktır. Bir paket artık yalnız tek helper veya tek metadata alanı değil; element formulation + DOF/mesh entegrasyonu + assembly + test/acceptance zincirini birlikte kapatacaktır.
+
+Yeni geniş paket sırası:
+
+```text
+C2 — 2D Production Element Technology Slice
+  Q4/P0 + Q8/P1 formulation policy
+  quadrature/reduced-integration seçenekleri
+  Q8/P1 stabilized/reduced-integration research-to-production gate
+  mesh/DOF/element map entegrasyonu
+  tangent + pressure stability + distortion regressions
+
+C3 — Axisymmetric + Axisymmetric Torsion Vertical Slice
+  r-z finite-strain kinematics
+  u_theta/twist DOF
+  mixed u-P coupling
+  element residual/tangent
+  reaction torque ve torque-angle result contract
+  single-element + mesh + nonlinear regression
+
+C4 — Nonlinear Production Integration Slice
+  yeni 2D element family'nin mevcut Full Newton/MUMPS/adaptive/cutback/line-search yoluna bağlanması
+  plane-strain + axisymmetric + torsion sparse assembly
+  dense/GMRES/MUMPS parity
+  fully-incompressible ve severe-distortion acceptance
+```
+
+Amaç hız kazanırken yeniden başa dönmeyi engellemektir. Aynı pakette yakın bağımlı teknik işleri birlikte bitireceğiz; ancak commercial parity, Fourier general-axisymmetric veya remeshing gibi ayrı fizik sınıfları tek pakete karıştırılmayacaktır.
+
+Q8/P1 için eski 3x3 full-integration araştırma baseline'ı doğrudan production kabul edilmeyecektir. Yeni production adayı ANSYS/Marc davranışına yaklaşan explicit reduced/stabilized element technology üzerinden ayrı isim ve test kapısıyla kurulacaktır. Mevcut Q9/P1 yolu reference/regression olarak korunacaktır.
+
+`supports_int64=false` bütün FEM→CSR→backend zinciri tamamlanana kadar korunur. Commercial ANSYS/Marc LEVEL 3 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
