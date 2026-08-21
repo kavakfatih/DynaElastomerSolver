@@ -55,7 +55,7 @@ contains
     real(dp) :: B(3,3,Q8_TORSION_HERRMANN_U_DOF)
     real(dp) :: pressure, reference_radius, current_radius, weight, radial_tol
     real(dp) :: phi_R, phi_Z, geometric_term
-    integer :: gx, gy, a, b, q, r, row, col, i, j, k, l, point_status
+    integer :: gx, gy, a, node_b, q, r, row, col, i, j, k, l, point_status
     integer :: ur_row, uz_row, phi_row, ur_col, phi_col, prow, pcol
 
     residual = 0.0_dp
@@ -173,17 +173,17 @@ contains
         do a = 1,8
           ur_row = 3*(a-1)+1
           phi_row = 3*(a-1)+3
-          do b = 1,8
-            ur_col = 3*(b-1)+1
-            phi_col = 3*(b-1)+3
+          do node_b = 1,8
+            ur_col = 3*(node_b-1)+1
+            phi_col = 3*(node_b-1)+3
 
-            geometric_term = P_total(2,1)*N(a)*dN_dX(b,1) + &
-                             P_total(2,3)*N(a)*dN_dX(b,2)
+            geometric_term = P_total(2,1)*N(a)*dN_dX(node_b,1) + &
+                             P_total(2,3)*N(a)*dN_dX(node_b,2)
             tangent(ur_row,phi_col) = tangent(ur_row,phi_col) + &
                 geometric_term*weight
 
-            geometric_term = P_total(2,1)*N(b)*dN_dX(a,1) + &
-                             P_total(2,3)*N(b)*dN_dX(a,2)
+            geometric_term = P_total(2,1)*N(node_b)*dN_dX(a,1) + &
+                             P_total(2,3)*N(node_b)*dN_dX(a,2)
             tangent(phi_row,ur_col) = tangent(phi_row,ur_col) + &
                 geometric_term*weight
           end do
