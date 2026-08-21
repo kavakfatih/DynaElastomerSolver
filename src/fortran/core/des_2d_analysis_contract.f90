@@ -33,6 +33,7 @@ module des_2d_analysis_contract
 
   public :: des_2d_analysis_mode_is_valid
   public :: des_2d_analysis_allows_mixed_up
+  public :: des_2d_analysis_requires_fourier_expansion
   public :: des_2d_nodal_kinematic_dof_count
   public :: des_2d_topology_node_count
   public :: des_2d_pressure_dof_count
@@ -71,6 +72,12 @@ contains
     end select
   end function des_2d_analysis_allows_mixed_up
 
+  pure logical function des_2d_analysis_requires_fourier_expansion(analysis_mode) result(requires_fourier)
+    integer, intent(in) :: analysis_mode
+
+    requires_fourier = analysis_mode == DES_2D_GENERAL_AXISYMMETRIC_FOURIER
+  end function des_2d_analysis_requires_fourier_expansion
+
   pure integer function des_2d_nodal_kinematic_dof_count(analysis_mode) result(ndof)
     integer, intent(in) :: analysis_mode
 
@@ -79,9 +86,15 @@ contains
           DES_2D_PLANE_STRAIN, DES_2D_GENERALIZED_PLANE_STRAIN, &
           DES_2D_AXISYMMETRIC)
       ndof = 2
-    case (DES_2D_AXISYMMETRIC_TORSION, DES_2D_GENERAL_AXISYMMETRIC_FOURIER)
+    case (DES_2D_AXISYMMETRIC_TORSION)
       ! r-z kinematiğine çevresel/twist bileşeni eklenir.
       ndof = 3
+    case (DES_2D_GENERAL_AXISYMMETRIC_FOURIER)
+      ! General-axisymmetric/Fourier bir sabit üç-DOF problemi değildir.
+      ! Aktif harmonik sayısına göre equation sayısı değişeceği için bu helper
+      ! kasıtlı olarak 0 döndürür; dedicated Fourier DOF manager eklenmeden
+      ! standard 2D layout bu analysis mode'u çözebilir gibi davranamaz.
+      ndof = 0
     case default
       ndof = 0
     end select
