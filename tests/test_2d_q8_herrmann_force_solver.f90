@@ -12,7 +12,9 @@ program test_2d_q8_herrmann_force_solver
   use des_linear_solver, only : linear_solver_settings_t, &
       DES_LINEAR_BACKEND_STDLIB_CSR_GMRES, DES_LINEAR_BACKEND_MUMPS_DIRECT
   use des_q4_plane_strain_newton_solver, only : newton_report_t
-  use des_2d_q8_herrmann_force_solver, only : solve_2d_q8_herrmann_force_control
+  use des_nonlinear_solver, only : nonlinear_solver_settings_t
+  use des_2d_q8_herrmann_force_solver, only : solve_2d_q8_herrmann_force_control, &
+      solve_2d_q8_herrmann_adaptive_force_control
   implicit none
 
   real(dp), parameter :: mu = 2.5_dp
@@ -21,14 +23,17 @@ program test_2d_q8_herrmann_force_solver
   type(mesh_database_2d_t) :: mesh
   type(dof_layout_2d_t) :: layout
   type(csr_matrix_t) :: tangent
-  type(newton_report_t) :: report
+  type(newton_report_t) :: report,adaptive_report
   type(linear_solver_settings_t) :: settings
-  real(dp), allocatable :: target_state(:),state(:),target_residual(:),residual(:)
+  type(nonlinear_solver_settings_t) :: nonlinear_settings
+  real(dp), allocatable :: target_state(:),state(:),adaptive_state(:)
+  real(dp), allocatable :: target_residual(:),residual(:),adaptive_residual(:)
   real(dp), allocatable :: external_load(:)
   integer(i64), allocatable :: fixed_equations(:),free_equations(:)
   character(len=32) :: backend_argument
   integer :: backend,status,i,cursor
-  real(dp) :: min_j,state_error
+  real(dp) :: min_j,state_error,adaptive_state_error
+  logical :: line_search_seen
 
   backend = DES_LINEAR_BACKEND_STDLIB_CSR_GMRES
   if (command_argument_count() > 0) then
@@ -49,7 +54,9 @@ program test_2d_q8_herrmann_force_solver
   call require(layout%total_equation_count == 27_i64,'Q8 torsion solver 27 equation bekliyor')
 
   allocate(target_state(layout%total_equation_count),state(layout%total_equation_count))
+  allocate(adaptive_state(layout%total_equation_count))
   allocate(target_residual(layout%total_equation_count),residual(layout%total_equation_count))
+  allocate(adaptive_residual(layout%total_equation_count))
   allocate(external_load(layout%total_equation_count))
   target_state = 0.0_dp
 
@@ -98,6 +105,7 @@ program test_2d_q8_herrmann_force_solver
   settings%max_iterations = 120
   settings%krylov_dimension = 27
 
+  ! Sabit-increment sparse Newton recovery.
   state = 0.0_dp
   call solve_2d_q8_herrmann_force_control( &
       mesh,layout,mu,compliance,fixed_equations,external_load, &
@@ -112,33 +120,60 @@ program test_2d_q8_herrmann_force_solver
   call require(report%linear_solve_count > 0,'Q8 torsion Newton lineer çözüm çalıştırmadı')
   call require(report%max_linear_equation_count == 27_i64, &
       'Q8 torsion Newton 27-equation mixed sistem raporlamadı')
-  call require(report%last_linear_report%pattern_analysis_count == 1, &
-      'Q8 torsion sparse pattern birden fazla analyze edildi')
-  call require(report%last_linear_report%reorder_count == 1, &
-      'Q8 torsion sparse ordering birden fazla çalıştı')
-  call require(report%last_linear_report%factorization_count == report%linear_solve_count, &
-      'Q8 torsion numeric factorization sayısı Newton solve sayısıyla uyuşmuyor')
-  call require(report%last_linear_report%context_solve_count == report%linear_solve_count, &
-      'Q8 torsion context solve sayısı Newton solve sayısıyla uyuşmuyor')
-  call require(report%last_linear_report%backend == backend, &
-      'Q8 torsion sparse backend raporu seçimle uyuşmuyor')
-
-  if (backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
-    call require(report%last_linear_report%direct_factorization_performed, &
-        'Q8 torsion MUMPS direct factorization raporlanmadı')
-  else
-    call require(.not. report%last_linear_report%direct_factorization_performed, &
-        'Q8 torsion GMRES direct factorization yapmış gibi raporlandı')
-  end if
+  call check_sparse_lifecycle(report,backend,'fixed')
 
   state_error = maxval(abs(state(free_equations)-target_state(free_equations)))
   call require(state_error <= 2.0e-8_dp,'Q8 torsion manufactured state kurtarılamadı')
   call require(maxval(abs(residual(free_equations))) <= 1.0e-10_dp, &
       'Q8 torsion final free residual toleransı aşıldı')
 
-  write(*,'(A,ES14.6)') 'Q8 torsion manufactured state max error = ',state_error
-  write(*,'(A,I0)') 'Q8 torsion nonlinear linear-solve count = ',report%linear_solve_count
-  write(*,'(A)') 'PASS: field-based Q8/P1 torsion sparse Newton recovery'
+  ! Adaptive production yolunda aynı mixed state iki 0.5 load step ile çözülür.
+  ! Line-search varsayılan açık tutulur ve bütün transaction tek flat u/p/twist
+  ! state üzerinde commit edilir. Nominal vaka cutback üretmemelidir.
+  nonlinear_settings = nonlinear_solver_settings_t()
+  adaptive_state = 0.0_dp
+  call solve_2d_q8_herrmann_adaptive_force_control( &
+      mesh,layout,mu,compliance,fixed_equations,external_load, &
+      0.5_dp,0.125_dp,0.5_dp,4,30,1.0e-10_dp,adaptive_state,adaptive_residual, &
+      adaptive_report,linear_settings=settings,nonlinear_settings=nonlinear_settings)
+
+  call require(adaptive_report%status == DES_STATUS_OK .and. adaptive_report%converged, &
+      'Q8 torsion adaptive sparse Newton yakinsamadi')
+  call require(abs(adaptive_report%final_load_factor-1.0_dp) <= 1.0e-14_dp, &
+      'Q8 torsion adaptive final load factor 1 değil')
+  call require(adaptive_report%increments_converged == 2, &
+      'Q8 torsion adaptive iki nominal increment tamamlamadı')
+  call require(adaptive_report%state_commit_count == 2, &
+      'Q8 torsion adaptive commit sayacı yanlış')
+  call require(adaptive_report%state_revert_count == 0, &
+      'Nominal Q8 torsion adaptive solve rollback üretmemeli')
+  call require(adaptive_report%cutback_count == 0, &
+      'Nominal Q8 torsion adaptive solve cutback üretmemeli')
+  call require(adaptive_report%history%count > 0, &
+      'Q8 torsion adaptive convergence history boş')
+  call check_sparse_lifecycle(adaptive_report,backend,'adaptive')
+
+  line_search_seen = .false.
+  do i = 1,adaptive_report%history%count
+    if (adaptive_report%history%records(i)%line_search_trials > 0) then
+      line_search_seen = .true.
+      exit
+    end if
+  end do
+  call require(line_search_seen,'Q8 torsion adaptive line-search gate çalışmadı')
+
+  adaptive_state_error = maxval(abs(adaptive_state(free_equations)-target_state(free_equations)))
+  call require(adaptive_state_error <= 2.0e-8_dp, &
+      'Q8 torsion adaptive manufactured state kurtarılamadı')
+  call require(maxval(abs(adaptive_residual(free_equations))) <= 1.0e-10_dp, &
+      'Q8 torsion adaptive final free residual toleransı aşıldı')
+  call require(maxval(abs(adaptive_state-state)) <= 2.0e-8_dp, &
+      'Q8 torsion fixed/adaptive final mixed state parity bozuldu')
+
+  write(*,'(A,ES14.6)') 'Q8 torsion fixed state max error = ',state_error
+  write(*,'(A,ES14.6)') 'Q8 torsion adaptive state max error = ',adaptive_state_error
+  write(*,'(A,I0)') 'Q8 torsion adaptive history count = ',adaptive_report%history%count
+  write(*,'(A)') 'PASS: field-based Q8/P1 torsion fixed + adaptive sparse Newton recovery'
 
 contains
 
@@ -184,6 +219,33 @@ contains
       end if
     end do
   end subroutine build_free_equations
+
+  subroutine check_sparse_lifecycle(local_report,expected_backend,label)
+    type(newton_report_t), intent(in) :: local_report
+    integer, intent(in) :: expected_backend
+    character(len=*), intent(in) :: label
+
+    call require(local_report%last_linear_report%pattern_analysis_count == 1, &
+        trim(label)//': sparse pattern birden fazla analyze edildi')
+    call require(local_report%last_linear_report%reorder_count == 1, &
+        trim(label)//': sparse ordering birden fazla çalıştı')
+    call require(local_report%last_linear_report%factorization_count == &
+        local_report%linear_solve_count, &
+        trim(label)//': factorization sayısı Newton solve sayısıyla uyuşmuyor')
+    call require(local_report%last_linear_report%context_solve_count == &
+        local_report%linear_solve_count, &
+        trim(label)//': context solve sayısı Newton solve sayısıyla uyuşmuyor')
+    call require(local_report%last_linear_report%backend == expected_backend, &
+        trim(label)//': sparse backend raporu seçimle uyuşmuyor')
+
+    if (expected_backend == DES_LINEAR_BACKEND_MUMPS_DIRECT) then
+      call require(local_report%last_linear_report%direct_factorization_performed, &
+          trim(label)//': MUMPS direct factorization raporlanmadı')
+    else
+      call require(.not. local_report%last_linear_report%direct_factorization_performed, &
+          trim(label)//': GMRES direct factorization yapmış gibi raporlandı')
+    end if
+  end subroutine check_sparse_lifecycle
 
   subroutine require(condition,message)
     logical, intent(in) :: condition
