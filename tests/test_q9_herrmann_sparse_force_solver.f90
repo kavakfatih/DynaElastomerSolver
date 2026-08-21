@@ -142,6 +142,7 @@ contains
     if (residual_gap > 2.0e-8_dp) then
       error stop 'Q9 dense-sparse final residual parity toleransi asildi.'
     end if
+    ! B9.5j: nonlinear rapor cardinality zinciri GMRES ve MUMPS yolunda i64 kalmalıdır.
     if (kind(sparse_report%max_linear_equation_count) /= i64) then
       error stop 'Q9 nonlinear maksimum lineer denklem cardinality raporu int64 degil.'
     end if
