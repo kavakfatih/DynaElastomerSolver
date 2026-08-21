@@ -6,12 +6,14 @@ endif()
 add_library(DynaElastomerCore STATIC
   core/des_kinds.f90
   core/des_status.f90
+  core/des_2d_analysis_contract.f90
   math/des_tensor3.f90
   math/des_finite_strain.f90
   math/des_csr_matrix.f90
   materials/des_material_types.f90
   materials/des_neo_hookean.f90
   materials/des_neo_hookean_isochoric.f90
+  mesh/des_2d_mesh_database.f90
   mesh/des_internal_mesh.f90
   results/des_integration_point_results.f90
   results/des_pressure_diagnostics.f90
