@@ -28,6 +28,8 @@ add_library(DynaElastomerCore STATIC
   fem/des_mixed_precheck.f90
   fem/des_herrmann_pressure_constraint.f90
   fem/des_q8_plane_strain_herrmann_neo_hookean.f90
+  fem/des_q8_axisymmetric_herrmann_neo_hookean.f90
+  fem/des_q8_axisymmetric_torsion_herrmann_neo_hookean.f90
   fem/des_q9_plane_strain_herrmann_neo_hookean.f90
   fem/des_q9_plane_strain_herrmann_mesh.f90
   fem/des_q9_plane_strain_herrmann_sparse_mesh.f90
