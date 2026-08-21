@@ -1781,3 +1781,69 @@ B9.5g kaynak değişikliği mixed DOF cardinality ve pressure-offset aritmetiği
 Kapanış sırası değişmez: production MUMPS Direct kalan üç platform da SUCCESS olmadan B9.5g PASS ilan edilmeyecek ve sonraki `csr_matrix_t%nrows/ncols` / equation-dimension teknik paketi başlatılmayacaktır.
 
 Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
+
+---
+
+## 29. 2026-08-21 B9.5g final kapanış ve B9.5h CI checkpoint'i
+
+Kullanıcı `Devam edelim` diyerek yeni geliştirme turunu başlattı. Bu kayıt turun **ilk repo write'ıdır** ve yeni teknik kaynak değişikliğinden önce yazılmıştır.
+
+Canlı başlangıç durumu:
+
+```text
+PR #1       = open
+draft       = true
+merged      = false
+head branch = develop/v0.3
+head SHA    = b19d605babbe9edf30e9f17eb81736b93f184ce3
+```
+
+Önceki B9.5g teknik SHA `7a2cdac68be2ef27acaa57b4c375af399f930a5c` için kalan production MUMPS Windows job'ları da başarıyla tamamlanmıştır. Final B9.5g kabul matrisi:
+
+```text
+Normal Fortran CI = 32448249594          → 4/4 PASS
+Production MUMPS Direct CI = 32448249691 → 4/4 PASS
+Dedicated MUMPS int64 CI = 32448249679   → 1/1 PASS
+Toplam                                     9/9 SUCCESS
+B9.5g = PASS
+```
+
+B9.5h teknik commit'i `b19d605babbe9edf30e9f17eb81736b93f184ce3` ile CSR matrix dimension için yalnız additive i64 query bridge eklenmiştir:
+
+```text
+csr_matrix_t%nrows_i64()
+csr_matrix_t%ncols_i64()
+```
+
+`csr_matrix_t%nrows/ncols` storage, allocation boyutları, element DOF-map API'si ve Q9 equation-numbering zinciri bu pakette default integer kalır. Bu nedenle B9.5h full end-to-end int64 desteği değildir ve `supports_int64=false` sözleşmesi korunur.
+
+B9.5h current technical SHA için bu checkpoint anındaki CI durumu:
+
+```text
+Normal Fortran CI = 32449730951
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = PASS
+Windows / Intel ifx 2025.2              = PASS
+
+Dedicated MUMPS int64 Index CI = 32449730917
+Linux / gfortran 14 / MUMPS_INT=64      = PASS
+
+Production MUMPS Direct CI = 32449730938
+Linux / gfortran 14                     = PASS
+macOS Apple Silicon ARM64 / gfortran 14 = PASS
+Windows / gfortran 14                   = RUNNING
+Windows / Intel ifx 2025.2              = RUNNING
+```
+
+Dolayısıyla bu checkpoint anında:
+
+```text
+7/9 SUCCESS
+2/9 RUNNING
+B9.5h = NOT YET PASS
+```
+
+Kalan iki production MUMPS Windows kapısı kapanmadan B9.5h final PASS ilan edilmeyecektir. CI başarılı olursa sıradaki küçük paket `linear_solver_report_t%equation_count` ve sparse dimension metadata yolunu canonical i64 hale getirmek olacaktır; gerçek CSR dimension storage migration ayrı bir paket olarak ele alınacaktır.
+
+Commercial ANSYS/Marc LEVEL 3/B12 parity OPEN kalır. PR #1 `open + draft` kalacaktır; kullanıcı açıkça istemeden merge, `release/v0.3`, `v0.3.0` tag veya GitHub Release oluşturulmayacaktır.
