@@ -4,7 +4,8 @@ program test_mixed_dof_layout
                          DES_ERROR_INVALID_CONSTRAINT
   use des_mixed_dof_layout, only : mixed_global_equation_counts, &
                                     mixed_global_equation_counts_i64, &
-                                    build_discontinuous_pressure_element_dof_map
+                                    build_discontinuous_pressure_element_dof_map, &
+                                    build_discontinuous_pressure_element_dof_map_i64
   implicit none
 
   integer :: nd_u, nd_p, nd_total, status, legacy_overflow_nodes
@@ -14,6 +15,7 @@ program test_mixed_dof_layout
   integer, parameter :: nodes_2(8) = [2,9,10,3,11,12,13,6]
   integer :: bad_nodes(8)
   integer(i64) :: nd_u_i64, nd_p_i64, nd_total_i64
+  integer(i64) :: map_q8_1_i64(19), large_nodes_i64(1), large_map_i64(3)
 
   call mixed_global_equation_counts(13,2,2,3,nd_u,nd_p,nd_total,status)
   if (status /= DES_STATUS_OK) error stop 'Plane-strain mixed denklem sayisi kurulamadi.'
@@ -29,6 +31,14 @@ program test_mixed_dof_layout
   end if
   if (any(map_q8_1(17:19) /= [27,28,29])) then
     error stop 'Birinci Q8 pressure DOF sirasi hatali.'
+  end if
+
+  ! B9.5l: Canonical i64 map kucuk problemde legacy numbering ile birebir ayni olmali.
+  call build_discontinuous_pressure_element_dof_map_i64( &
+      int(nodes_1,i64),1_i64,13_i64,2_i64,3_i64,map_q8_1_i64,status)
+  if (status /= DES_STATUS_OK) error stop 'Birinci Q8/P1 int64 DOF haritasi kurulamadi.'
+  if (any(map_q8_1_i64 /= int(map_q8_1,i64))) then
+    error stop 'Canonical int64 ve legacy Q8/P1 DOF haritalari uyusmuyor.'
   end if
 
   call build_discontinuous_pressure_element_dof_map( &
@@ -75,6 +85,17 @@ program test_mixed_dof_layout
   if (nd_u_i64 /= 6000000000_i64 .or. nd_p_i64 /= 3000000000_i64 .or. &
       nd_total_i64 /= 9000000000_i64) then
     error stop 'i64 mixed cardinality sonucu hatali.'
+  end if
+
+  ! B9.5l: Global denklem numarasi 32-bit siniri asarken map yalniz uc eleman
+  ! ayirarak canonical i64 numbering'i dogrular; dev mesh allocation'i gerekmez.
+  large_nodes_i64 = [3000000000_i64]
+  large_map_i64 = -1_i64
+  call build_discontinuous_pressure_element_dof_map_i64( &
+      large_nodes_i64,1_i64,3000000000_i64,2_i64,1_i64,large_map_i64,status)
+  if (status /= DES_STATUS_OK) error stop 'Buyuk int64 mixed DOF haritasi kurulamadi.'
+  if (any(large_map_i64 /= [5999999999_i64,6000000000_i64,6000000001_i64])) then
+    error stop 'Buyuk int64 mixed DOF numbering sonucu hatali.'
   end if
 
   ! i64 carpim overflow'u wrap etmek yerine deterministic fail-fast olmalidir.
