@@ -1,0 +1,200 @@
+name: MUMPS int64 Index CI
+
+on:
+  push:
+    branches: ['develop/v0.3']
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'cmake/DESDependencies.cmake'
+      - 'src/fortran/CMakeLists.txt'
+      - 'src/fortran/core/des_kinds.f90'
+      - 'src/fortran/math/des_csr_matrix.f90'
+      - 'src/fortran/solvers/des_mumps_backend.f90'
+      - 'src/fortran/solvers/des_mumps_adapter.c'
+      - 'src/fortran/solvers/des_sparse_solver_context.f90'
+      - 'tests/CMakeLists.txt'
+      - 'tests/test_mumps_sparse_solver_context.f90'
+      - 'tests/test_mumps_int64_index_capability.f90'
+      - 'tests/test_q9_herrmann_sparse_force_solver.f90'
+      - '.github/workflows/mumps-int64-index-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'cmake/DESDependencies.cmake'
+      - 'src/fortran/CMakeLists.txt'
+      - 'src/fortran/core/des_kinds.f90'
+      - 'src/fortran/math/des_csr_matrix.f90'
+      - 'src/fortran/solvers/des_mumps_backend.f90'
+      - 'src/fortran/solvers/des_mumps_adapter.c'
+      - 'src/fortran/solvers/des_sparse_solver_context.f90'
+      - 'tests/CMakeLists.txt'
+      - 'tests/test_mumps_sparse_solver_context.f90'
+      - 'tests/test_mumps_int64_index_capability.f90'
+      - 'tests/test_q9_herrmann_sparse_force_solver.f90'
+      - '.github/workflows/mumps-int64-index-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dyna-v03-mumps-int64-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  statuses: write
+
+env:
+  LAPACK_COMMIT: 6ec7f2bc4ecf4c4a93496aa2fa519575bc0e39ca
+
+jobs:
+  mumps-int64-index:
+    name: Linux / gfortran 14 / MUMPS int64 index
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+
+    steps:
+      # actions/checkout v7.0.1
+      - name: Kaynak kodu al
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # actions/setup-python v6.2.0
+      - name: Python 3.12 kur
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+          check-latest: false
+
+      - name: fypp 3.2 kur
+        run: python -m pip install --disable-pip-version-check fypp==3.2
+
+      - name: GNU Fortran 14 kur
+        id: setup_fortran
+        uses: fortran-lang/setup-fortran@2a1b9c55897d827a9dfeb114408f3615e53b2b72
+        with:
+          compiler: gcc
+          version: '14'
+
+      - name: Araç sürümlerini kaydet
+        shell: bash
+        run: |
+          echo "FC=$FC"
+          echo "CC=${CC:-<auto>}"
+          "$FC" --version
+          "${CC:-cc}" --version
+          cmake --version
+          ninja --version
+          fypp --version
+
+      - name: Reference LAPACK 3.12.1 derle
+        id: lapack
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf third-party/lapack-src third-party/lapack-build third-party/lapack-install
+          mkdir -p third-party
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/Reference-LAPACK/lapack.git third-party/lapack-src
+          git -C third-party/lapack-src checkout --detach "$LAPACK_COMMIT"
+          test "$(git -C third-party/lapack-src rev-parse HEAD)" = "$LAPACK_COMMIT"
+
+          cmake -S third-party/lapack-src -B third-party/lapack-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_Fortran_COMPILER="$FC" \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCBLAS=OFF \
+            -DLAPACKE=OFF \
+            -DCMAKE_INSTALL_PREFIX="$PWD/third-party/lapack-install" \
+            > lapack-configure.log 2>&1
+          cat lapack-configure.log
+          cmake --build third-party/lapack-build --target install --parallel 2 \
+            > lapack-build.log 2>&1
+          cat lapack-build.log
+
+      - name: MUMPS int64 preset CMake configure
+        id: configure
+        shell: bash
+        run: |
+          cmake --preset dyna-production-mumps-int64 \
+            -DCMAKE_Fortran_COMPILER="$FC" \
+            -DCMAKE_PREFIX_PATH="$PWD/third-party/lapack-install" \
+            -DLAPACK_VENDOR=Netlib \
+            > cmake-mumps-int64-configure.log 2>&1
+          cat cmake-mumps-int64-configure.log
+          grep -F 'Dyna MUMPS index profili: 64-bit MUMPS_INT' \
+            cmake-mumps-int64-configure.log
+
+      - name: MUMPS int64 capability ve parity targetlarini derle
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build --preset dyna-production-mumps-int64 --target \
+            test_mumps_int64_index_capability \
+            test_mumps_sparse_solver_context \
+            test_q9_herrmann_sparse_force_solver \
+            --parallel 2 --verbose 2>&1 | tee mumps-int64-build.log
+
+      - name: MUMPS int64 capability ve Q9/P1 direct parity regression
+        id: ctest
+        shell: bash
+        run: |
+          ctest --preset dyna-production-mumps-int64 \
+            -R '^(solver\.sparse\.mumps_int64_index_capability|solver\.sparse\.mumps_direct_context|solver\.q9\.plane_strain\.herrmann\.mumps_force_parity)$' \
+            --output-on-failure
+
+      - name: MUMPS int64 status yayınla
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SETUP_OUTCOME: ${{ steps.setup_fortran.outcome }}
+          LAPACK_OUTCOME: ${{ steps.lapack.outcome }}
+          CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          CTEST_OUTCOME: ${{ steps.ctest.outcome }}
+        run: |
+          $passed = (
+            $env:SETUP_OUTCOME -eq 'success' -and
+            $env:LAPACK_OUTCOME -eq 'success' -and
+            $env:CONFIGURE_OUTCOME -eq 'success' -and
+            $env:BUILD_OUTCOME -eq 'success' -and
+            $env:CTEST_OUTCOME -eq 'success'
+          )
+          $state = if ($passed) { 'success' } else { 'failure' }
+          $description = "setup=$($env:SETUP_OUTCOME); lapack=$($env:LAPACK_OUTCOME); configure=$($env:CONFIGURE_OUTCOME); build=$($env:BUILD_OUTCOME); ctest=$($env:CTEST_OUTCOME)"
+          if ($description.Length -gt 140) {
+            $description = $description.Substring(0, 140)
+          }
+
+          $body = @{
+            state = $state
+            context = 'dyna/v0.3-mumps-int64-linux-gfortran14'
+            description = $description
+            target_url = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          } | ConvertTo-Json -Compress
+
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+
+          Invoke-RestMethod -Method Post `
+            -Uri 'https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }}' `
+            -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
+
+      - name: MUMPS int64 loglarini sakla
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mumps-int64-index-linux-gfortran14
+          path: |
+            lapack-configure.log
+            lapack-build.log
+            cmake-mumps-int64-configure.log
+            mumps-int64-build.log
+          if-no-files-found: warn
+          retention-days: 7
