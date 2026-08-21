@@ -15,6 +15,17 @@ option(
   "MUMPS production sparse-direct backend'ini derle"
   OFF
 )
+option(
+  DES_MUMPS_INT64_INDEX
+  "MUMPS backend'ini 64-bit MUMPS_INT index profiliyle derle"
+  OFF
+)
+
+if(DES_MUMPS_INT64_INDEX AND NOT DES_ENABLE_MUMPS)
+  message(FATAL_ERROR
+    "DES_MUMPS_INT64_INDEX=ON yalnız DES_ENABLE_MUMPS=ON ile kullanılabilir."
+  )
+endif()
 
 # C dili yalnız MUMPS C adapter/backend'i açıldığında gerekir. Varsayılan
 # Dyna build'i bugün olduğu gibi saf Fortran çekirdeği olarak kalabilir.
