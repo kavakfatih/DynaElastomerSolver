@@ -23,6 +23,7 @@ add_library(DynaElastomerCore STATIC
   fem/des_q8_herrmann_interpolation.f90
   fem/des_q8_herrmann_geometry.f90
   fem/des_q9_herrmann_interpolation.f90
+  fem/des_q9_plane_strain_mixed_up_kernel.f90
   fem/des_q9_herrmann_geometry.f90
   fem/des_mixed_dof_layout.f90
   fem/des_2d_dof_manager.f90
@@ -47,6 +48,7 @@ add_library(DynaElastomerCore STATIC
   solvers/des_linear_solver.f90
   ${DES_MUMPS_BACKEND_SOURCE}
   solvers/des_sparse_solver_context.f90
+  solvers/des_mixed_block_system.f90
   solvers/des_dense_linear.f90
   solvers/des_solution_state.f90
   solvers/des_solver_history.f90
