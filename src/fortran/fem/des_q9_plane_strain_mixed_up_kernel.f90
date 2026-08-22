@@ -1,93 +1,62 @@
 !=======================================================================
 ! DynaElastomerSolver
-! Q9/P1 Mixed u-P element kernel foundation
+! Q9/P1 mixed u-P compatibility kernel
 !
-! Amaç:
-!   Herrmann mixed displacement-pressure formulasyonu için Q9/P1
-!   eleman çekirdeğinin temel altyapısını oluşturmak.
+! Bu modül yeni bir Q9 interpolation veya pressure formulation tanımlamaz.
+! Repository'nin doğrulanmış Herrmann sözleşmesini tek noktadan yeniden kullanır:
 !
-! Q9 : quadratic displacement interpolation (9 node)
-! P1 : linear pressure interpolation (element pressure field)
+!   Q9 displacement : 9 node x 2 DOF = 18 kinematik DOF
+!   P1 pressure      : [1, xi, eta]   =  3 bağımsız pressure DOF
+!   Toplam           :                  21 local unknown
 !
-! Bu modül ilk aşamada:
-!   - shape function altyapısı
-!   - determinant kontrolü
-!   - mixed DOF boyut sözleşmesi
-! sağlar.
-!
-! Tam nonlinear tangent ve residual hesabı Neo-Hookean constitutive
-! katmanı ile sonraki adımda bağlanacaktır.
+! Böylece eski/deneysel bir-node-order veya tek-pressure-DOF tanımının production
+! Herrmann hattına sızması engellenir. Q9 displacement interpolation
+! des_q9_herrmann_interpolation, pressure basis ise
+! des_herrmann_pressure_interpolation tarafından sahiplenilir.
 !=======================================================================
 
 module des_q9_plane_strain_mixed_up_kernel
-  use des_kinds
+  use des_kinds, only : dp
+  use des_q9_herrmann_interpolation, only : q9_shape_functions
+  use des_herrmann_pressure_interpolation, only : herrmann_p1_pressure_basis
   implicit none
   private
 
+  integer, parameter, public :: Q9P1_DISPLACEMENT_DOF = 18
+  integer, parameter, public :: Q9P1_PRESSURE_DOF = 3
+  integer, parameter, public :: Q9P1_TOTAL_DOF = 21
+
   public :: q9p1_shape_functions
+  public :: q9p1_pressure_basis
   public :: q9p1_mixed_dof_count
   public :: q9p1_check_jacobian
 
 contains
 
-  integer function q9p1_mixed_dof_count() result(ndof)
-    ! 9 displacement nodes x 2 displacement DOF
-    ! + 1 element pressure DOF
-    ndof = 19
+  pure integer function q9p1_mixed_dof_count() result(ndof)
+    ndof = Q9P1_TOTAL_DOF
   end function q9p1_mixed_dof_count
 
-
-  subroutine q9p1_shape_functions(xi, eta, n, dn_dxi)
+  pure subroutine q9p1_shape_functions(xi, eta, n, dn_dxi)
+    ! Compatibility API'si 2x9 derivative düzenini korur; canonical Q9 routine
+    ! 9x2 döndürdüğü için yalnız transpose edilir. Node ordering değiştirilmez.
     real(dp), intent(in) :: xi, eta
     real(dp), intent(out) :: n(9)
     real(dp), intent(out) :: dn_dxi(2,9)
+    real(dp) :: canonical_derivatives(9,2)
 
-    real(dp) :: lx(3), ly(3)
-    real(dp) :: dlx(3), dly(3)
-
-    ! 1D quadratic Lagrange basis
-    lx(1)=0.5_dp*xi*(xi-1.0_dp)
-    lx(2)=1.0_dp-xi*xi
-    lx(3)=0.5_dp*xi*(xi+1.0_dp)
-
-    ly(1)=0.5_dp*eta*(eta-1.0_dp)
-    ly(2)=1.0_dp-eta*eta
-    ly(3)=0.5_dp*eta*(eta+1.0_dp)
-
-    dlx(1)=xi-0.5_dp
-    dlx(2)=-2.0_dp*xi
-    dlx(3)=xi+0.5_dp
-
-    dly(1)=eta-0.5_dp
-    dly(2)=-2.0_dp*eta
-    dly(3)=eta+0.5_dp
-
-    n(1)=lx(1)*ly(1)
-    n(2)=lx(2)*ly(1)
-    n(3)=lx(3)*ly(1)
-    n(4)=lx(3)*ly(2)
-    n(5)=lx(3)*ly(3)
-    n(6)=lx(2)*ly(3)
-    n(7)=lx(1)*ly(3)
-    n(8)=lx(1)*ly(2)
-    n(9)=lx(2)*ly(2)
-
-    dn_dxi=0.0_dp
-
-    dn_dxi(1,1)=dlx(1)*ly(1); dn_dxi(2,1)=lx(1)*dly(1)
-    dn_dxi(1,2)=dlx(2)*ly(1); dn_dxi(2,2)=lx(2)*dly(1)
-    dn_dxi(1,3)=dlx(3)*ly(1); dn_dxi(2,3)=lx(3)*dly(1)
-    dn_dxi(1,4)=dlx(3)*ly(2); dn_dxi(2,4)=lx(3)*dly(2)
-    dn_dxi(1,5)=dlx(3)*ly(3); dn_dxi(2,5)=lx(3)*dly(3)
-    dn_dxi(1,6)=dlx(2)*ly(3); dn_dxi(2,6)=lx(2)*dly(3)
-    dn_dxi(1,7)=dlx(1)*ly(3); dn_dxi(2,7)=lx(1)*dly(3)
-    dn_dxi(1,8)=dlx(1)*ly(2); dn_dxi(2,8)=lx(1)*dly(2)
-    dn_dxi(1,9)=dlx(2)*ly(2); dn_dxi(2,9)=lx(2)*dly(2)
-
+    call q9_shape_functions(xi, eta, n, canonical_derivatives)
+    dn_dxi = transpose(canonical_derivatives)
   end subroutine q9p1_shape_functions
 
+  pure subroutine q9p1_pressure_basis(xi, eta, np)
+    real(dp), intent(in) :: xi, eta
+    real(dp), intent(out) :: np(3)
 
-  logical function q9p1_check_jacobian(det_j) result(ok)
+    call herrmann_p1_pressure_basis(xi, eta, np)
+  end subroutine q9p1_pressure_basis
+
+  pure logical function q9p1_check_jacobian(det_j) result(ok)
     real(dp), intent(in) :: det_j
 
     ok = det_j > tiny(1.0_dp)
