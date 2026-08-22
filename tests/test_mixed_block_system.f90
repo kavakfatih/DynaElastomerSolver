@@ -57,7 +57,7 @@ program test_mixed_block_system
   layout%pressure_equation_count = 6_i64
   layout%total_equation_count = 21_i64
   call initialize_mixed_block_partition_from_2d_layout(layout,layout_partition,status)
-  call require(status == DES_STATUS_OK,'2D layout mixed block partition'a çevrilemedi')
+  call require(status == DES_STATUS_OK,'2D layout mixed block partitiona çevrilemedi')
   call require(layout_partition%n_kinematic == 15_i64 .and. &
       layout_partition%n_pressure == 6_i64 .and. layout_partition%n_total == 21_i64, &
       '2D layout block cardinality sözleşmesi yanlış')
