@@ -49,6 +49,7 @@ add_library(DynaElastomerCore STATIC
   ${DES_MUMPS_BACKEND_SOURCE}
   solvers/des_sparse_solver_context.f90
   solvers/des_mixed_block_system.f90
+  solvers/des_mixed_schur_operator.f90
   solvers/des_dense_linear.f90
   solvers/des_solution_state.f90
   solvers/des_solver_history.f90
