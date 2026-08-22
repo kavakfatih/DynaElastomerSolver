@@ -48,6 +48,8 @@ add_library(DynaElastomerCore STATIC
   solvers/des_linear_solver.f90
   ${DES_MUMPS_BACKEND_SOURCE}
   solvers/des_sparse_solver_context.f90
+  # Field-aware mixed operator katmanı backend-agnostic kalır: monolitik CSR
+  # MUMPS Direct reference yolunu korurken Schur/FGMRES geliştirmesine blok görünümü verir.
   solvers/des_mixed_block_system.f90
   solvers/des_mixed_schur_operator.f90
   solvers/des_dense_linear.f90
