@@ -1,6 +1,6 @@
 program test_mixed_block_system
   use des_kinds, only : dp, i64
-  use des_status, only : DES_STATUS_OK
+  use des_status, only : DES_STATUS_OK, DES_ERROR_INVALID_CONSTRAINT
   use des_csr_matrix, only : csr_matrix_t, initialize_csr_from_element_dof_maps_i64, &
       csr_add_local_matrix_i64, csr_matvec
   use des_2d_dof_manager, only : dof_layout_2d_t
@@ -8,6 +8,8 @@ program test_mixed_block_system
       initialize_mixed_block_partition, initialize_mixed_block_partition_from_2d_layout, &
       split_mixed_vector, join_mixed_vector, apply_mixed_block_operator, &
       apply_mixed_kuu, apply_mixed_kup, apply_mixed_kpu, apply_mixed_kpp
+  use des_mixed_schur_operator, only : apply_mixed_schur_operator
+  use des_dense_linear, only : solve_dense_system
   implicit none
 
   type(csr_matrix_t) :: matrix
@@ -18,7 +20,9 @@ program test_mixed_block_system
   real(dp) :: xu(3),xp(2),yu(3),yp(2)
   real(dp) :: yuu(3),yup(3),ypu(2),ypp(2)
   real(dp) :: expected_u(3),expected_p(2)
+  real(dp) :: schur_p(2),expected_schur(2),kuu_rhs(3),kuu_solution(3)
   integer :: status
+  logical :: ok
 
   element_map(1,:) = [1_i64,2_i64,3_i64,4_i64,5_i64]
   call initialize_csr_from_element_dof_maps_i64( &
@@ -96,13 +100,37 @@ program test_mixed_block_system
   call require(maxval(abs(yp-(ypu+ypp))) <= 1.0e-13_dp, &
       'Pressure block toplamı combined operator ile eşleşmiyor')
 
+  ! Matrix-free Schur operator explicit S matrisi kurmadan aynı sonucu vermeli:
+  ! S*p = Kpp*p - Kpu*Kuu^{-1}*Kup*p.
+  call apply_mixed_schur_operator(matrix,partition,xp,schur_p,solve_kuu_reference,status)
+  call require(status == DES_STATUS_OK,'Matrix-free Schur operator apply başarısız')
+
+  kuu_rhs = matmul(a(1:3,4:5),xp)
+  call solve_dense_system(a(1:3,1:3),kuu_rhs,kuu_solution,ok)
+  call require(ok,'Reference Kuu solve başarısız')
+  expected_schur = matmul(a(4:5,4:5),xp)-matmul(a(4:5,1:3),kuu_solution)
+  call require(maxval(abs(schur_p-expected_schur)) <= 1.0e-12_dp, &
+      'Matrix-free Schur sonucu dense reference ile eşleşmiyor')
+
   ! Hatalı partition sessizce kabul edilmemeli.
   call initialize_mixed_block_partition(0_i64,2_i64,layout_partition,status)
   call require(status /= DES_STATUS_OK,'Sıfır kinematik blok reddedilmedi')
 
-  write(*,'(A)') 'PASS: mixed u-P block partition/operator monolithic CSR parity'
+  write(*,'(A)') 'PASS: mixed u-P block + matrix-free Schur monolithic CSR parity'
 
 contains
+
+  subroutine solve_kuu_reference(rhs,solution,solve_status)
+    real(dp), intent(in) :: rhs(:)
+    real(dp), intent(out) :: solution(:)
+    integer, intent(out) :: solve_status
+    logical :: solved
+
+    solve_status = DES_ERROR_INVALID_CONSTRAINT
+    if (size(rhs) /= 3 .or. size(solution) /= 3) return
+    call solve_dense_system(a(1:3,1:3),rhs,solution,solved)
+    if (solved) solve_status = DES_STATUS_OK
+  end subroutine solve_kuu_reference
 
   subroutine require(condition,message)
     logical, intent(in) :: condition
